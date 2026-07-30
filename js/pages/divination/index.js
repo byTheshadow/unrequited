@@ -1,3 +1,4 @@
+
 import { goBack } from '../../router.js';
 import { toast, haptic, escapeHtml, sleep } from '../../utils.js';
 import { db } from '../../db.js';
@@ -120,6 +121,14 @@ function createInitialState() {
     aiConfig: null,
     aiRunning: false,
     aiError: null,
+
+    // 求取变局 & 追问 状态
+    additionalCard: null,      // 补抽的牌 { card, reversed }
+    aiHistory: [],             // 记录对话历史 [{ role: 'user' | 'assistant', content: '' }]
+    currentAiOutput: '',       // 正在流式输出的回答文本
+    followUpText: '',          // 追问输入框文本
+    historyId: null,           // 保留存储在 DB 的历史记录 ID，用于再次抽牌时更新
+    lastFailedFollowUp: null   // 保存失败的追问以便重试
   };
 }
 
@@ -1139,7 +1148,69 @@ function renderResult(stage) {
   const focusName = (FOCUS_OPTIONS.find(f => f.id === state.focus) || {}).name || '';
   const detail = state.type === 'astroDice' ? renderDiceDetail() : renderCardsDetail();
 
-  const hasAI = state.aiConfig && state.aiConfig.apiKey;
+  // 是否满足补牌的条件
+  const canSupplement = state.type !== 'astroDice' && !state.additionalCard;
+
+  // 补牌相关的 HTML
+  let supplementHtml = '';
+  if (state.additionalCard) {
+    const addCard = state.additionalCard;
+    const kw = (addCard.card.keywords || []).slice(0, 4).join('  ·  ');
+    
+    let cardMeaningText = '';
+    if (state.type === 'tarot') {
+      const meanings = addCard.card.meanings || {};
+      cardMeaningText = addCard.reversed ? (meanings.reversed || '') : (meanings.upright || '');
+    } else {
+      if (addCard.card.meanings) {
+        if (typeof addCard.card.meanings === 'string') {
+          cardMeaningText = addCard.card.meanings;
+        } else if (typeof addCard.card.meanings === 'object') {
+          cardMeaningText = addCard.card.meanings.upright || addCard.card.meanings.meaning || Object.values(addCard.card.meanings)[0] || '';
+        }
+      } else {
+        cardMeaningText = addCard.card.meaning || '';
+      }
+    }
+
+    let interpretationHtml = '';
+    if (state.focus === 'message') {
+      interpretationHtml = `
+        <div class="result-card-whisper">它在低语：“${escapeHtml(cardMeaningText)}”</div>
+      `;
+    } else {
+      interpretationHtml = `
+        <div class="result-card-meaning">${escapeHtml(cardMeaningText)}</div>
+      `;
+    }
+
+    supplementHtml = `
+      <div class="result-card-item additional-card-item is-entering">
+        <div class="result-card-item-header">
+          <div class="result-card-mini-view ${addCard.reversed ? 'is-reversed' : ''}">
+            ${cardBackMini()}
+          </div>
+          <div class="result-card-info">
+            <span class="result-card-pos" style="color: var(--color-accent); font-weight: 500;">变 局  ·  补  牌</span>
+            <span class="result-card-title">
+              ${escapeHtml(addCard.card.name)}
+              ${state.type === 'tarot' ? `<span class="result-card-dir">${addCard.reversed ? '逆位' : '正位'}</span>` : ''}
+            </span>
+          </div>
+        </div>
+        ${kw ? `<div class="result-card-keywords">${escapeHtml(kw)}</div>` : ''}
+        <div class="result-card-body">
+          ${interpretationHtml}
+        </div>
+      </div>
+    `;
+  } else if (canSupplement) {
+    supplementHtml = `
+      <div class="change-destiny-section">
+        <button class="btn-change-destiny" data-act="draw-supplement" type="button">求  取  变  局</button>
+      </div>
+    `;
+  }
 
   stage.innerHTML = `
     <div class="result-page">
@@ -1154,22 +1225,10 @@ function renderResult(stage) {
       </div>
       <div class="result-content">
         ${detail}
+        ${supplementHtml}
       </div>
       <div class="result-ai-section">
-        ${hasAI ? `
-          <div class="result-ai-placeholder">
-            <div class="result-ai-desc">
-              借由星芒，让 AI 为此番${state.type === 'astroDice' ? '星轨' : '牌阵'}进行流式解读。
-            </div>
-            <button class="btn-ai-start" data-act="start-ai" type="button">凝  神  起  意  ·  启  动  AI  参  悟</button>
-          </div>
-        ` : `
-          <div class="result-ai-placeholder">
-            <div class="result-ai-desc no-ai-config">
-              未检测到 AI 配置。可在「设置」中填写 API 密钥，以开启 AI 解读。
-            </div>
-          </div>
-        `}
+        <!-- AI 模块局部刷新区域 -->
       </div>
       <div class="result-actions">
         <button class="div-primary" data-act="restart-flow" type="button">重  新  开  始</button>
@@ -1177,10 +1236,19 @@ function renderResult(stage) {
     </div>
   `;
 
-  if (hasAI) {
-    stage.querySelector('[data-act="start-ai"]').addEventListener('click', () => {
-      startAIInterpretation();
-    });
+  // 渲染并加载 AI 解读模块
+  const aiContainer = stage.querySelector('.result-ai-section');
+  renderAISection(aiContainer);
+
+  // 绑定求取变局按钮事件
+  if (canSupplement) {
+    const btnDestiny = stage.querySelector('[data-act="draw-supplement"]');
+    if (btnDestiny) {
+      btnDestiny.addEventListener('click', () => {
+        haptic(14);
+        drawAdditionalCard(stage);
+      });
+    }
   }
 
   stage.querySelector('[data-act="restart-flow"]').addEventListener('click', () => onNavRestart());
@@ -1206,12 +1274,70 @@ async function saveToHistory() {
         planet: { id: state.diceResult.planet.id, name: state.diceResult.planet.name, symbol: state.diceResult.planet.symbol || '' },
         sign: { id: state.diceResult.sign.id, name: state.diceResult.sign.name, symbol: state.diceResult.sign.symbol || '' },
         house: { id: state.diceResult.house.id, name: state.diceResult.house.name, number: state.diceResult.house.number || '' }
-      } : null
+      } : null,
+      additionalCard: null
     };
-    await db.divinationHistory.add(record);
+    const id = await db.divinationHistory.add(record);
+    state.historyId = id;
   } catch (err) {
     console.error('Failed to save history:', err);
   }
+}
+
+async function updateHistoryWithAdditionalCard(addCard) {
+  if (!state || !state.historyId) return;
+  try {
+    await db.divinationHistory.update(state.historyId, {
+      additionalCard: {
+        id: addCard.card.id,
+        name: addCard.card.name,
+        reversed: addCard.reversed
+      }
+    });
+  } catch (err) {
+    console.error('Failed to update history with additional card:', err);
+  }
+}
+
+function drawAdditionalCard(stage) {
+  if (state.additionalCard) return;
+
+  const drawnIds = new Set(state.drawnCards.map(d => d.card.id));
+  const source = state.type === 'tarot' ? state.data.tarot : state.data.lenormand;
+  if (!source || !source.length) {
+    toast('牌库数据为空');
+    return;
+  }
+
+  const remaining = source.filter(c => !drawnIds.has(c.id));
+  if (!remaining.length) {
+    toast('已无余牌可抽');
+    return;
+  }
+
+  const cardData = pickRandom(remaining);
+  const reversed = state.type === 'tarot' && Math.random() < 0.5;
+
+  state.additionalCard = { card: cardData, reversed };
+
+  // 更新数据库历史记录
+  updateHistoryWithAdditionalCard(state.additionalCard);
+
+  // 清空以往 AI 记录，因为盘面变局需要重新开启 AI 参悟
+  state.aiHistory = [];
+  state.aiRunning = false;
+  state.aiError = null;
+  state.currentAiOutput = '';
+
+  renderResult(stage);
+
+  // 动画淡入后自然滚动到变局牌视图
+  setTimeout(() => {
+    const el = stage.querySelector('.additional-card-item');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 120);
 }
 
 function renderCardsDetail() {
@@ -1336,6 +1462,12 @@ function generatePrompt() {
       const orientation = state.type === 'tarot' ? (d.reversed ? '逆位' : '正位') : '无正逆';
       promptContext += `- 牌阵位置 [${pos.name}]：抽中卡牌「${d.card.name}」(${orientation})，牌面关键字为 [${(d.card.keywords || []).join(', ')}]\n`;
     });
+
+    if (state.additionalCard) {
+      const addD = state.additionalCard;
+      const orientation = state.type === 'tarot' ? (addD.reversed ? '逆位' : '正位') : '无正逆';
+      promptContext += `- 补抽的变局卡牌：抽中卡牌「${addD.card.name}」(${orientation})，牌面关键字为 [${(addD.card.keywords || []).join(', ')}]\n`;
+    }
   }
 
   let systemPrompt = '';
@@ -1361,40 +1493,194 @@ function generatePrompt() {
   return { systemPrompt, userPrompt: promptContext };
 }
 
-async function startAIInterpretation() {
-  if (state.aiRunning) return;
-  haptic(14);
+function renderAISection(container) {
+  if (!container) return;
+  const hasAI = state.aiConfig && state.aiConfig.apiKey;
+  if (!hasAI) {
+    container.innerHTML = `
+      <div class="result-ai-placeholder">
+        <div class="result-ai-desc no-ai-config">
+          未检测到 AI 配置。可在「设置」中填写 API 密钥，以开启 AI 解读。
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  // 1. 如果正在流式渲染中（首轮流式或追问流式）
+  if (state.aiRunning) {
+    let historyHtml = '';
+    if (state.aiHistory && state.aiHistory.length) {
+      historyHtml = renderAiHistoryList();
+    }
+    container.innerHTML = `
+      <div class="result-ai-running-wrap">
+        ${historyHtml}
+        <div class="result-ai-running">
+          <div class="result-ai-title">${state.aiHistory.length > 0 ? '心 念 传 递 · 回 应 中' : '星 轨 交 错 · 释 签 中'}</div>
+          <div class="result-ai-text" data-role="ai-text">${formatMarkdown(state.currentAiOutput)}</div>
+          <div class="result-ai-actions">
+            <span class="ai-running-indicator"></span>
+            <button class="btn-ai-stop" data-act="stop-ai" type="button">中  止</button>
+          </div>
+        </div>
+      </div>
+    `;
+    const stopBtn = container.querySelector('[data-act="stop-ai"]');
+    if (stopBtn) {
+      stopBtn.addEventListener('click', () => {
+        if (aiAbortController) {
+          aiAbortController.abort();
+          aiAbortController = null;
+        }
+        state.aiRunning = false;
+        haptic(8);
+        renderAISection(container);
+      });
+    }
+    return;
+  }
+
+  // 2. 如果出错
+  if (state.aiError) {
+    container.innerHTML = `
+      <div class="result-ai-error">
+        <div class="ai-error-msg">连结中断：${escapeHtml(state.aiError)}</div>
+        <div class="result-ai-actions">
+          <button class="btn-ai-retry" data-act="retry-ai" type="button">重  试</button>
+          <button class="btn-ai-cancel" data-act="cancel-ai" type="button">返  回</button>
+        </div>
+      </div>
+    `;
+    container.querySelector('[data-act="retry-ai"]').addEventListener('click', () => {
+      state.aiError = null;
+      retryLastAIAction();
+    });
+    container.querySelector('[data-act="cancel-ai"]').addEventListener('click', () => {
+      state.aiError = null;
+      renderAISection(container);
+    });
+    return;
+  }
+
+  // 3. 对话完成且已有历史记录，提供追问
+  if (state.aiHistory && state.aiHistory.length > 0) {
+    container.innerHTML = `
+      <div class="result-ai-chat-wrap">
+        ${renderAiHistoryList()}
+        <div class="result-ai-followup-box">
+          <textarea class="followup-textarea" data-role="followup-input" placeholder="在此凝聚心念继续追问..." rows="1">${escapeHtml(state.followUpText || '')}</textarea>
+          <button class="btn-followup-send" data-act="send-followup" type="button" ${state.followUpText.trim() ? '' : 'disabled'}>发送</button>
+        </div>
+      </div>
+    `;
+
+    const inputEl = container.querySelector('[data-role="followup-input"]');
+    const sendBtn = container.querySelector('[data-act="send-followup"]');
+
+    if (inputEl) {
+      inputEl.addEventListener('input', () => {
+        state.followUpText = inputEl.value;
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(120, inputEl.scrollHeight) + 'px';
+        if (state.followUpText.trim()) {
+          sendBtn.removeAttribute('disabled');
+        } else {
+          sendBtn.setAttribute('disabled', 'true');
+        }
+      });
+      inputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          if (state.followUpText.trim() && !state.aiRunning) {
+            sendFollowUp();
+          }
+        }
+      });
+    }
+
+    if (sendBtn) {
+      sendBtn.addEventListener('click', () => {
+        sendFollowUp();
+      });
+    }
+    return;
+  }
+
+  // 4. 初始状态（未启动）
+  const isReinterpret = state.additionalCard !== null;
+  container.innerHTML = `
+    <div class="result-ai-placeholder">
+      <div class="result-ai-desc">
+        ${isReinterpret 
+          ? '牌阵已求取变局。让 AI 重新基于全新完整盘面进行流式解读。' 
+          : `借由星芒，让 AI 为此番${state.type === 'astroDice' ? '星轨' : '牌阵'}进行流式解读。`}
+      </div>
+      <button class="btn-ai-start" data-act="start-ai" type="button">
+        ${isReinterpret ? '重  新  启  动  AI  参  悟' : '凝  神  起  意  ·  启  动  AI  参  悟'}
+      </button>
+    </div>
+  `;
+  container.querySelector('[data-act="start-ai"]').addEventListener('click', () => {
+    startAIInterpretation(false);
+  });
+}
+
+function renderAiHistoryList() {
+  return state.aiHistory.map((item, idx) => {
+    if (item.role === 'assistant') {
+      return `
+        <div class="ai-bubble-assistant">
+          <div class="result-ai-title">${idx === 0 ? '首 轮 参 悟' : '低 语 回 应'}</div>
+          <div class="result-ai-text">${formatMarkdown(item.content)}</div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="ai-bubble-user">
+          <div class="ai-user-title">追问心念</div>
+          <div class="ai-user-text">${escapeHtml(item.content)}</div>
+        </div>
+      `;
+    }
+  }).join('');
+}
+
+function sendFollowUp() {
+  startAIInterpretation(true);
+}
+
+function retryLastAIAction() {
+  if (state.lastFailedFollowUp) {
+    state.followUpText = state.lastFailedFollowUp;
+    state.lastFailedFollowUp = null;
+    startAIInterpretation(true);
+  } else {
+    startAIInterpretation(false);
+  }
+}
+
+async function startAIInterpretation(isFollowUp = false) {
+  if (state.aiRunning && !isFollowUp) return;
 
   const container = rootRef.querySelector('.result-ai-section');
   if (!container) return;
 
+  let followUpQuestion = '';
+  if (isFollowUp) {
+    followUpQuestion = state.followUpText.trim();
+    if (!followUpQuestion) return;
+    state.followUpText = '';
+  } else {
+    state.aiHistory = [];
+  }
+
   state.aiRunning = true;
   state.aiError = null;
+  state.currentAiOutput = '';
 
-  container.innerHTML = `
-    <div class="result-ai-running">
-      <div class="result-ai-title">星 轨 交 错 · 释 签 中</div>
-      <div class="result-ai-text" data-role="ai-text"></div>
-      <div class="result-ai-actions">
-        <span class="ai-running-indicator"></span>
-        <button class="btn-ai-stop" data-act="stop-ai" type="button">中  止</button>
-      </div>
-    </div>
-  `;
-
-  const textEl = container.querySelector('[data-role="ai-text"]');
-  const stopBtn = container.querySelector('[data-act="stop-ai"]');
-  if (stopBtn) {
-    stopBtn.addEventListener('click', () => {
-      if (aiAbortController) {
-        aiAbortController.abort();
-        aiAbortController = null;
-      }
-      state.aiRunning = false;
-      haptic(8);
-      renderAISectionPlaceholder(container);
-    });
-  }
+  haptic(14);
+  renderAISection(container);
 
   aiAbortController = new AbortController();
 
@@ -1402,7 +1688,20 @@ async function startAIInterpretation() {
     const { baseUrl, apiKey, model } = state.aiConfig || {};
     const cleanUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1';
     const url = `${cleanUrl}/chat/completions`;
+
     const { systemPrompt, userPrompt } = generatePrompt();
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+
+    state.aiHistory.forEach(item => {
+      messages.push({ role: item.role, content: item.content });
+    });
+
+    if (isFollowUp) {
+      messages.push({ role: 'user', content: followUpQuestion });
+    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -1412,10 +1711,7 @@ async function startAIInterpretation() {
       },
       body: JSON.stringify({
         model: model || 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
+        messages: messages,
         stream: true
       }),
       signal: aiAbortController.signal
@@ -1433,7 +1729,8 @@ async function startAIInterpretation() {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
     let buffer = '';
-    let fullText = '';
+
+    const textEl = container.querySelector('[data-role="ai-text"]');
 
     while (true) {
       const { value, done } = await reader.read();
@@ -1452,9 +1749,10 @@ async function startAIInterpretation() {
             const json = JSON.parse(cleanLine.substring(6));
             const content = json.choices?.[0]?.delta?.content || '';
             if (content) {
-              fullText += content;
-              textEl.innerHTML = formatMarkdown(fullText);
-              // 自然垂直滚动以显示最新文字
+              state.currentAiOutput += content;
+              if (textEl) {
+                textEl.innerHTML = formatMarkdown(state.currentAiOutput);
+              }
               const page = rootRef.querySelector('.div-page');
               if (page) {
                 page.scrollTop = page.scrollHeight;
@@ -1466,51 +1764,27 @@ async function startAIInterpretation() {
     }
 
     state.aiRunning = false;
-    const actions = container.querySelector('.result-ai-actions');
-    if (actions) {
-      actions.innerHTML = `
-        <div class="result-ai-done-meta">星 芒 交 织 · 参 悟 毕</div>
-      `;
+    if (isFollowUp) {
+      state.aiHistory.push({ role: 'user', content: followUpQuestion });
     }
+    state.aiHistory.push({ role: 'assistant', content: state.currentAiOutput });
+    state.currentAiOutput = '';
+
+    haptic(16);
+    renderAISection(container);
   } catch (err) {
     if (err.name === 'AbortError') return;
     console.error('AI Request Error:', err);
     state.aiRunning = false;
     state.aiError = err.message || '未知异常';
-    renderAIErrorState(container);
+
+    if (isFollowUp) {
+      state.lastFailedFollowUp = followUpQuestion;
+    } else {
+      state.lastFailedFollowUp = null;
+    }
+    renderAISection(container);
   }
-}
-
-function renderAIErrorState(container) {
-  container.innerHTML = `
-    <div class="result-ai-error">
-      <div class="ai-error-msg">连结中断：${escapeHtml(state.aiError)}</div>
-      <div class="result-ai-actions">
-        <button class="btn-ai-retry" data-act="retry-ai" type="button">重  试</button>
-        <button class="btn-ai-cancel" data-act="cancel-ai" type="button">返  回</button>
-      </div>
-    </div>
-  `;
-  container.querySelector('[data-act="retry-ai"]').addEventListener('click', () => {
-    startAIInterpretation();
-  });
-  container.querySelector('[data-act="cancel-ai"]').addEventListener('click', () => {
-    renderAISectionPlaceholder(container);
-  });
-}
-
-function renderAISectionPlaceholder(container) {
-  container.innerHTML = `
-    <div class="result-ai-placeholder">
-      <div class="result-ai-desc">
-        借由星芒，让 AI 为此番${state.type === 'astroDice' ? '星轨' : '牌阵'}进行流式解读。
-      </div>
-      <button class="btn-ai-start" data-act="start-ai" type="button">凝  神  起  意  ·  启  动  AI  参  悟</button>
-    </div>
-  `;
-  container.querySelector('[data-act="start-ai"]').addEventListener('click', () => {
-    startAIInterpretation();
-  });
 }
 
 function formatMarkdown(text) {
@@ -2493,6 +2767,136 @@ function pageCSS() {
       font-size: 10px;
       letter-spacing: 3px;
       color: var(--color-text-tertiary);
+    }
+
+    /* ============ 求取变局 & 追问样式 ============ */
+    .change-destiny-section {
+      display: flex;
+      justify-content: center;
+      margin: 12px 0 6px;
+    }
+    .btn-change-destiny {
+      background: transparent;
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+      padding: 10px 24px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-change-destiny:active {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-primary);
+      border-color: var(--color-text-secondary);
+    }
+    .additional-card-item.is-entering {
+      animation: additionalCardEnter 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    @keyframes additionalCardEnter {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+        filter: drop-shadow(0 0 16px var(--color-accent));
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: drop-shadow(0 0 0px transparent);
+      }
+    }
+    .result-ai-running-wrap, .result-ai-chat-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+    }
+    .ai-bubble-assistant {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      padding-bottom: 16px;
+    }
+    .ai-bubble-assistant:last-of-type {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    .ai-bubble-user {
+      align-self: flex-end;
+      max-width: 85%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--color-border);
+      border-radius: 12px 12px 2px 12px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      animation: userBubbleFadeIn 0.4s ease both;
+    }
+    @keyframes userBubbleFadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .ai-user-title {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: var(--color-accent);
+      opacity: 0.85;
+      text-transform: uppercase;
+    }
+    .ai-user-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--color-text-primary);
+      letter-spacing: 1px;
+      word-break: break-all;
+    }
+    .result-ai-followup-box {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--color-bg-tertiary);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      transition: border-color 0.2s;
+    }
+    .result-ai-followup-box:focus-within {
+      border-color: var(--color-accent);
+    }
+    .followup-textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      resize: none;
+      outline: none;
+      color: var(--color-text-primary);
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 4px 0;
+      max-height: 120px;
+      font-family: inherit;
+    }
+    .followup-textarea::placeholder {
+      color: var(--color-text-tertiary);
+    }
+    .btn-followup-send {
+      background: transparent;
+      border: none;
+      color: var(--color-accent);
+      font-size: 12px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      padding: 4px 6px 4px 10px;
+      flex-shrink: 0;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-followup-send:active {
+      transform: scale(0.95);
+    }
+    .btn-followup-send[disabled] {
+      opacity: 0.3;
+      pointer-events: none;
     }
   `;
 }

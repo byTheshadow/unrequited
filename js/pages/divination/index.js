@@ -1,5 +1,6 @@
 import { goBack } from '../../router.js';
 import { toast, haptic, escapeHtml, sleep } from '../../utils.js';
+import { db } from '../../db.js';
 
 /* ============ 模块级引用 ============ */
 
@@ -110,6 +111,7 @@ function createInitialState() {
     diceCharge: 0,
     diceRolling: false,
     diceResult: null,
+    historySaved: false,
   };
 }
 
@@ -1000,93 +1002,270 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-/* ============ 步骤 6 · 翻牌（占位） ============ */
+/* ============ 步骤 6 · 翻牌 ============ */
 
 function renderReveal(stage) {
+  state.drawnCards.forEach(c => {
+    if (c.revealed === undefined) c.revealed = false;
+  });
+
+  const allRevealed = state.drawnCards.every(c => c.revealed);
+
   stage.innerHTML = `
-    <div class="reveal-placeholder">
-      <div class="ph-title">牌  阵  已  就  绪</div>
-      <div class="ph-sub">翻  牌  动  画  与  卡  面  生  成  在  下  一  批  次  接  入</div>
-      <div class="draw-list">
+    <div class="reveal-page">
+      <div class="reveal-hint" data-role="reveal-hint">
+        ${allRevealed ? '牌  面  已  悉  数  展  开' : '轻  触  卡  牌  ·  逐  一  唤  醒'}
+      </div>
+      <div class="reveal-map">
         ${state.drawnCards.map((d, i) => {
           const pos = state.spread.positions[i];
-          return `<div class="draw-row">
-            <span class="draw-pos">${escapeHtml(pos.name)}</span>
-            <span class="draw-name">${escapeHtml(d.card.name)}${d.reversed ? '  ·  逆' : ''}</span>
-          </div>`;
+          const isFlipped = d.revealed;
+          return `
+            <div class="reveal-card-slot" style="left: ${pos.x}%; top: ${pos.y}%;">
+              <div class="reveal-card ${isFlipped ? 'is-flipped' : ''}" data-idx="${i}">
+                <div class="reveal-card-inner">
+                  <div class="reveal-card-back">
+                    ${cardBackMini()}
+                  </div>
+                  <div class="reveal-card-face">
+                    <div class="reveal-card-face-inner ${d.reversed ? 'is-reversed' : ''}">
+                      <div class="reveal-card-face-symbol">
+                        ${cardTotemSVG(state.type)}
+                      </div>
+                      <div class="reveal-card-face-name">${escapeHtml(d.card.name)}</div>
+                      ${state.type === 'tarot' ? `<div class="reveal-card-face-dir">${d.reversed ? '逆  位' : '正  位'}</div>` : ''}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="reveal-card-pos-name">${escapeHtml(pos.name)}</div>
+            </div>
+          `;
         }).join('')}
       </div>
-      <button class="div-primary" data-act="reveal-next" type="button">继  续</button>
+      <div class="reveal-actions">
+        ${!allRevealed ? `
+          <button class="btn-reveal-all" data-act="reveal-all" type="button">一  键  翻  开</button>
+        ` : ''}
+        <button class="div-primary" data-act="reveal-next" type="button" ${allRevealed ? '' : 'disabled'}>
+          ${allRevealed ? '参  悟  牌  意' : '等  待  翻  牌'}
+        </button>
+      </div>
     </div>
   `;
-  stage.querySelector('[data-act="reveal-next"]').addEventListener('click', () => goTo('result'));
+  bindRevealEvents(stage);
 }
 
-/* ============ 步骤 7 · 结果（占位） ============ */
+function bindRevealEvents(stage) {
+  stage.querySelectorAll('.reveal-card').forEach(cardEl => {
+    cardEl.addEventListener('click', () => {
+      const idx = parseInt(cardEl.getAttribute('data-idx'));
+      if (state.drawnCards[idx].revealed) return;
+      haptic(10);
+      state.drawnCards[idx].revealed = true;
+      cardEl.classList.add('is-flipped');
+      checkAllRevealed(stage);
+    });
+  });
+
+  const btnAll = stage.querySelector('[data-act="reveal-all"]');
+  if (btnAll) {
+    btnAll.addEventListener('click', () => {
+      haptic(14);
+      state.drawnCards.forEach(c => c.revealed = true);
+      stage.querySelectorAll('.reveal-card').forEach(cardEl => {
+        cardEl.classList.add('is-flipped');
+      });
+      checkAllRevealed(stage);
+    });
+  }
+
+  const btnNext = stage.querySelector('[data-act="reveal-next"]');
+  btnNext.addEventListener('click', () => {
+    if (btnNext.hasAttribute('disabled')) return;
+    haptic(10);
+    goTo('result');
+  });
+}
+
+function checkAllRevealed(stage) {
+  const allRevealed = state.drawnCards.every(c => c.revealed);
+  if (allRevealed) {
+    const hint = stage.querySelector('[data-role="reveal-hint"]');
+    if (hint) hint.textContent = '牌  面  已  悉  数  展  开';
+    const btnNext = stage.querySelector('[data-act="reveal-next"]');
+    if (btnNext) {
+      btnNext.removeAttribute('disabled');
+      btnNext.textContent = '参  悟  牌  意';
+    }
+    const btnAll = stage.querySelector('[data-act="reveal-all"]');
+    if (btnAll) {
+      btnAll.style.opacity = '0';
+      setTimeout(() => btnAll.remove(), 250);
+    }
+  }
+}
+
+/* ============ 步骤 7 · 解读 ============ */
 
 function renderResult(stage) {
+  saveToHistory();
+
   const typeName = (CARD_TYPES.find(c => c.id === state.type) || {}).name || '';
   const spreadName = state.spread ? state.spread.name : '';
   const intentTxt = state.intentMode === 'question' ? (state.question || '未填写问题') : '以冥想为引';
   const focusName = (FOCUS_OPTIONS.find(f => f.id === state.focus) || {}).name || '';
   const detail = state.type === 'astroDice' ? renderDiceDetail() : renderCardsDetail();
+
   stage.innerHTML = `
-    <div class="result-placeholder">
-      <div class="ph-title">仪  式  完  成</div>
-      <div class="ph-meta">
-        <span>${typeName}</span>
-        ${spreadName ? `<span>${spreadName}</span>` : ''}
-        <span>${focusName}</span>
+    <div class="result-page">
+      <div class="result-header">
+        <div class="result-title">仪  式  已  成</div>
+        <div class="result-meta">
+          <span>${typeName}</span>
+          ${spreadName ? `<span>${spreadName}</span>` : ''}
+          <span>${focusName}</span>
+        </div>
+        <div class="result-intent">${escapeHtml(intentTxt)}</div>
       </div>
-      <div class="ph-intent">${escapeHtml(intentTxt)}</div>
-      ${detail}
-      <div class="ph-note">牌  意  合  成  与  A I 解  读  在  下  一  批  次  接  入</div>
-      <button class="div-primary" data-act="restart-flow" type="button">重  新  开  始</button>
+      <div class="result-content">
+        ${detail}
+      </div>
+      <div class="result-actions">
+        <button class="div-primary" data-act="restart-flow" type="button">重  新  开  始</button>
+      </div>
     </div>
   `;
   stage.querySelector('[data-act="restart-flow"]').addEventListener('click', () => onNavRestart());
 }
 
+async function saveToHistory() {
+  if (!state || state.historySaved) return;
+  state.historySaved = true;
+  try {
+    const record = {
+      type: state.type,
+      timestamp: Date.now(),
+      intentMode: state.intentMode,
+      question: state.intentMode === 'question' ? state.question : '',
+      focus: state.focus,
+      drawnCards: state.drawnCards.map(d => ({
+        id: d.card.id,
+        name: d.card.name,
+        reversed: d.reversed,
+        positionIndex: d.positionIndex
+      })),
+      diceResult: state.diceResult ? {
+        planet: { id: state.diceResult.planet.id, name: state.diceResult.planet.name, symbol: state.diceResult.planet.symbol || '' },
+        sign: { id: state.diceResult.sign.id, name: state.diceResult.sign.name, symbol: state.diceResult.sign.symbol || '' },
+        house: { id: state.diceResult.house.id, name: state.diceResult.house.name, number: state.diceResult.house.number || '' }
+      } : null
+    };
+    await db.divinationHistory.add(record);
+  } catch (err) {
+    console.error('Failed to save history:', err);
+  }
+}
+
 function renderCardsDetail() {
   if (!state.drawnCards.length) return '';
-  return `<div class="draw-list">
-    ${state.drawnCards.map((d, i) => {
-      const pos = state.spread.positions[i];
-      const kw = (d.card.keywords || []).slice(0, 4).join('  ·  ');
-      return `<div class="draw-row draw-row-full">
-        <div class="draw-row-line1">
-          <span class="draw-pos">${escapeHtml(pos.name)}</span>
-          <span class="draw-name">${escapeHtml(d.card.name)}${d.reversed ? '  ·  逆' : ''}</span>
-        </div>
-        ${kw ? `<div class="draw-row-kw">${escapeHtml(kw)}</div>` : ''}
-      </div>`;
-    }).join('')}
-  </div>`;
+  return `
+    <div class="result-cards-list">
+      ${state.drawnCards.map((d, i) => {
+        const pos = state.spread.positions[i];
+        const kw = (d.card.keywords || []).slice(0, 4).join('  ·  ');
+        
+        let cardMeaningText = '';
+        if (state.type === 'tarot') {
+          const meanings = d.card.meanings || {};
+          cardMeaningText = d.reversed ? (meanings.reversed || '') : (meanings.upright || '');
+        } else {
+          if (d.card.meanings) {
+            if (typeof d.card.meanings === 'string') {
+              cardMeaningText = d.card.meanings;
+            } else if (typeof d.card.meanings === 'object') {
+              cardMeaningText = d.card.meanings.upright || d.card.meanings.meaning || Object.values(d.card.meanings)[0] || '';
+            }
+          } else {
+            cardMeaningText = d.card.meaning || '';
+          }
+        }
+
+        let interpretationHtml = '';
+        if (state.focus === 'message') {
+          interpretationHtml = `
+            <div class="result-card-whisper">它在低语：“${escapeHtml(cardMeaningText)}”</div>
+          `;
+        } else {
+          interpretationHtml = `
+            <div class="result-card-meaning">${escapeHtml(cardMeaningText)}</div>
+          `;
+        }
+
+        return `
+          <div class="result-card-item">
+            <div class="result-card-item-header">
+              <div class="result-card-mini-view ${d.reversed ? 'is-reversed' : ''}">
+                ${cardBackMini()}
+              </div>
+              <div class="result-card-info">
+                <span class="result-card-pos">${escapeHtml(pos.name)}</span>
+                <span class="result-card-title">
+                  ${escapeHtml(d.card.name)}
+                  ${state.type === 'tarot' ? `<span class="result-card-dir">${d.reversed ? '逆位' : '正位'}</span>` : ''}
+                </span>
+              </div>
+            </div>
+            ${kw ? `<div class="result-card-keywords">${escapeHtml(kw)}</div>` : ''}
+            <div class="result-card-body">
+              ${interpretationHtml}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function getItemMeaning(item) {
+  if (!item) return '';
+  if (typeof item.meaning === 'string') return item.meaning;
+  if (item.meanings) {
+    if (typeof item.meanings === 'string') return item.meanings;
+    if (typeof item.meanings === 'object') {
+      return item.meanings.upright || item.meanings.meaning || Object.values(item.meanings)[0] || '';
+    }
+  }
+  return '';
 }
 
 function renderDiceDetail() {
   const r = state.diceResult;
   if (!r) return '';
-  const kw = [
-    ...(r.planet.keywords || []).slice(0, 2),
-    ...(r.sign.keywords || []).slice(0, 2),
-    ...(r.house.keywords || []).slice(0, 2),
-  ].join('  ·  ');
-  return `<div class="dice-detail">
-    <div class="dice-line">
-      <span class="dice-label">行  星</span>
-      <span class="dice-val">${escapeHtml(r.planet.name)}  ${escapeHtml(r.planet.symbol || '')}</span>
+  
+  const items = [
+    { label: '行  星', name: r.planet.name, symbol: r.planet.symbol || '', keywords: r.planet.keywords, meaning: getItemMeaning(r.planet) },
+    { label: '星  座', name: r.sign.name, symbol: r.sign.symbol || '', keywords: r.sign.keywords, meaning: getItemMeaning(r.sign) },
+    { label: '宫  位', name: r.house.name, symbol: r.house.number ? `${r.house.number}宫` : '', keywords: r.house.keywords, meaning: getItemMeaning(r.house) }
+  ];
+
+  return `
+    <div class="result-dice-list">
+      ${items.map(item => {
+        const kwStr = (item.keywords || []).slice(0, 4).join('  ·  ');
+        return `
+          <div class="result-dice-card">
+            <div class="result-dice-card-header">
+              <span class="result-dice-label">${item.label}</span>
+              <span class="result-dice-name">${escapeHtml(item.name)} ${escapeHtml(item.symbol)}</span>
+            </div>
+            ${kwStr ? `<div class="result-card-keywords">${escapeHtml(kwStr)}</div>` : ''}
+            <div class="result-dice-meaning">${escapeHtml(item.meaning || '暂无释义')}</div>
+          </div>
+        `;
+      }).join('')}
     </div>
-    <div class="dice-line">
-      <span class="dice-label">星  座</span>
-      <span class="dice-val">${escapeHtml(r.sign.name)}  ${escapeHtml(r.sign.symbol || '')}</span>
-    </div>
-    <div class="dice-line">
-      <span class="dice-label">宫  位</span>
-      <span class="dice-val">${escapeHtml(r.house.name)}</span>
-    </div>
-    ${kw ? `<div class="dice-kw">${escapeHtml(kw)}</div>` : ''}
-  </div>`;
+  `;
 }
 
 /* ============ SVG · 卡背图腾 ============ */
@@ -1156,7 +1335,8 @@ function pageCSS() {
     .div-page {
       position: relative;
       min-height: 100vh; min-height: 100dvh;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       background: var(--color-bg-primary);
       background-image: var(--bg-image, none);
       color: var(--color-text-primary);
@@ -1586,75 +1766,336 @@ function pageCSS() {
     }
     @keyframes fadeInSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* ============ 翻牌占位 · 结果占位 ============ */
-    .reveal-placeholder, .result-placeholder {
-      flex: 1; display: flex; flex-direction: column;
-      align-items: stretch; gap: 16px;
+    /* ============ 翻牌 ============ */
+    .reveal-page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
-    .ph-title { font-size: 15px; letter-spacing: 6px; color: var(--color-text-primary); text-align: center; margin-top: 10px; }
-    .ph-sub { font-size: 11px; letter-spacing: 3px; color: var(--color-text-tertiary); text-align: center; }
-    .ph-meta { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-    .ph-meta span {
-      padding: 4px 12px; border-radius: 999px;
-      background: var(--color-bg-tertiary);
-      border: 1px solid var(--color-border);
-      font-size: 11px; letter-spacing: 2px;
+    .reveal-hint {
+      font-size: 11px;
+      letter-spacing: 4px;
       color: var(--color-text-secondary);
+      text-align: center;
     }
-    .ph-intent {
-      padding: 14px 16px;
-      background: var(--color-bg-secondary);
-      border: 1px solid var(--color-border);
-      border-radius: 12px;
-      font-size: 13px; line-height: 1.8;
-      color: var(--color-text-primary);
-      text-align: center; letter-spacing: 1px;
+    .reveal-map {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 3 / 2.3;
+      border: 1px dashed var(--color-border);
+      border-radius: 14px;
+      background: rgba(0,0,0,0.12);
+      margin: 16px 0;
+      box-sizing: border-box;
     }
-    .draw-list {
-      background: var(--color-bg-secondary);
+    .reveal-card-slot {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .reveal-card {
+      width: 72px;
+      height: 108px;
+      perspective: 600px;
+      cursor: pointer;
+    }
+    .reveal-card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.6s cubic-bezier(.4, 0, .2, 1);
+    }
+    .reveal-card.is-flipped .reveal-card-inner {
+      transform: rotateY(180deg);
+    }
+    .reveal-card-back, .reveal-card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 8px;
       border: 1px solid var(--color-border);
-      border-radius: 12px;
+      box-shadow: 0 4px 12px var(--color-shadow);
+    }
+    .reveal-card-back {
+      background: var(--color-bg-secondary);
+      color: var(--color-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .reveal-card-back .mini-back {
+      width: 70%;
+      height: 80%;
+      opacity: 0.8;
+    }
+    .reveal-card-face {
+      background: var(--color-bg-tertiary);
+      transform: rotateY(180deg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
       overflow: hidden;
     }
-    .draw-row {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--color-border);
-      display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    .reveal-card-face-inner {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      box-sizing: border-box;
+      text-align: center;
     }
-    .draw-row:last-child { border-bottom: none; }
-    .draw-pos {
-      font-size: 11px; letter-spacing: 3px;
-      color: var(--color-text-tertiary);
-      flex-shrink: 0;
+    .reveal-card-face-inner.is-reversed {
+      transform: rotate(180deg);
     }
-    .draw-name {
-      font-size: 14px; letter-spacing: 2px;
+    .reveal-card-face-symbol {
+      width: 24px;
+      height: 34px;
+      opacity: 0.25;
+      color: var(--color-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .reveal-card-face-symbol svg {
+      width: 100%;
+      height: 100%;
+    }
+    .reveal-card-face-name {
+      font-size: 11px;
+      letter-spacing: 1px;
       color: var(--color-text-primary);
-      text-align: right;
+      margin-top: 4px;
+      font-weight: 500;
     }
-    .draw-row-full { flex-direction: column; align-items: stretch; gap: 6px; }
-    .draw-row-line1 { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
-    .draw-row-kw { font-size: 11px; letter-spacing: 2px; color: var(--color-text-secondary); }
-    .dice-detail {
+    .reveal-card-face-dir {
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: var(--color-text-tertiary);
+      margin-top: 2px;
+    }
+    .reveal-card-pos-name {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--color-text-tertiary);
+    }
+    .reveal-actions {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-top: auto;
+    }
+    .btn-reveal-all {
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: var(--color-text-secondary);
+      border: 1px solid var(--color-border);
+      padding: 8px 18px;
+      border-radius: 999px;
+      background: transparent;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-reveal-all:active {
+      background: var(--color-bg-secondary);
+      color: var(--color-text-primary);
+    }
+
+    /* ============ 结果与解读 ============ */
+    .result-page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .result-header {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .result-title {
+      font-size: 16px;
+      letter-spacing: 6px;
+      color: var(--color-text-primary);
+    }
+    .result-meta {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .result-meta span {
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--color-text-secondary);
+    }
+    .result-intent {
+      padding: 12px 16px;
       background: var(--color-bg-secondary);
       border: 1px solid var(--color-border);
       border-radius: 12px;
-      padding: 4px 0;
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--color-text-tertiary);
+      text-align: center;
+      letter-spacing: 1px;
+      max-width: 90%;
+      margin: 0 auto;
     }
-    .dice-line {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--color-border);
-      display: flex; justify-content: space-between; align-items: baseline;
+    .result-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
     }
-    .dice-line:last-child { border-bottom: none; }
-    .dice-label { font-size: 11px; letter-spacing: 3px; color: var(--color-text-tertiary); }
-    .dice-val { font-size: 14px; letter-spacing: 2px; color: var(--color-text-primary); }
-    .dice-kw {
-      padding: 12px 16px;
-      font-size: 11px; letter-spacing: 2px;
+    .result-cards-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .result-card-item {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: resultCardFadeIn 0.5s ease both;
+    }
+    @keyframes resultCardFadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .result-card-item-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .result-card-mini-view {
+      width: 36px;
+      height: 52px;
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--color-bg-tertiary);
+      color: var(--color-accent);
+      flex-shrink: 0;
+    }
+    .result-card-mini-view.is-reversed {
+      transform: rotate(180deg);
+    }
+    .result-card-mini-view .mini-back {
+      width: 70%;
+      height: 80%;
+      opacity: 0.8;
+    }
+    .result-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .result-card-pos {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--color-text-tertiary);
+    }
+    .result-card-title {
+      font-size: 14px;
+      letter-spacing: 2px;
+      color: var(--color-text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .result-card-dir {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--color-accent);
+      opacity: 0.8;
+    }
+    .result-card-keywords {
+      font-size: 11px;
+      letter-spacing: 2px;
       color: var(--color-text-secondary);
-      border-top: 1px solid var(--color-border);
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      padding-bottom: 8px;
     }
-    .ph-note { font-size: 11px; letter-spacing: 3px; color: var(--color-text-tertiary); text-align: center; margin: 8px 0; }
+    .result-card-body {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--color-text-primary);
+      letter-spacing: 1px;
+    }
+    .result-card-whisper {
+      font-style: italic;
+      color: var(--color-text-primary);
+      border-left: 2px solid var(--color-accent);
+      padding: 8px 12px;
+      padding-left: 10px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 4px;
+    }
+    .result-card-meaning {
+      color: var(--color-text-secondary);
+    }
+
+    /* 占星骰子结果 */
+    .result-dice-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .result-dice-card {
+      background: var(--color-bg-secondary);
+      border: 1px solid var(--color-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: resultCardFadeIn 0.5s ease both;
+    }
+    .result-dice-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .result-dice-label {
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: var(--color-text-tertiary);
+    }
+    .result-dice-name {
+      font-size: 14px;
+      letter-spacing: 2px;
+      color: var(--color-text-primary);
+    }
+    .result-dice-meaning {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--color-text-secondary);
+      letter-spacing: 1px;
+    }
+    .result-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 10px;
+    }
   `;
 }

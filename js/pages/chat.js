@@ -15,6 +15,9 @@ import {
 import * as keepAlive from '../lib/keepAlive.js';
 import * as sound from '../lib/sound.js';
 
+const DEFAULT_QUOTE_CHANCE = 0.4;
+const QUOTE_PREVIEW_MAX = 40;
+
 let state = {
   convId: null,
   conv: null,
@@ -28,6 +31,7 @@ let state = {
   thinkingRotate: null,
   onVisibility: null,
   onViewport: null,
+  pendingQuoteId: null,
 };
 
 const PRESET_LABELS = {
@@ -55,6 +59,60 @@ function shouldShowTimeSep(prev, curr) {
   return (curr.timestamp - prev.timestamp) > 5 * 60 * 1000;
 }
 
+function summarize(text, max = QUOTE_PREVIEW_MAX) {
+  const single = String(text || '').replace(/\s+/g, ' ').trim();
+  if (single.length <= max) return single;
+  return single.slice(0, max) + '…';
+}
+
+function authorNameOf(msg) {
+  if (!msg) return '';
+  if (msg.sender === 'user') return (state.user && state.user.name) || '我';
+  if (msg.sender === 'character') return (state.character && state.character.name) || '?';
+  return '';
+}
+
+function isQuotableMsg(msg) {
+  if (!msg) return false;
+  if (msg.sender !== 'user' && msg.sender !== 'character') return false;
+  if (msg.type === 'system' || msg.type === 'sync') return false;
+  return true;
+}
+
+function quoteCardHTML(quotedId) {
+  if (!quotedId) return '';
+  const q = state.messages.find((m) => m.id === quotedId);
+  if (!q) {
+    return `<div class="quote-card missing">[原消息已删除]</div>`;
+  }
+  const author = authorNameOf(q);
+  const preview = summarize(q.content);
+  return `
+    <div class="quote-card" data-quote-jump="${q.id}">
+      <div class="quote-card-author">${escapeHtml(author)}</div>
+      <div class="quote-card-content">${escapeHtml(preview)}</div>
+    </div>
+  `;
+}
+
+function quoteBarHTML(quoted) {
+  if (!quoted) return '';
+  const author = authorNameOf(quoted);
+  const preview = summarize(quoted.content);
+  return `
+    <div class="quote-bar" id="quote-bar">
+      <div class="quote-bar-line"></div>
+      <div class="quote-bar-body">
+        <div class="quote-bar-author">回复 ${escapeHtml(author)}</div>
+        <div class="quote-bar-content">${escapeHtml(preview)}</div>
+      </div>
+      <button class="quote-bar-close" data-act="clear-quote" type="button" aria-label="取消引用">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+      </button>
+    </div>
+  `;
+}
+
 function bubbleHTML(msg, character, user, showTimeSep) {
   const timeSep = showTimeSep
     ? `<div class="msg-time-sep">${formatDateSep(msg.timestamp)}　${formatTime(msg.timestamp)}</div>`
@@ -74,12 +132,13 @@ function bubbleHTML(msg, character, user, showTimeSep) {
   const readMark = isUser
     ? `<span class="msg-read">${msg.isRead ? '已读' : '送达'}</span>`
     : '';
+  const quote = quoteCardHTML(msg.quotedMessageId);
   return `
     ${timeSep}
     <div class="msg-row ${isUser ? 'msg-user' : 'msg-char'}" data-id="${msg.id}">
       ${!isUser ? `<div class="msg-avatar">${av}</div>` : ''}
       <div class="msg-bubble-wrap">
-        <div class="msg-bubble">${escapeHtml(msg.content)}</div>
+        <div class="msg-bubble">${quote}<div class="msg-body">${escapeHtml(msg.content)}</div></div>
         ${isUser ? `<div class="msg-meta">${readMark}</div>` : ''}
       </div>
       ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
@@ -149,6 +208,16 @@ function scrollToBottom(smooth = true) {
   });
 }
 
+function scrollToMessage(id) {
+  const row = document.querySelector(`.msg-scroll .msg-row[data-id="${id}"]`);
+  if (!row) { toast('原消息不在当前列表'); return; }
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.remove('msg-highlight');
+  void row.offsetWidth;
+  row.classList.add('msg-highlight');
+  setTimeout(() => row.classList.remove('msg-highlight'), 1600);
+}
+
 function appendMessage(msg) {
   const box = document.getElementById('msg-scroll');
   if (!box) return;
@@ -215,6 +284,52 @@ function playUserSound() {
     state.conv && state.conv.customSoundUrl);
 }
 
+/* ---------- 引用管理 ---------- */
+
+async function setPendingQuote(msgId) {
+  const q = state.messages.find((m) => m.id === msgId);
+  if (!q || !isQuotableMsg(q)) { toast('该消息无法引用'); return; }
+  state.pendingQuoteId = msgId;
+  await db.conversations.update(state.convId, { pendingQuoteId: msgId });
+  if (state.conv) state.conv.pendingQuoteId = msgId;
+  renderQuoteBar();
+  const input = document.getElementById('chat-input');
+  if (input) input.focus();
+}
+
+async function clearPendingQuote() {
+  state.pendingQuoteId = null;
+  await db.conversations.update(state.convId, { pendingQuoteId: null });
+  if (state.conv) state.conv.pendingQuoteId = null;
+  renderQuoteBar();
+}
+
+function renderQuoteBar() {
+  const dock = document.querySelector('.chat-input-dock');
+  if (!dock) return;
+  const existing = document.getElementById('quote-bar');
+  if (existing) existing.remove();
+  if (!state.pendingQuoteId) return;
+  const q = state.messages.find((m) => m.id === state.pendingQuoteId);
+  if (!q) {
+    state.pendingQuoteId = null;
+    db.conversations.update(state.convId, { pendingQuoteId: null });
+    if (state.conv) state.conv.pendingQuoteId = null;
+    return;
+  }
+  dock.insertAdjacentHTML('afterbegin', quoteBarHTML(q));
+}
+
+function pickAutoQuoteTarget() {
+  const pool = state.messages
+    .slice(-20)
+    .filter(isQuotableMsg);
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+
+/* ---------- 发送 ---------- */
+
 async function sendUserMessage() {
   const input = document.getElementById('chat-input');
   if (!input) return;
@@ -224,15 +339,22 @@ async function sendUserMessage() {
   const dock = document.querySelector('.chat-input-dock');
   if (dock) { dock.classList.remove('sent-pulse'); void dock.offsetWidth; dock.classList.add('sent-pulse'); }
 
+  const quotedId = state.pendingQuoteId || null;
+
   const msg = {
     conversationId: state.convId,
     sender: 'user', content: text,
     type: 'text', status: 'sent',
-    quotedMessageId: null,
+    quotedMessageId: quotedId,
     timestamp: Date.now(), isRead: false,
   };
   const id = await db.messages.add(msg);
   msg.id = id;
+
+  if (quotedId) {
+    await clearPendingQuote();
+  }
+
   appendMessage(msg);
   playUserSound();
   input.value = '';
@@ -433,17 +555,23 @@ async function executeReply() {
     if (el) el.textContent = '已读';
   }
 
+  const quoteChance = typeof cfg.quoteChance === 'number' ? cfg.quoteChance : DEFAULT_QUOTE_CHANCE;
+
   for (let i = 0; i < messages.length; i++) {
     if (state.destroyed) return;
     if (i > 0) {
       hideTyping(); showTyping();
       await sleep(randInt(600, 1400));
     }
+    let autoQuoteId = null;
+    if (i === 0 && quoteChance > 0 && Math.random() < quoteChance) {
+      autoQuoteId = pickAutoQuoteTarget();
+    }
     const msg = {
       conversationId: state.convId,
       sender: 'character', content: messages[i],
       type: 'card', status: 'sent',
-      quotedMessageId: null,
+      quotedMessageId: autoQuoteId,
       timestamp: Date.now(), isRead: true,
     };
     const id = await db.messages.add(msg);
@@ -514,10 +642,16 @@ function bindBubbleEvents() {
 }
 
 async function openMsgActions(id) {
+  const msg = state.messages.find((m) => m.id === id);
+  if (!msg) return;
+  const canQuote = isQuotableMsg(msg);
   haptic(15);
   const { close } = openSheet({
     title: '消息',
     body: `<div class="sheet-list">
+      ${canQuote ? `<div class="sheet-list-item" data-act="quote">
+        <div class="sheet-list-body"><div class="sheet-list-title">引用</div></div>
+      </div>` : ''}
       <div class="sheet-list-item" data-act="copy">
         <div class="sheet-list-body"><div class="sheet-list-title">复制文本</div></div>
       </div>
@@ -531,9 +665,12 @@ async function openMsgActions(id) {
     const item = e.target.closest('.sheet-list-item');
     if (!item) return;
     const act = item.getAttribute('data-act');
-    const msg = state.messages.find((m) => m.id === id);
-    if (act === 'copy' && msg) {
-      try { await navigator.clipboard.writeText(msg.content); toast('已复制'); }
+    const target = state.messages.find((m) => m.id === id);
+    if (act === 'quote' && target) {
+      close();
+      await setPendingQuote(id);
+    } else if (act === 'copy' && target) {
+      try { await navigator.clipboard.writeText(target.content); toast('已复制'); }
       catch (e) { toast('复制失败'); }
       close();
     } else if (act === 'delete') {
@@ -542,7 +679,11 @@ async function openMsgActions(id) {
       if (ok) {
         await db.messages.delete(id);
         state.messages = state.messages.filter((m) => m.id !== id);
+        if (state.pendingQuoteId === id) {
+          await clearPendingQuote();
+        }
         renderMessages();
+        renderQuoteBar();
         await persistConvSummary();
       }
     }
@@ -625,7 +766,9 @@ async function openChatMenu() {
       if (ok) {
         await db.messages.where('conversationId').equals(state.convId).delete();
         state.messages = [];
+        if (state.pendingQuoteId) await clearPendingQuote();
         renderMessages();
+        renderQuoteBar();
         await db.conversations.update(state.convId, { lastMessage: '', lastMessageTime: Date.now() });
         toast('已清空');
       }
@@ -695,6 +838,8 @@ function openCustomCSSSheet() {
         <code>.msg-bubble</code> 所有气泡<br>
         <code>.msg-row.msg-user .msg-bubble</code> 用户气泡<br>
         <code>.msg-row.msg-char .msg-bubble</code> 角色气泡<br>
+        <code>.msg-body</code> 气泡正文（换行文本）<br>
+        <code>.quote-card</code> 气泡内引用卡<br>
         <code>.msg-time-sep</code> 时间分隔
       </div>
       <textarea id="custom-css-input" class="textarea" style="min-height:200px; font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size:12.5px; letter-spacing:0;" placeholder=".msg-bubble { background: #1a1a2e; border-radius: 12px; }">${escapeHtml(current)}</textarea>
@@ -1012,6 +1157,7 @@ export async function render(root, params = {}) {
     messages: [], typing: false, destroyed: false,
     replyTimer: null, thinkingTimer: null, thinkingRotate: null,
     onVisibility: null, onViewport: null,
+    pendingQuoteId: null,
   };
   if (!state.convId) { navigate('/cards'); return; }
 
@@ -1148,7 +1294,6 @@ export async function render(root, params = {}) {
           font-size: 14px;
           line-height: 1.55;
           word-break: break-word;
-          white-space: pre-wrap;
           background: var(--color-bubble-character);
           color: var(--color-bubble-text);
           border-top-left-radius: 6px;
@@ -1159,6 +1304,10 @@ export async function render(root, params = {}) {
           background: var(--color-bubble-user);
           border-top-left-radius: 18px;
           border-top-right-radius: 6px;
+        }
+        .msg-body {
+          white-space: pre-wrap;
+          word-break: break-word;
         }
         .msg-meta {
           font-size: 10px;
@@ -1198,6 +1347,118 @@ export async function render(root, params = {}) {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+
+        /* 引用卡（气泡内） */
+        .quote-card {
+          padding: 6px 10px;
+          margin-bottom: 6px;
+          border-left: 2px solid color-mix(in srgb, currentColor 45%, transparent);
+          background: color-mix(in srgb, currentColor 7%, transparent);
+          border-radius: 3px 8px 8px 3px;
+          font-size: 12px;
+          line-height: 1.4;
+          cursor: pointer;
+          transition: background 0.15s;
+          max-width: 100%;
+          overflow: hidden;
+        }
+        .quote-card:active {
+          background: color-mix(in srgb, currentColor 14%, transparent);
+        }
+        .quote-card.missing {
+          opacity: 0.55;
+          cursor: default;
+          font-style: italic;
+        }
+        .quote-card-author {
+          font-size: 10.5px;
+          opacity: 0.75;
+          letter-spacing: 0.5px;
+          margin-bottom: 2px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .quote-card-content {
+          opacity: 0.9;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        /* 引用条（输入框上方） */
+        .quote-bar {
+          position: absolute;
+          left: 0; right: 0;
+          bottom: calc(100% + 6px);
+          display: flex;
+          align-items: stretch;
+          gap: 10px;
+          padding: 10px 12px;
+          background: var(--color-bg-secondary);
+          border: 1px solid var(--color-border);
+          border-radius: 18px;
+          box-shadow: 0 4px 12px var(--color-shadow);
+          animation: quoteBarIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes quoteBarIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .quote-bar-line {
+          width: 3px;
+          border-radius: 2px;
+          background: var(--color-accent);
+          flex-shrink: 0;
+        }
+        .quote-bar-body {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          justify-content: center;
+        }
+        .quote-bar-author {
+          font-size: 11px;
+          color: var(--color-accent);
+          letter-spacing: 1px;
+        }
+        .quote-bar-content {
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          line-height: 1.4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .quote-bar-close {
+          width: 28px;
+          height: 28px;
+          align-self: center;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--color-text-tertiary);
+          flex-shrink: 0;
+          transition: color 0.15s, background 0.15s;
+        }
+        .quote-bar-close:active {
+          color: var(--color-text-primary);
+          background: var(--color-bg-tertiary);
+        }
+
+        /* 引用跳转高亮 */
+        @keyframes msgHighlightPulse {
+          0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 55%, transparent); }
+          100% { box-shadow: 0 0 0 3px transparent; }
+        }
+        .msg-row.msg-highlight .msg-bubble {
+          animation: msgHighlightPulse 1.6s ease-out;
+          border-radius: 18px;
+        }
+
         .typing-bubble {
           display: inline-flex;
           align-items: center;
@@ -1493,13 +1754,15 @@ export async function render(root, params = {}) {
     const data = await loadAll(state.convId);
     if (state.destroyed) return;
     Object.assign(state, data);
+    if (state.conv && state.conv.pendingQuoteId) {
+      state.pendingQuoteId = state.conv.pendingQuoteId;
+    }
   } catch (e) {
     toast(e.message || '对话加载失败');
     goBack('/cards');
     return;
   }
 
-  // 预加载提示音配置
   sound.loadConfig().catch(() => {});
 
   document.getElementById('chat-title').textContent = (state.character && state.character.name) || '（角色已删除）';
@@ -1510,6 +1773,7 @@ export async function render(root, params = {}) {
 
   applyChatStyles();
   renderMessages();
+  renderQuoteBar();
 
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
   root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
@@ -1533,6 +1797,27 @@ export async function render(root, params = {}) {
       sound.unlock();
       sendUserMessage();
     }
+  });
+
+  // 引用条关闭 + 引用卡片跳转（事件委托）
+  const dock = root.querySelector('.chat-input-dock');
+  dock.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('[data-act=clear-quote]');
+    if (closeBtn) {
+      haptic(6);
+      clearPendingQuote();
+    }
+  });
+
+  const scrollBox = document.getElementById('msg-scroll');
+  scrollBox.addEventListener('click', (e) => {
+    const jump = e.target.closest('[data-quote-jump]');
+    if (!jump) return;
+    if (jump.classList.contains('missing')) return;
+    const id = Number(jump.getAttribute('data-quote-jump'));
+    if (!id) return;
+    haptic(6);
+    scrollToMessage(id);
   });
 
   bindViewportFollow();

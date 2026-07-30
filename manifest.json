@@ -1,0 +1,15 @@
+{
+  "name": "Unrequited 恋恋不忘",
+  "short_name": "Unrequited",
+  "description": "字卡碎片拼接与占卜工具",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "./icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

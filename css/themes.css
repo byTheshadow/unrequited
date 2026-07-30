@@ -1,0 +1,142 @@
+:root,
+[data-theme="minimal-dark"] {
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #141414;
+  --color-bg-tertiary: #1f1f1f;
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #999999;
+  --color-text-tertiary: #555555;
+  --color-accent: #ffffff;
+  --color-border: rgba(255,255,255,0.08);
+  --color-bubble-user: #262626;
+  --color-bubble-character: #171717;
+  --color-bubble-text: #f5f5f5;
+  --color-shadow: rgba(0,0,0,0.5);
+  --glass-blur: 0px;
+  --glass-bg: rgba(20,20,20,0.9);
+  --bg-image: none;
+  --transition-speed: 0.3s;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 32px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+}
+
+[data-theme="minimal-light"] {
+  --color-bg-primary: #fafafa;
+  --color-bg-secondary: #f0f0f0;
+  --color-bg-tertiary: #e5e5e5;
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #666666;
+  --color-text-tertiary: #999999;
+  --color-accent: #000000;
+  --color-border: rgba(0,0,0,0.08);
+  --color-bubble-user: #e5e5e5;
+  --color-bubble-character: #f0f0f0;
+  --color-bubble-text: #0a0a0a;
+  --color-shadow: rgba(0,0,0,0.08);
+  --glass-blur: 0px;
+  --glass-bg: rgba(255,255,255,0.9);
+  --bg-image: none;
+}
+
+[data-theme="glass-dark"] {
+  --color-bg-primary: #0f0f1f;
+  --color-bg-secondary: rgba(40,40,70,0.35);
+  --color-bg-tertiary: rgba(60,60,95,0.5);
+  --color-text-primary: #f0f0ff;
+  --color-text-secondary: rgba(240,240,255,0.65);
+  --color-text-tertiary: rgba(240,240,255,0.35);
+  --color-accent: #a5b4fc;
+  --color-border: rgba(255,255,255,0.14);
+  --color-bubble-user: rgba(99,102,241,0.28);
+  --color-bubble-character: rgba(255,255,255,0.08);
+  --color-bubble-text: #f0f0ff;
+  --color-shadow: rgba(0,0,0,0.6);
+  --glass-blur: 22px;
+  --glass-bg: rgba(30,30,55,0.45);
+  --bg-image:
+    radial-gradient(circle at 15% 15%, rgba(139,92,246,0.35) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(59,130,246,0.28) 0%, transparent 45%),
+    linear-gradient(180deg, #0f0f1f 0%, #1a1a3a 100%);
+}
+
+[data-theme="glass-light"] {
+  --color-bg-primary: #eef2ff;
+  --color-bg-secondary: rgba(255,255,255,0.55);
+  --color-bg-tertiary: rgba(255,255,255,0.75);
+  --color-text-primary: #1a1a2e;
+  --color-text-secondary: rgba(26,26,46,0.62);
+  --color-text-tertiary: rgba(26,26,46,0.38);
+  --color-accent: #6366f1;
+  --color-border: rgba(0,0,0,0.06);
+  --color-bubble-user: rgba(99,102,241,0.16);
+  --color-bubble-character: rgba(255,255,255,0.72);
+  --color-bubble-text: #1a1a2e;
+  --color-shadow: rgba(100,100,150,0.15);
+  --glass-blur: 22px;
+  --glass-bg: rgba(255,255,255,0.6);
+  --bg-image:
+    radial-gradient(circle at 20% 10%, #dbeafe 0%, transparent 55%),
+    radial-gradient(circle at 80% 80%, #fce7f3 0%, transparent 55%),
+    linear-gradient(180deg, #eef2ff 0%, #f5f3ff 100%);
+}
+
+[data-theme="starry"] {
+  --color-bg-primary: #0a0620;
+  --color-bg-secondary: rgba(30,20,70,0.7);
+  --color-bg-tertiary: rgba(50,30,110,0.65);
+  --color-text-primary: #eae4ff;
+  --color-text-secondary: rgba(234,228,255,0.65);
+  --color-text-tertiary: rgba(234,228,255,0.35);
+  --color-accent: #c4b5fd;
+  --color-border: rgba(196,181,253,0.18);
+  --color-bubble-user: #3a2a7e;
+  --color-bubble-character: #1a103a;
+  --color-bubble-text: #eae4ff;
+  --color-shadow: rgba(30,10,60,0.6);
+  --glass-blur: 14px;
+  --glass-bg: rgba(26,16,58,0.55);
+  --bg-image:
+    radial-gradient(1px 1px at 20% 30%, #fff 50%, transparent 100%),
+    radial-gradient(1px 1px at 70% 15%, #fff 50%, transparent 100%),
+    radial-gradient(1px 1px at 45% 65%, #fff 50%, transparent 100%),
+    radial-gradient(1px 1px at 85% 55%, #fff 50%, transparent 100%),
+    radial-gradient(1.5px 1.5px at 30% 85%, #fff 50%, transparent 100%),
+    radial-gradient(1px 1px at 60% 40%, rgba(196,181,253,0.9) 50%, transparent 100%),
+    radial-gradient(ellipse at 25% 15%, rgba(196,181,253,0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(139,92,246,0.15) 0%, transparent 50%),
+    linear-gradient(180deg, #0a0620 0%, #1a103a 100%);
+}
+
+[data-theme="warm-healing"] {
+  --color-bg-primary: #fef6ee;
+  --color-bg-secondary: rgba(252,233,214,0.75);
+  --color-bg-tertiary: rgba(247,220,192,0.85);
+  --color-text-primary: #3d2817;
+  --color-text-secondary: rgba(61,40,23,0.62);
+  --color-text-tertiary: rgba(61,40,23,0.4);
+  --color-accent: #d97706;
+  --color-border: rgba(217,119,6,0.14);
+  --color-bubble-user: #fed7aa;
+  --color-bubble-character: #fce9d6;
+  --color-bubble-text: #3d2817;
+  --color-shadow: rgba(180,100,30,0.15);
+  --glass-blur: 12px;
+  --glass-bg: rgba(254,246,238,0.75);
+  --bg-image:
+    radial-gradient(circle at 20% 10%, #fed7aa 0%, transparent 55%),
+    radial-gradient(circle at 80% 90%, #fecdd3 0%, transparent 55%),
+    linear-gradient(180deg, #fef6ee 0%, #fce9d6 100%);
+}
+
+/* 动效开关：设置里可关闭 */
+[data-anim="off"] * {
+  animation: none !important;
+  transition: none !important;
+}

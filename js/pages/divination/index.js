@@ -13,6 +13,7 @@ let castLastTs = 0;
 let meditationTimer = 0;
 let purifyPress = null;
 let castPress = null;
+let aiAbortController = null;
 
 /* ============ 常量 ============ */
 
@@ -72,6 +73,10 @@ export function destroy() {
   cancelAnimationFrame(purifyRAF);
   cancelAnimationFrame(castRAF);
   if (meditationTimer) { clearInterval(meditationTimer); meditationTimer = 0; }
+  if (aiAbortController) {
+    try { aiAbortController.abort(); } catch (e) {}
+    aiAbortController = null;
+  }
   detachGlobalListeners();
   rootRef = null;
   state = null;
@@ -112,6 +117,9 @@ function createInitialState() {
     diceRolling: false,
     diceResult: null,
     historySaved: false,
+    aiConfig: null,
+    aiRunning: false,
+    aiError: null,
   };
 }
 
@@ -120,11 +128,14 @@ async function loadData() {
     try { return await fetch(p).then(r => r.json()); }
     catch { return null; }
   };
-  const [tarot, lenormand, astroDice, spreads] = await Promise.all([
+  const [tarot, lenormand, astroDice, spreads, rowBaseUrl, rowApiKey, rowModel] = await Promise.all([
     tryFetch('./data/tarot.json'),
     tryFetch('./data/lenormand.json'),
     tryFetch('./data/astroDice.json'),
     tryFetch('./data/spreads.json'),
+    db.settings.get('ai.baseUrl'),
+    db.settings.get('ai.apiKey'),
+    db.settings.get('ai.model'),
   ]);
   if (!state) return;
   state.data = {
@@ -133,6 +144,11 @@ async function loadData() {
     astroDice: astroDice && typeof astroDice === 'object' ? astroDice : DICE_FALLBACK,
   };
   if (Array.isArray(spreads) && spreads.length) state.spreads = spreads;
+  state.aiConfig = {
+    baseUrl: rowBaseUrl ? rowBaseUrl.value : '',
+    apiKey:  rowApiKey ? rowApiKey.value : '',
+    model:   rowModel ? rowModel.value : '',
+  };
   state.dataLoaded = true;
 }
 
@@ -182,9 +198,11 @@ function onNavRestart() {
   const data = state.data;
   const dataLoaded = state.dataLoaded;
   const spreads = state.spreads;
+  const aiConfig = state.aiConfig;
   state = createInitialState();
   state.data = data;
   state.dataLoaded = dataLoaded;
+  state.aiConfig = aiConfig;
   if (spreads && spreads.length) state.spreads = spreads;
   goTo('purify');
 }
@@ -193,6 +211,10 @@ function goTo(step) {
   cancelAnimationFrame(purifyRAF);
   cancelAnimationFrame(castRAF);
   if (meditationTimer) { clearInterval(meditationTimer); meditationTimer = 0; }
+  if (aiAbortController) {
+    try { aiAbortController.abort(); } catch (e) {}
+    aiAbortController = null;
+  }
   state.step = step;
   const stage = rootRef.querySelector('[data-role="stage"]');
   stage.classList.remove('is-enter');
@@ -1117,6 +1139,8 @@ function renderResult(stage) {
   const focusName = (FOCUS_OPTIONS.find(f => f.id === state.focus) || {}).name || '';
   const detail = state.type === 'astroDice' ? renderDiceDetail() : renderCardsDetail();
 
+  const hasAI = state.aiConfig && state.aiConfig.apiKey;
+
   stage.innerHTML = `
     <div class="result-page">
       <div class="result-header">
@@ -1131,11 +1155,34 @@ function renderResult(stage) {
       <div class="result-content">
         ${detail}
       </div>
+      <div class="result-ai-section">
+        ${hasAI ? `
+          <div class="result-ai-placeholder">
+            <div class="result-ai-desc">
+              借由星芒，让 AI 为此番${state.type === 'astroDice' ? '星轨' : '牌阵'}进行流式解读。
+            </div>
+            <button class="btn-ai-start" data-act="start-ai" type="button">凝  神  起  意  ·  启  动  AI  参  悟</button>
+          </div>
+        ` : `
+          <div class="result-ai-placeholder">
+            <div class="result-ai-desc no-ai-config">
+              未检测到 AI 配置。可在「设置」中填写 API 密钥，以开启 AI 解读。
+            </div>
+          </div>
+        `}
+      </div>
       <div class="result-actions">
         <button class="div-primary" data-act="restart-flow" type="button">重  新  开  始</button>
       </div>
     </div>
   `;
+
+  if (hasAI) {
+    stage.querySelector('[data-act="start-ai"]').addEventListener('click', () => {
+      startAIInterpretation();
+    });
+  }
+
   stage.querySelector('[data-act="restart-flow"]').addEventListener('click', () => onNavRestart());
 }
 
@@ -1266,6 +1313,215 @@ function renderDiceDetail() {
       }).join('')}
     </div>
   `;
+}
+
+/* ============ AI 逻辑与流式渲染 ============ */
+
+function generatePrompt() {
+  const typeName = state.type === 'tarot' ? '塔罗牌' : state.type === 'lenormand' ? '雷诺曼' : '占星骰子';
+  let promptContext = `用户进行了一次${typeName}占卜。\n`;
+  if (state.intentMode === 'question') {
+    promptContext += `用户提出的困惑/问题是：“${state.question}”\n`;
+  } else {
+    promptContext += `用户选择以无言冥想的状态向宇宙发问。\n`;
+  }
+
+  if (state.type === 'astroDice') {
+    const r = state.diceResult;
+    promptContext += `投掷出的骰子组合为：\n- 行星：${r.planet.name} (${r.planet.symbol || ''})\n- 星座：${r.sign.name} (${r.sign.symbol || ''})\n- 宫位：${r.house.name} (${r.house.number || ''})\n`;
+  } else {
+    promptContext += `使用的牌阵为：${state.spread.name}\n抽中卡牌的详细盘面如下：\n`;
+    state.drawnCards.forEach((d, i) => {
+      const pos = state.spread.positions[i];
+      const orientation = state.type === 'tarot' ? (d.reversed ? '逆位' : '正位') : '无正逆';
+      promptContext += `- 牌阵位置 [${pos.name}]：抽中卡牌「${d.card.name}」(${orientation})，牌面关键字为 [${(d.card.keywords || []).join(', ')}]\n`;
+    });
+  }
+
+  let systemPrompt = '';
+  if (state.focus === 'message') {
+    systemPrompt = `你是一个安静、克制、富有灵性温度与神秘感的“命运低语者”。现在用户进行了一次占卜，你将以“TA”（即一种冥冥中关切用户的无形力量、命运代理人或其深层自我的投影）的温和口吻，借由这些牌面对用户倾诉。
+你的语气与内容必须保持：
+- 像深夜里温柔而幽深的自我对话。
+- 绝对禁止使用任何 emoji 表情符号或颜文字。
+- 不要堆砌浮夸的玄学辞藻，字句留白，点到即止。
+- 侧重于传递情绪的安抚、启示和深层的信息链接，而不是单纯罗列牌意。
+- 针对用户的困惑或冥想状态，用温和但坚定的话语进行回应。
+- 仅用中文作答，排版自然。`;
+  } else {
+    systemPrompt = `你是一个深沉、博学且安静克制的经典神秘学学者。现在用户进行了一次占卜，你将为用户深度剖析牌意与占卜象征。
+你的解读与内容必须保持：
+- 像深夜里安静的解析，克制、理智又带有温和的疗愈感。
+- 绝对禁止使用任何 emoji 表情符号或颜文字。
+- 不要说废话，不喧闹，语气平静。
+- 逻辑清晰，层层剖析。结合每一个位置的象征意义、牌面的正逆位（或骰子落位），以及它们的整体流向与互动，提供启发性的解答，帮用户理清现状与未来方向。
+- 仅用中文作答，排版自然。`;
+  }
+
+  return { systemPrompt, userPrompt: promptContext };
+}
+
+async function startAIInterpretation() {
+  if (state.aiRunning) return;
+  haptic(14);
+
+  const container = rootRef.querySelector('.result-ai-section');
+  if (!container) return;
+
+  state.aiRunning = true;
+  state.aiError = null;
+
+  container.innerHTML = `
+    <div class="result-ai-running">
+      <div class="result-ai-title">星 轨 交 错 · 释 签 中</div>
+      <div class="result-ai-text" data-role="ai-text"></div>
+      <div class="result-ai-actions">
+        <span class="ai-running-indicator"></span>
+        <button class="btn-ai-stop" data-act="stop-ai" type="button">中  止</button>
+      </div>
+    </div>
+  `;
+
+  const textEl = container.querySelector('[data-role="ai-text"]');
+  const stopBtn = container.querySelector('[data-act="stop-ai"]');
+  if (stopBtn) {
+    stopBtn.addEventListener('click', () => {
+      if (aiAbortController) {
+        aiAbortController.abort();
+        aiAbortController = null;
+      }
+      state.aiRunning = false;
+      haptic(8);
+      renderAISectionPlaceholder(container);
+    });
+  }
+
+  aiAbortController = new AbortController();
+
+  try {
+    const { baseUrl, apiKey, model } = state.aiConfig || {};
+    const cleanUrl = baseUrl ? baseUrl.replace(/\/+$/, '') : 'https://api.openai.com/v1';
+    const url = `${cleanUrl}/chat/completions`;
+    const { systemPrompt, userPrompt } = generatePrompt();
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model || 'gpt-3.5-turbo',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        stream: true
+      }),
+      signal: aiAbortController.signal
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw new Error(`API HTTP ${response.status}: ${errText || response.statusText}`);
+    }
+
+    if (!response.body) {
+      throw new Error('当前环境不支持流式响应');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+    let fullText = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        const cleanLine = line.trim();
+        if (!cleanLine) continue;
+        if (cleanLine === 'data: [DONE]') continue;
+        if (cleanLine.startsWith('data: ')) {
+          try {
+            const json = JSON.parse(cleanLine.substring(6));
+            const content = json.choices?.[0]?.delta?.content || '';
+            if (content) {
+              fullText += content;
+              textEl.innerHTML = formatMarkdown(fullText);
+              // 自然垂直滚动以显示最新文字
+              const page = rootRef.querySelector('.div-page');
+              if (page) {
+                page.scrollTop = page.scrollHeight;
+              }
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    state.aiRunning = false;
+    const actions = container.querySelector('.result-ai-actions');
+    if (actions) {
+      actions.innerHTML = `
+        <div class="result-ai-done-meta">星 芒 交 织 · 参 悟 毕</div>
+      `;
+    }
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    console.error('AI Request Error:', err);
+    state.aiRunning = false;
+    state.aiError = err.message || '未知异常';
+    renderAIErrorState(container);
+  }
+}
+
+function renderAIErrorState(container) {
+  container.innerHTML = `
+    <div class="result-ai-error">
+      <div class="ai-error-msg">连结中断：${escapeHtml(state.aiError)}</div>
+      <div class="result-ai-actions">
+        <button class="btn-ai-retry" data-act="retry-ai" type="button">重  试</button>
+        <button class="btn-ai-cancel" data-act="cancel-ai" type="button">返  回</button>
+      </div>
+    </div>
+  `;
+  container.querySelector('[data-act="retry-ai"]').addEventListener('click', () => {
+    startAIInterpretation();
+  });
+  container.querySelector('[data-act="cancel-ai"]').addEventListener('click', () => {
+    renderAISectionPlaceholder(container);
+  });
+}
+
+function renderAISectionPlaceholder(container) {
+  container.innerHTML = `
+    <div class="result-ai-placeholder">
+      <div class="result-ai-desc">
+        借由星芒，让 AI 为此番${state.type === 'astroDice' ? '星轨' : '牌阵'}进行流式解读。
+      </div>
+      <button class="btn-ai-start" data-act="start-ai" type="button">凝  神  起  意  ·  启  动  AI  参  悟</button>
+    </div>
+  `;
+  container.querySelector('[data-act="start-ai"]').addEventListener('click', () => {
+    startAIInterpretation();
+  });
+}
+
+function formatMarkdown(text) {
+  if (!text) return '';
+  let html = escapeHtml(text);
+  // 加粗解析 **text**
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  // 换行解析
+  html = html.replace(/\n\n+/g, '</p><p>');
+  html = html.replace(/\n/g, '<br>');
+  return `<p>${html}</p>`;
 }
 
 /* ============ SVG · 卡背图腾 ============ */
@@ -1783,7 +2039,7 @@ function pageCSS() {
       position: relative;
       width: 100%;
       aspect-ratio: 3 / 2.3;
-      border: 1px dashed var(--color-border);
+      border: 1px solid var(--color-border);
       border-radius: 14px;
       background: rgba(0,0,0,0.12);
       margin: 16px 0;
@@ -2096,6 +2352,147 @@ function pageCSS() {
       display: flex;
       justify-content: center;
       margin-top: 10px;
+    }
+
+    /* ============ AI 解读模块 ============ */
+    .result-ai-section {
+      margin-top: 10px;
+      background: var(--color-bg-secondary);
+      border: 1px dashed var(--color-border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: resultCardFadeIn 0.5s ease both;
+    }
+    .result-ai-placeholder {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .result-ai-desc {
+      font-size: 12px;
+      color: var(--color-text-tertiary);
+      line-height: 1.6;
+      letter-spacing: 2px;
+      max-width: 90%;
+    }
+    .result-ai-desc.no-ai-config {
+      opacity: 0.8;
+    }
+    .btn-ai-start {
+      background: transparent;
+      color: var(--color-accent);
+      border: 1px solid var(--color-accent);
+      padding: 10px 20px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+    }
+    .btn-ai-start:active {
+      transform: scale(0.97);
+      background: rgba(255, 255, 255, 0.03);
+    }
+    .result-ai-running {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .result-ai-title {
+      font-size: 13px;
+      letter-spacing: 4px;
+      color: var(--color-accent);
+      text-align: center;
+      margin-bottom: 6px;
+    }
+    .result-ai-text {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--color-text-secondary);
+      letter-spacing: 1px;
+      min-height: 48px;
+    }
+    .result-ai-text p {
+      margin-bottom: 12px;
+    }
+    .result-ai-text p:last-child {
+      margin-bottom: 0;
+    }
+    .result-ai-actions {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .ai-running-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      animation: aiPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes aiPulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.3); }
+    }
+    .btn-ai-stop {
+      background: transparent;
+      color: var(--color-text-tertiary);
+      border: 1px solid var(--color-border);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-ai-stop:active {
+      color: var(--color-text-primary);
+      border-color: var(--color-text-secondary);
+    }
+    .result-ai-error {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+    }
+    .ai-error-msg {
+      font-size: 12px;
+      color: #ef4444;
+      line-height: 1.6;
+      letter-spacing: 1px;
+    }
+    .btn-ai-retry {
+      background: transparent;
+      color: var(--color-accent);
+      border: 1px solid var(--color-accent);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+    }
+    .btn-ai-cancel {
+      background: transparent;
+      color: var(--color-text-tertiary);
+      border: 1px solid var(--color-border);
+      padding: 6px 16px;
+      border-radius: 999px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      cursor: pointer;
+    }
+    .result-ai-done-meta {
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: var(--color-text-tertiary);
     }
   `;
 }

@@ -1,3 +1,4 @@
+
 import { db } from '../db.js';
 import { navigate, goBack } from '../router.js';
 import {
@@ -10,6 +11,24 @@ let state = { editingId: null };
 
 async function loadCharacters() {
   return db.characters.orderBy('createdAt').reverse().toArray();
+}
+
+function clampNumber(value, min, max, fallback) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, n));
+}
+
+function chanceToPercent(value, fallback = 0.5) {
+  const n = Number(value);
+  const safe = Number.isFinite(n) ? n : fallback;
+  return Math.round(Math.max(0, Math.min(1, safe)) * 100);
+}
+
+function percentToChance(value, fallbackPercent = 50) {
+  const n = Number(value);
+  const safe = Number.isFinite(n) ? n : fallbackPercent;
+  return Math.max(0, Math.min(100, safe)) / 100;
 }
 
 function renderList(list) {
@@ -84,6 +103,12 @@ async function openEditor(charId) {
   const allDecks = await db.decks.orderBy('createdAt').toArray();
   const linked = new Set(char.linkedDeckIds || []);
   const cfg = char.replyConfig || {};
+
+  const quoteChancePercent = chanceToPercent(cfg.quoteChance, 0.5);
+  const choiceChancePercent = chanceToPercent(cfg.choiceChance, 0.5);
+  const callChancePercent = chanceToPercent(cfg.callChance, 0.5);
+  const callMinSecValue = clampNumber(cfg.callMinSec, 10, 360000, 45);
+  const callMaxSecValue = Math.max(callMinSecValue, clampNumber(cfg.callMaxSec, 10, 360000, 180));
 
   const body = `
     <div class="editor-form">
@@ -179,6 +204,48 @@ async function openEditor(charId) {
         </div>
         <div class="field-hint" style="margin-top:8px;">到点时按此概率跳过回复，改为一条系统提示</div>
 
+        <div class="field-subgroup">
+          <div class="field-hint">引用历史消息概率</div>
+          <div class="range-row">
+            <input class="range-input" type="range" id="f-quote-chance-range" min="0" max="100" step="1" value="${quoteChancePercent}">
+            <input class="input percent-input" type="number" id="f-quote-chance" min="0" max="100" step="1" value="${quoteChancePercent}">
+            <span class="percent-mark">%</span>
+          </div>
+          <div class="field-hint">角色自动回复第一条消息时，引用一条历史消息的概率。保存为 replyConfig.quoteChance。</div>
+        </div>
+
+        <div class="field-subgroup">
+          <div class="field-hint">主动发送选择题概率</div>
+          <div class="range-row">
+            <input class="range-input" type="range" id="f-choice-chance-range" min="0" max="100" step="1" value="${choiceChancePercent}">
+            <input class="input percent-input" type="number" id="f-choice-chance" min="0" max="100" step="1" value="${choiceChancePercent}">
+            <span class="percent-mark">%</span>
+          </div>
+          <div class="field-hint">角色主动发送选择题的概率。选择题字卡格式：??问题|选项1|选项2|选项3，最多 5 个选项。保存为 replyConfig.choiceChance。</div>
+        </div>
+
+        <div class="field-subgroup">
+          <div class="field-hint">自动发起虚拟通话概率</div>
+          <div class="range-row">
+            <input class="range-input" type="range" id="f-call-chance-range" min="0" max="100" step="1" value="${callChancePercent}">
+            <input class="input percent-input" type="number" id="f-call-chance" min="0" max="100" step="1" value="${callChancePercent}">
+            <span class="percent-mark">%</span>
+          </div>
+          <div class="field-hint">角色回复时自动发起虚拟通话的概率。保存为 replyConfig.callChance。</div>
+        </div>
+
+        <div class="row-2col" style="margin-top:12px;">
+          <div>
+            <div class="field-hint">虚拟通话最短时长（秒）</div>
+            <input class="input" type="number" id="f-call-min-sec" min="10" max="360000" step="1" value="${callMinSecValue}">
+          </div>
+          <div>
+            <div class="field-hint">虚拟通话最长时长（秒）</div>
+            <input class="input" type="number" id="f-call-max-sec" min="10" max="360000" step="1" value="${callMaxSecValue}">
+          </div>
+        </div>
+        <div class="field-hint" style="margin-top:8px;">通话时长上限为 360000 秒，即 100 小时。最长时长保存时会自动不小于最短时长。</div>
+
         <div class="field-hint" style="margin-top:14px;">思考期文案（每行一句，空则用默认）</div>
         <textarea class="input textarea" id="f-thinking-hints" rows="3" placeholder="正在深思熟虑…&#10;正在挑选字卡…">${escapeHtml((cfg.thinkingHints || []).join('\n'))}</textarea>
 
@@ -232,6 +299,31 @@ async function openEditor(charId) {
     });
   });
 
+  [
+    ['#f-quote-chance-range', '#f-quote-chance'],
+    ['#f-choice-chance-range', '#f-choice-chance'],
+    ['#f-call-chance-range', '#f-call-chance'],
+  ].forEach(([rangeSelector, numberSelector]) => {
+    const range = sheetRoot.querySelector(rangeSelector);
+    const number = sheetRoot.querySelector(numberSelector);
+    if (!range || !number) return;
+
+    range.addEventListener('input', () => {
+      number.value = range.value;
+    });
+
+    number.addEventListener('input', () => {
+      const value = clampNumber(number.value, 0, 100, 50);
+      range.value = value;
+    });
+
+    number.addEventListener('blur', () => {
+      const value = Math.round(clampNumber(number.value, 0, 100, 50));
+      number.value = value;
+      range.value = value;
+    });
+  });
+
   sheetRoot.querySelector('[data-act=cancel]').addEventListener('click', () => close());
   sheetRoot.querySelector('[data-act=save]').addEventListener('click', async () => {
     const name = sheetRoot.querySelector('#f-name').value.trim();
@@ -253,6 +345,14 @@ async function openEditor(charId) {
     if (maxDelay < minDelay) maxDelay = minDelay;
     const skipChance = Math.max(0, Math.min(1, Number(sheetRoot.querySelector('#f-skip-chance').value) || 0));
 
+    const quoteChance = percentToChance(sheetRoot.querySelector('#f-quote-chance').value, 50);
+    const choiceChance = percentToChance(sheetRoot.querySelector('#f-choice-chance').value, 50);
+    const callChance = percentToChance(sheetRoot.querySelector('#f-call-chance').value, 50);
+
+    const callMinSec = clampNumber(sheetRoot.querySelector('#f-call-min-sec').value, 10, 360000, 45);
+    let callMaxSec = clampNumber(sheetRoot.querySelector('#f-call-max-sec').value, 10, 360000, 180);
+    if (callMaxSec < callMinSec) callMaxSec = callMinSec;
+
     const thinkingHints = sheetRoot.querySelector('#f-thinking-hints').value
       .split('\n').map((s) => s.trim()).filter(Boolean);
     const skipHints = sheetRoot.querySelector('#f-skip-hints').value
@@ -268,6 +368,11 @@ async function openEditor(charId) {
         minReplyDelaySec: minDelay,
         maxReplyDelaySec: maxDelay,
         skipReplyChance: skipChance,
+        quoteChance,
+        choiceChance,
+        callChance,
+        callMinSec,
+        callMaxSec,
         thinkingHints,
         skipHints,
       },
@@ -365,6 +470,34 @@ export async function render(root, params = {}) {
           resize: vertical;
         }
         .textarea:focus { border-color: var(--color-accent); outline: none; }
+
+        .field-subgroup {
+          margin-top: 14px;
+          padding-top: 12px;
+          border-top: 1px solid var(--color-border);
+        }
+        .range-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 8px;
+          margin-bottom: 6px;
+        }
+        .range-input {
+          flex: 1;
+          min-width: 0;
+          accent-color: var(--color-accent);
+        }
+        .percent-input {
+          width: 74px;
+          flex: none;
+          text-align: right;
+        }
+        .percent-mark {
+          flex: none;
+          color: var(--color-text-tertiary);
+          font-size: 12px;
+        }
       </style>
     </div>
   `;
@@ -381,4 +514,3 @@ export async function render(root, params = {}) {
 }
 
 export function destroy() {}
-

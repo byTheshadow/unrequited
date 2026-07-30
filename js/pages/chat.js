@@ -935,8 +935,6 @@ async function saveUserField(field, value) {
   const patch = { [field]: val };
   await db.user.update(state.user.id, patch);
   Object.assign(state.user, patch);
-  // 若改了名，pill 里的标题也没变（那是角色名），不用刷。
-  // 消息气泡里 user 头像 alt 可能引用 name，但仅回退字符，不刷新已渲染的旧气泡。
 }
 
 async function saveMusicField(field, value) {
@@ -1522,6 +1520,26 @@ async function openSoundSheet() {
       return;
     }
   });
+}
+
+/* ============================================================
+   checkPendingReplyOnVisible
+   ============================================================ */
+async function checkPendingReplyOnVisible() {
+  if (!state.convId) return;
+  const conv = await db.conversations.get(state.convId);
+  if (!conv) return;
+  state.conv = conv;
+  if (conv.pendingReplyAt) {
+    const remain = conv.pendingReplyAt - Date.now();
+    if (remain <= 0) {
+      executeReply();
+    } else {
+      scheduleTimers();
+    }
+  } else {
+    cancelTimers({ keepSubtitle: false });
+  }
 }
 
 /* ============================================================
@@ -2490,4 +2508,28 @@ export async function render(root, params = {}) {
     const jump = e.target.closest('[data-quote-jump]');
     if (!jump) return;
     if (jump.classList.contains('missing')) return;
-    const id = Number
+    const id = Number(jump.getAttribute('data-quote-jump'));
+    if (id) scrollToMessage(id);
+  });
+
+  bindViewportFollow();
+
+  state.onVisibility = () => {
+    if (document.visibilityState === 'visible') {
+      checkPendingReplyOnVisible();
+    }
+  };
+  document.addEventListener('visibilitychange', state.onVisibility);
+
+  scheduleTimers();
+}
+
+export function destroy() {
+  state.destroyed = true;
+  cancelTimers();
+  if (state.onViewport) state.onViewport();
+  if (state.onVisibility) {
+    document.removeEventListener('visibilitychange', state.onVisibility);
+  }
+  clearTimeout(longPressTimer);
+}

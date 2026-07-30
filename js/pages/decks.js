@@ -204,7 +204,7 @@ async function openEditor(deckId) {
           <button class="btn btn-secondary" data-act="import-json">导入 JSON</button>
           <button class="btn btn-secondary" data-act="import-txt">导入 TXT</button>
         </div>
-        <div class="field-hint">JSON 支持标准模板 { deckName, fragments: [...] }；TXT 一行一条</div>
+        <div class="field-hint">JSON 支持标准模板 { deckName, fragments: [...] } 或自定义回复格式；TXT 一行一条</div>
       </div>
     </div>
   `;
@@ -234,12 +234,12 @@ async function openEditor(deckId) {
   fragEl.addEventListener('input', updateCount);
 
   let importMode = 'json';
-  sheetRoot.querySelector('[data-act=import-json]').addEventListener('click', () => {
+  sheetRoot.querySelector('[data-act="import-json"]').addEventListener('click', () => {
     importMode = 'json';
     fileInput.accept = '.json,application/json';
     fileInput.click();
   });
-  sheetRoot.querySelector('[data-act=import-txt]').addEventListener('click', () => {
+  sheetRoot.querySelector('[data-act="import-txt"]').addEventListener('click', () => {
     importMode = 'txt';
     fileInput.accept = '.txt,text/plain';
     fileInput.click();
@@ -255,6 +255,10 @@ async function openEditor(deckId) {
         const j = JSON.parse(text);
         importedName = j.deckName || j.name || '';
         importedCategory = j.category || '';
+        
+        // 兼容拼写 customReplies 和 customReolies
+        const customReplies = j.customReplies || j.customReolies;
+
         if (Array.isArray(j.fragments)) {
           incoming = j.fragments;
         } else if (j.fragments && typeof j.fragments === 'object') {
@@ -264,6 +268,24 @@ async function openEditor(deckId) {
             ...(j.fragments.closer || []),
             ...(j.fragments.standalone || []),
           ];
+        } else if (Array.isArray(customReplies)) {
+          // 处理自定义回复格式
+          incoming = customReplies.map((item) => {
+            if (typeof item === 'string') {
+              return item;
+            }
+            if (item && typeof item === 'object') {
+              // 优先提取 reply 字段，其次是 message、content 或 text
+              return item.reply || item.message || item.content || item.text || '';
+            }
+            return String(item);
+          }).filter((s) => s && s.trim().length > 0);
+
+          // 如果此格式没有名字，自动用日期作为后缀名字
+          if (!importedName) {
+            const dateStr = j.date ? ` (${j.date})` : '';
+            importedName = `自定义回复${dateStr}`;
+          }
         }
       } else {
         incoming = textToFragments(text);
@@ -281,8 +303,8 @@ async function openEditor(deckId) {
     }
   });
 
-  sheetRoot.querySelector('[data-act=cancel]').addEventListener('click', () => close());
-  sheetRoot.querySelector('[data-act=save]').addEventListener('click', async () => {
+  sheetRoot.querySelector('[data-act="cancel"]').addEventListener('click', () => close());
+  sheetRoot.querySelector('[data-act="save"]').addEventListener('click', async () => {
     const name = nameEl.value.trim();
     if (!name) { toast('请填写名称'); return; }
     const fragments = dedup(textToFragments(fragEl.value));

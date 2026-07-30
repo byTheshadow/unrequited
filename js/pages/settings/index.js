@@ -45,6 +45,7 @@ export async function render(root) {
     ai: { baseUrl: '', apiKey: '', model: '', models: [] },
     aiKeyRevealed: false,
     aiFetching: false,
+    launchStyle: await getSetting('launchStyle', 'classic')
   };
 
   const users = await db.user.toArray();
@@ -233,6 +234,15 @@ function renderAppearanceSection() {
       <div class="row">
         <div class="row-label">动 效</div>
         <div class="switch" data-act="toggle-anim" data-on="${state.animEnabled ? '1' : '0'}" role="switch" aria-checked="${state.animEnabled}"></div>
+      </div>
+      <div class="row row-vertical">
+        <div class="row-header">
+          <div class="row-label">启动动画</div>
+        </div>
+        <div class="chips inline">
+          <button class="chip" data-act="pick-launch-style" data-val="classic" data-on="${state.launchStyle === 'classic' ? '1' : '0'}" type="button">经典塔罗</button>
+          <button class="chip" data-act="pick-launch-style" data-val="ecg" data-on="${state.launchStyle === 'ecg' ? '1' : '0'}" type="button">心跳播放器</button>
+        </div>
       </div>
     </section>
   `;
@@ -463,6 +473,19 @@ async function onMainClick(e) {
       state.animEnabled = next;
       setAnimEnabled(next);
       localStorage.setItem('animEnabled', next ? '1' : '0');
+      break;
+    }
+
+    case 'pick-launch-style': {
+      const v = t.getAttribute('data-val');
+      if (v === state.launchStyle) return;
+      state.launchStyle = v;
+      await setSetting('launchStyle', v);
+      rootRef.querySelectorAll('[data-act="pick-launch-style"]').forEach(el => {
+        el.setAttribute('data-on', el.getAttribute('data-val') === v ? '1' : '0');
+      });
+      haptic(6);
+      toast('启动动画已更改，下次进入时生效');
       break;
     }
 

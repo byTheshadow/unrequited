@@ -1,6 +1,8 @@
+import { db } from '../db.js';
 import { pick, haptic } from '../utils.js';
 import { navigate } from '../router.js';
 
+// ==================== 经典塔罗数据与 HTML ====================
 const TAROT_CARDS = [
   {
     name: '星星', subtitle: 'THE STAR',
@@ -114,16 +116,36 @@ function cardHTML(card) {
   `;
 }
 
+// ==================== 运行时控制状态 ====================
 let timers = [];
 let clickTarget = null;
 let clickHandler = null;
 let didGo = false;
+let ecgAnimationFrameId = null; // 新增：保存心电图进度条渲染帧
 
-export function render(root) {
+// ==================== 入口渲染路由 ====================
+export async function render(root) {
+  let launchStyle = 'classic';
+  try {
+    const row = await db.settings.get('launchStyle');
+    if (row) launchStyle = row.value;
+  } catch (e) {
+    console.warn('Failed to load launchStyle from DB:', e);
+  }
+
+  if (launchStyle === 'ecg') {
+    renderECGStyle(root);
+  } else {
+    renderClassicStyle(root);
+  }
+}
+
+// ==================== 动画风格1：经典塔罗 ====================
+function renderClassicStyle(root) {
   const card = pick(TAROT_CARDS);
 
   root.innerHTML = `
-    <div class="launch-page page" id="launch-root">
+    <div class="launch-page page classic-theme" id="launch-root">
       <div class="lp-bg"></div>
       <div class="lp-content">
         ${cardHTML(card)}
@@ -131,7 +153,7 @@ export function render(root) {
         <div class="lp-hint" id="lp-hint">轻 触 继 续</div>
       </div>
       <style>
-        .launch-page {
+        .launch-page.classic-theme {
           position: relative;
           display: flex;
           align-items: center;
@@ -210,7 +232,399 @@ export function render(root) {
   timers.push(setTimeout(go, 3000));
 }
 
+// ==================== 动画风格2：心跳播放器 ====================
+function renderECGStyle(root) {
+  root.innerHTML = `
+    <div class="launch-page page ecg-theme" id="launch-root">
+      <div class="lp-bg"></div>
+      <div class="mp3-player-container">
+        
+        <!-- 播放器主体 -->
+        <div class="mp3-player">
+          <!-- 播放器顶部状态栏 -->
+          <div class="mp3-header">
+            <span class="mp3-status-dot"></span>
+            <span class="mp3-status-text">STATUS: CONNECTED</span>
+          </div>
+          
+          <!-- 播放器显示屏 -->
+          <div class="mp3-screen">
+            <!-- 心电图监视器 -->
+            <div class="ecg-monitor">
+              <svg class="ecg-svg" viewBox="0 0 200 60" preserveAspectRatio="none">
+                <defs>
+                  <pattern id="ecg-grid" width="10" height="10" patternUnits="userSpaceOnUse">
+                    <path d="M 10 0 L 0 0 0 10" fill="none" stroke="currentColor" stroke-width="0.3" opacity="0.08"/>
+                  </pattern>
+                </defs>
+                <!-- 网格背景 -->
+                <rect width="100%" height="100%" fill="url(#ecg-grid)" />
+                
+                <!-- 滚动的心电图（无缝循环波形） -->
+                <g class="ecg-path-group">
+                  <path d="M 0 30 L 30 30 Q 35 24 40 30 T 45 30 L 55 30 L 58 35 L 62 5 L 67 48 L 71 30 L 78 30 Q 84 20 90 30 T 96 30 L 200 30 M 200 30 L 230 30 Q 235 24 240 30 T 245 30 L 255 30 L 258 35 L 262 5 L 267 48 L 271 30 L 278 30 Q 284 20 290 30 T 296 30 L 400 30" 
+                        fill="none" stroke="var(--color-accent)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" />
+                </g>
+              </svg>
+            </div>
+            
+            <!-- 治愈系文案 -->
+            <div class="mp3-quote-area">
+              <p class="mp3-quote" id="lp-quote">&nbsp;</p>
+            </div>
+          </div>
+          
+          <!-- 播放器底部控制区 -->
+          <div class="mp3-controls">
+            <!-- 进度显示 -->
+            <div class="mp3-time-info">
+              <span class="mp3-time-curr" id="mp3-timer">00:00</span>
+              <div class="mp3-progress-track">
+                <div class="mp3-progress-bar" id="mp3-progress"></div>
+              </div>
+              <span class="mp3-time-total">00:03</span>
+            </div>
+            
+            <!-- 拟物控制按钮 -->
+            <div class="mp3-buttons">
+              <button class="mp3-btn prev" type="button" aria-label="上一曲">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M6 6h2v12H6zm3.5 6L18 18V6z"/>
+                </svg>
+              </button>
+              <button class="mp3-btn play-pause active" type="button" id="mp3-play-btn" aria-label="播放暂停">
+                <div class="play-icon hidden">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+                <div class="pause-icon">
+                  <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                  </svg>
+                </div>
+              </button>
+              <button class="mp3-btn next" type="button" aria-label="下一曲">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <path d="M6 18l8.5-6L6 6zm9-12v12h2V6z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+        </div>
+        
+        <div class="lp-hint">轻 触 屏 幕 进 入</div>
+      </div>
+      
+      <style>
+        .launch-page.ecg-theme {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          min-height: 100dvh;
+          overflow: hidden;
+          background-color: var(--color-bg-primary);
+          color: var(--color-text-primary);
+          user-select: none;
+          -webkit-user-select: none;
+        }
+        .lp-bg {
+          position: absolute; inset: 0;
+          background: radial-gradient(ellipse at center, transparent 20%, var(--color-bg-primary) 95%);
+          pointer-events: none;
+        }
+        
+        /* 播放器容器 */
+        .mp3-player-container {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 20px;
+          width: 85%;
+          max-width: 310px;
+          animation: fadeIn 0.8s ease-out;
+        }
+        
+        /* 播放器面板 */
+        .mp3-player {
+          width: 100%;
+          background: var(--color-bg-secondary);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 20px;
+          padding: 16px;
+          box-shadow: 0 20px 40px var(--color-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        
+        /* 状态指示栏 */
+        .mp3-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 4px;
+        }
+        .mp3-status-dot {
+          width: 6px;
+          height: 6px;
+          background-color: var(--color-accent);
+          border-radius: 50%;
+          box-shadow: 0 0 8px var(--color-accent);
+          animation: breath 2s infinite ease-in-out;
+        }
+        .mp3-status-text {
+          font-size: 9px;
+          font-family: monospace;
+          letter-spacing: 1.5px;
+          color: var(--color-text-tertiary);
+        }
+        
+        /* 屏幕部分 */
+        .mp3-screen {
+          background-color: rgba(0, 0, 0, 0.25);
+          border-radius: 12px;
+          border: 1px solid rgba(0, 0, 0, 0.15);
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          overflow: hidden;
+        }
+        
+        /* 心电网格与路径 */
+        .ecg-monitor {
+          width: 100%;
+          height: 60px;
+          position: relative;
+          overflow: hidden;
+          background: rgba(0, 0, 0, 0.15);
+          border-radius: 6px;
+          color: var(--color-text-tertiary);
+          mask-image: linear-gradient(to right, transparent, white 15%, white 85%, transparent);
+          -webkit-mask-image: linear-gradient(to right, transparent, white 15%, white 85%, transparent);
+        }
+        .ecg-svg {
+          width: 100%;
+          height: 100%;
+          display: block;
+        }
+        .ecg-path-group {
+          transform-origin: left center;
+          animation: ecg-scroll 3s linear infinite;
+        }
+        @keyframes ecg-scroll {
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(-50%, 0, 0); }
+        }
+        
+        /* 治愈文案区 */
+        .mp3-quote-area {
+          min-height: 52px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+        }
+        .mp3-quote {
+          font-size: 13.5px;
+          line-height: 1.8;
+          text-align: center;
+          color: var(--color-text-secondary);
+          letter-spacing: 0.8px;
+          margin: 0;
+          animation: launchQuoteIn 0.8s ease forwards;
+        }
+        
+        /* 进度条与播放按钮 */
+        .mp3-controls {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .mp3-time-info {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 10px;
+          font-family: monospace;
+          color: var(--color-text-tertiary);
+        }
+        .mp3-progress-track {
+          flex: 1;
+          height: 3px;
+          background-color: var(--color-bg-tertiary);
+          border-radius: 2px;
+          position: relative;
+          overflow: hidden;
+        }
+        .mp3-progress-bar {
+          position: absolute;
+          left: 0; top: 0; bottom: 0;
+          width: 0%;
+          background-color: var(--color-accent);
+          border-radius: 2px;
+          box-shadow: 0 0 6px var(--color-accent);
+        }
+        .mp3-buttons {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 24px;
+        }
+        .mp3-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--color-text-secondary);
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          transition: all 0.2s;
+        }
+        .mp3-btn:active {
+          transform: scale(0.9);
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .mp3-btn.prev, .mp3-btn.next {
+          width: 32px; height: 32px;
+        }
+        .mp3-btn.play-pause {
+          width: 44px; height: 44px;
+          color: var(--color-accent);
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+          box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        .mp3-btn.play-pause.active {
+          box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+        }
+        
+        .lp-hint {
+          font-size: 10px;
+          letter-spacing: 4px;
+          color: var(--color-text-tertiary);
+          opacity: 0;
+          animation: launchQuoteIn 0.8s ease 1s forwards;
+          text-align: center;
+          margin-top: 4px;
+        }
+        .hidden {
+          display: none !important;
+        }
+      </style>
+    </div>
+  `;
+
+  // 1. 加载治愈语
+  fetch('./data/healingQuotes.json')
+    .then((r) => r.json())
+    .catch(() => ['在你看不见的地方，光也在发生'])
+    .then((quotes) => {
+      const el = document.getElementById('lp-quote');
+      if (el) el.textContent = pick(quotes);
+    });
+
+  // 2. 动画时间参数 (自动进入 3000ms 计时器逻辑)
+  const startTime = Date.now();
+  const duration = 3000;
+  const progressEl = document.getElementById('mp3-progress');
+  const timerEl = document.getElementById('mp3-timer');
+  const playBtn = document.getElementById('mp3-play-btn');
+
+  let isPlaying = true;
+  let totalPausedTime = 0;
+  let pauseStartTime = null;
+
+  // 定帧刷新函数
+  const updateProgress = () => {
+    if (!isPlaying) return;
+
+    const now = Date.now();
+    const elapsed = now - startTime - totalPausedTime;
+    const progress = Math.min((elapsed / duration) * 100, 100);
+
+    if (progressEl) {
+      progressEl.style.width = `${progress}%`;
+    }
+
+    const elapsedSeconds = Math.floor(elapsed / 1000);
+    const formattedTime = `00:${String(elapsedSeconds).padStart(2, '0')}`;
+    
+    if (timerEl) {
+      timerEl.textContent = formattedTime;
+    }
+
+    if (elapsed >= duration) {
+      go();
+    } else {
+      ecgAnimationFrameId = requestAnimationFrame(updateProgress);
+    }
+  };
+
+  ecgAnimationFrameId = requestAnimationFrame(updateProgress);
+
+  const go = () => {
+    if (didGo) return;
+    didGo = true;
+    if (ecgAnimationFrameId) {
+      cancelAnimationFrame(ecgAnimationFrameId);
+    }
+    haptic(6);
+    navigate('/home');
+  };
+
+  // 可交互：点击播放暂停（暂停时可以停下来阅读文案，不强制跳转）
+  if (playBtn) {
+    playBtn.addEventListener('click', (e) => {
+      e.stopPropagation(); // 阻止整个屏幕的跳转点击
+      haptic(3);
+      isPlaying = !isPlaying;
+      
+      const playIcon = playBtn.querySelector('.play-icon');
+      const pauseIcon = playBtn.querySelector('.pause-icon');
+      
+      if (isPlaying) {
+        playBtn.classList.add('active');
+        playIcon.classList.add('hidden');
+        pauseIcon.classList.remove('hidden');
+        // 恢复播放：计算暂停累加时长
+        if (pauseStartTime) {
+          totalPausedTime += (Date.now() - pauseStartTime);
+          pauseStartTime = null;
+        }
+        ecgAnimationFrameId = requestAnimationFrame(updateProgress);
+      } else {
+        playBtn.classList.remove('active');
+        playIcon.classList.remove('hidden');
+        pauseIcon.classList.add('hidden');
+        // 挂起计时
+        pauseStartTime = Date.now();
+        if (ecgAnimationFrameId) {
+          cancelAnimationFrame(ecgAnimationFrameId);
+        }
+      }
+    });
+  }
+
+  // 绑定背景空白跳转
+  clickTarget = document.getElementById('launch-root');
+  clickHandler = go;
+  clickTarget.addEventListener('click', clickHandler);
+}
+
+// ==================== 统一的销毁逻辑 ====================
 export function destroy() {
+  if (ecgAnimationFrameId) {
+    cancelAnimationFrame(ecgAnimationFrameId);
+    ecgAnimationFrameId = null;
+  }
   timers.forEach(clearTimeout);
   timers = [];
   if (clickTarget && clickHandler) {
@@ -220,3 +634,4 @@ export function destroy() {
   clickHandler = null;
   didGo = false;
 }
+

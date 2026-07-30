@@ -16,6 +16,7 @@ const CORE = [
   './js/cardEngine.js',
   './js/lib/keepAlive.js',
   './js/lib/sound.js',
+  './js/lib/scheduler.js',
   './js/pages/launch.js',
   './js/pages/home.js',
   './js/pages/cards.js',

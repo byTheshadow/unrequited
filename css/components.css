@@ -1,0 +1,260 @@
+/* ============ 顶部栏 ============ */
+.top-bar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center;
+  gap: 6px;
+  height: 52px; padding: 0 6px;
+  padding-top: env(safe-area-inset-top);
+  height: calc(52px + env(safe-area-inset-top));
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--color-border);
+}
+.top-bar-title {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  letter-spacing: 3px;
+  color: var(--color-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.top-bar-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  transition: color 0.2s, background 0.2s;
+}
+.top-bar-btn:active { background: var(--color-bg-tertiary); color: var(--color-text-primary); }
+
+/* ============ 头像 ============ */
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  font-weight: 400;
+}
+.avatar img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+}
+.avatar-fallback { letter-spacing: 0; }
+
+/* ============ 按钮 ============ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px;
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  letter-spacing: 2px;
+  transition: transform 0.15s, background 0.2s, opacity 0.2s;
+  min-height: 40px;
+  border: 1px solid transparent;
+}
+.btn:active { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; pointer-events: none; }
+.btn-primary { background: var(--color-accent); color: var(--color-bg-primary); }
+.btn-secondary { background: var(--color-bg-secondary); color: var(--color-text-primary); border-color: var(--color-border); }
+.btn-ghost { background: transparent; color: var(--color-text-secondary); }
+.btn-danger { background: #dc2626; color: #fff; }
+.btn-block { width: 100%; }
+
+/* ============ 表单 ============ */
+.field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.field-label {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--color-text-secondary);
+}
+.input, .textarea, .select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+  line-height: 1.5;
+  transition: border-color 0.2s;
+}
+.input:focus, .textarea:focus, .select:focus {
+  border-color: var(--color-accent);
+}
+.textarea { resize: vertical; min-height: 120px; font-family: inherit; }
+.field-hint { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 1px; }
+
+.row-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ============ 列表行 ============ */
+.list-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 0.15s;
+  min-height: 68px;
+}
+.list-row:active { background: var(--color-bg-secondary); }
+.list-row-body { flex: 1; min-width: 0; }
+.list-row-title {
+  font-size: 15px;
+  color: var(--color-text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  margin-bottom: 3px;
+}
+.list-row-sub {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  letter-spacing: 1px;
+}
+.list-row-aside {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 4px; flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+/* ============ 空状态 ============ */
+.empty-state {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+}
+.empty-state-icon {
+  margin-bottom: 16px;
+  opacity: 0.6;
+  color: var(--color-text-secondary);
+}
+.empty-state-title {
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+.empty-state-sub { font-size: 12px; line-height: 1.8; letter-spacing: 1px; }
+
+/* ============ 悬浮按钮 ============ */
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  box-shadow: 0 6px 20px var(--color-shadow);
+  z-index: 15;
+  transition: transform 0.2s;
+}
+.fab:active { transform: scale(0.9); }
+@media (min-width: 640px) {
+  .fab { right: calc(50vw - 240px + 20px); }
+}
+
+/* ============ Sheet ============ */
+.sheet-backdrop {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  transition: opacity 0.24s;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.sheet-backdrop.open { opacity: 1; }
+.sheet {
+  width: 100%; max-width: 480px;
+  background: var(--color-bg-primary);
+  border-top-left-radius: 22px; border-top-right-radius: 22px;
+  padding: 8px 20px 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  transform: translateY(100%);
+  transition: transform 0.28s cubic-bezier(.2,.7,.2,1);
+  overflow-y: auto;
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.35);
+}
+.sheet-backdrop.open .sheet { transform: translateY(0); }
+.sheet-handle {
+  width: 40px; height: 4px;
+  border-radius: 2px;
+  background: var(--color-text-tertiary);
+  opacity: 0.35;
+  margin: 6px auto 12px;
+}
+.sheet-title {
+  font-size: 14px; letter-spacing: 3px;
+  color: var(--color-text-primary);
+  text-align: center; margin-bottom: 14px;
+}
+.sheet-body { color: var(--color-text-primary); }
+.sheet-actions {
+  display: flex; gap: 10px; margin-top: 20px;
+}
+.sheet-actions .btn { flex: 1; }
+.confirm-text {
+  padding: 12px 4px 4px;
+  font-size: 14px; line-height: 1.7;
+  color: var(--color-text-secondary);
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+/* Sheet 里的角色/字卡库选择列表 */
+.sheet-list { display: flex; flex-direction: column; }
+.sheet-list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+}
+.sheet-list-item:last-child { border-bottom: none; }
+.sheet-list-item:active { background: var(--color-bg-secondary); }
+.sheet-list-body { flex: 1; min-width: 0; }
+.sheet-list-title { font-size: 14px; color: var(--color-text-primary); margin-bottom: 2px; }
+.sheet-list-sub { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 1px; }
+.sheet-list-check {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--color-accent); flex-shrink: 0;
+}
+.sheet-list-item.selected .sheet-list-check {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+}
+
+/* ============ Toast ============ */
+.toast {
+  position: fixed; left: 50%; bottom: 14%;
+  transform: translate(-50%, 10px);
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: 13px; letter-spacing: 1px;
+  z-index: 9999; pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.24s, transform 0.24s;
+  max-width: 80vw; text-align: center;
+}
+.toast.open { opacity: 1; transform: translate(-50%, 0); }
+
+/* ============ 通用 chip ============ */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px; letter-spacing: 1px;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+}

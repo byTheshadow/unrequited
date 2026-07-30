@@ -1,0 +1,303 @@
+import { db } from '../db.js';
+import { navigate, goBack } from '../router.js';
+import {
+  ICON, avatarHTML, escapeHtml, escapeAttr,
+  haptic, toast, openSheet, confirmSheet,
+  fileToResizedDataURL,
+} from '../utils.js';
+
+let state = { editingId: null };
+
+async function loadCharacters() {
+  return db.characters.orderBy('createdAt').reverse().toArray();
+}
+
+function renderList(list) {
+  if (!list.length) {
+    return `
+      <div class="empty-state">
+        <div class="empty-state-icon">${ICON.people}</div>
+        <div class="empty-state-title">还没有角色</div>
+        <div class="empty-state-sub">点击右下角加号创建第一个角色</div>
+      </div>
+    `;
+  }
+  return `
+    <ul class="char-list">
+      ${list.map((c) => `
+        <li class="list-row" data-id="${c.id}">
+          ${avatarHTML(c.avatar, c.name, 46)}
+          <div class="list-row-body">
+            <div class="list-row-title">${escapeHtml(c.name)}</div>
+            <div class="list-row-sub">${(c.linkedDeckIds || []).length} 个字卡库${c.signature ? '　·　' + escapeHtml(c.signature.slice(0, 20)) : ''}</div>
+          </div>
+          <div class="list-row-aside">
+            <button class="row-icon-btn" data-act="delete" data-id="${c.id}" aria-label="删除">${ICON.trash}</button>
+          </div>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+async function refresh() {
+  const wrap = document.getElementById('char-list-wrap');
+  if (!wrap) return;
+  const list = await loadCharacters();
+  wrap.innerHTML = renderList(list);
+  bindRowEvents();
+}
+
+function bindRowEvents() {
+  document.querySelectorAll('.char-list .list-row').forEach((row) => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('[data-act]')) return;
+      const id = Number(row.getAttribute('data-id'));
+      openEditor(id);
+    });
+  });
+  document.querySelectorAll('[data-act=delete]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = Number(btn.getAttribute('data-id'));
+      const ok = await confirmSheet('删除此角色？关联的对话与消息也会删除，字卡库保留', { danger: true, okText: '删除' });
+      if (!ok) return;
+      const convos = await db.conversations.where('characterId').equals(id).toArray();
+      for (const c of convos) {
+        await db.messages.where('conversationId').equals(c.id).delete();
+      }
+      await db.conversations.where('characterId').equals(id).delete();
+      await db.characters.delete(id);
+      toast('已删除');
+      refresh();
+    });
+  });
+}
+
+async function openEditor(charId) {
+  const isNew = !charId;
+  const char = isNew
+    ? { name: '', avatar: '', signature: '', linkedDeckIds: [], replyConfig: {} }
+    : await db.characters.get(charId);
+  if (!char) { toast('角色不存在'); return; }
+
+  const allDecks = await db.decks.orderBy('createdAt').toArray();
+  const linked = new Set(char.linkedDeckIds || []);
+  const cfg = char.replyConfig || {};
+
+  const body = `
+    <div class="editor-form">
+      <div class="avatar-picker">
+        <div class="avatar-preview" id="avatar-preview">
+          ${avatarHTML(char.avatar, char.name || '?', 84)}
+        </div>
+        <input type="file" id="avatar-file" accept="image/*" hidden>
+        <div class="avatar-actions">
+          <button class="btn btn-secondary" data-act="pick-file">选图片</button>
+          <button class="btn btn-ghost" data-act="clear-avatar">清除</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">名称</label>
+        <input class="input" id="f-name" placeholder="给ta一个名字" maxlength="40" value="${escapeAttr(char.name || '')}">
+      </div>
+
+      <div class="field">
+        <label class="field-label">头像 URL（可选，会覆盖上传的图片）</label>
+        <input class="input" id="f-avatar-url" placeholder="https://..." value="${escapeAttr(char.avatar && char.avatar.startsWith('http') ? char.avatar : '')}">
+      </div>
+
+      <div class="field">
+        <label class="field-label">个性签名</label>
+        <input class="input" id="f-signature" placeholder="出现在对话顶部" maxlength="60" value="${escapeAttr(char.signature || '')}">
+      </div>
+
+      <div class="field">
+        <label class="field-label">绑定字卡库</label>
+        <div class="deck-picker" id="deck-picker">
+          ${allDecks.length ? allDecks.map((d) => `
+            <label class="deck-chip ${linked.has(d.id) ? 'on' : ''}">
+              <input type="checkbox" value="${d.id}" ${linked.has(d.id) ? 'checked' : ''}>
+              <span>${escapeHtml(d.name)}</span>
+              <span class="deck-chip-count">${(d.fragments || []).length}</span>
+            </label>
+          `).join('') : '<div class="field-hint">还没有字卡库，稍后到「字卡库」创建</div>'}
+        </div>
+        <div class="field-hint">未绑定任何字卡库时，将使用未绑定角色的通用字卡库</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">回复参数</label>
+        <div class="row-2col">
+          <div>
+            <div class="field-hint">最少消息条数</div>
+            <input class="input" type="number" id="f-min-msgs" min="1" max="10" value="${cfg.minMsgs ?? 1}">
+          </div>
+          <div>
+            <div class="field-hint">最多消息条数</div>
+            <input class="input" type="number" id="f-max-msgs" min="1" max="10" value="${cfg.maxMsgs ?? 3}">
+          </div>
+        </div>
+        <div class="row-2col" style="margin-top:12px;">
+          <div>
+            <div class="field-hint">拼接概率 0-1</div>
+            <input class="input" type="number" id="f-combo-chance" min="0" max="1" step="0.05" value="${cfg.comboChance ?? 0.25}">
+          </div>
+          <div>
+            <div class="field-hint">最多拼接卡数</div>
+            <input class="input" type="number" id="f-max-combo" min="1" max="6" value="${cfg.maxCombo ?? 3}">
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const { close } = openSheet({
+    title: isNew ? '新建角色' : '编辑角色',
+    body,
+    maxHeight: '92vh',
+    actions: `
+      <button class="btn btn-ghost" data-act="cancel">取消</button>
+      <button class="btn btn-primary" data-act="save">保存</button>
+    `,
+  });
+
+  const sheetRoot = document.querySelector('.sheet-backdrop:last-of-type');
+  let uploadedDataUrl = char.avatar && !char.avatar.startsWith('http') ? char.avatar : '';
+
+  const preview = sheetRoot.querySelector('#avatar-preview');
+  const fileInput = sheetRoot.querySelector('#avatar-file');
+  sheetRoot.querySelector('[data-act=pick-file]').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files[0]; if (!f) return;
+    try {
+      const url = await fileToResizedDataURL(f, 300);
+      uploadedDataUrl = url;
+      sheetRoot.querySelector('#f-avatar-url').value = '';
+      preview.innerHTML = avatarHTML(url, sheetRoot.querySelector('#f-name').value || '?', 84);
+    } catch (e) { toast('图片处理失败'); }
+  });
+  sheetRoot.querySelector('[data-act=clear-avatar]').addEventListener('click', () => {
+    uploadedDataUrl = '';
+    sheetRoot.querySelector('#f-avatar-url').value = '';
+    preview.innerHTML = avatarHTML('', sheetRoot.querySelector('#f-name').value || '?', 84);
+  });
+  sheetRoot.querySelector('#f-avatar-url').addEventListener('input', (e) => {
+    const url = e.target.value.trim();
+    preview.innerHTML = avatarHTML(url || uploadedDataUrl, sheetRoot.querySelector('#f-name').value || '?', 84);
+  });
+  sheetRoot.querySelector('#f-name').addEventListener('input', (e) => {
+    const url = sheetRoot.querySelector('#f-avatar-url').value.trim() || uploadedDataUrl;
+    preview.innerHTML = avatarHTML(url, e.target.value || '?', 84);
+  });
+  sheetRoot.querySelectorAll('.deck-chip input').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      cb.closest('.deck-chip').classList.toggle('on', cb.checked);
+    });
+  });
+
+  sheetRoot.querySelector('[data-act=cancel]').addEventListener('click', () => close());
+  sheetRoot.querySelector('[data-act=save]').addEventListener('click', async () => {
+    const name = sheetRoot.querySelector('#f-name').value.trim();
+    if (!name) { toast('请填写名称'); return; }
+    const avatarUrl = sheetRoot.querySelector('#f-avatar-url').value.trim();
+    const avatar = avatarUrl || uploadedDataUrl || '';
+    const signature = sheetRoot.querySelector('#f-signature').value.trim();
+    const selected = [...sheetRoot.querySelectorAll('.deck-chip input:checked')].map((el) => Number(el.value));
+
+    const minMsgs = Math.max(1, Math.min(10, Number(sheetRoot.querySelector('#f-min-msgs').value) || 1));
+    let maxMsgs = Math.max(1, Math.min(10, Number(sheetRoot.querySelector('#f-max-msgs').value) || 3));
+    if (maxMsgs < minMsgs) maxMsgs = minMsgs;
+    const comboChance = Math.max(0, Math.min(1, Number(sheetRoot.querySelector('#f-combo-chance').value) || 0));
+    const maxCombo = Math.max(1, Math.min(6, Number(sheetRoot.querySelector('#f-max-combo').value) || 3));
+
+    const payload = {
+      name, avatar, signature,
+      linkedDeckIds: selected,
+      replyConfig: { minMsgs, maxMsgs, comboChance, minCombo: 2, maxCombo },
+    };
+
+    if (isNew) {
+      await db.characters.add({ ...payload, createdAt: Date.now(), status: '' });
+    } else {
+      await db.characters.update(charId, payload);
+    }
+    toast('已保存');
+    close();
+    refresh();
+  });
+}
+
+export async function render(root, params = {}) {
+  root.innerHTML = `
+    <div class="page char-page">
+      <div class="top-bar">
+        <button class="top-bar-btn" data-act="back" aria-label="返回">${ICON.back}</button>
+        <div class="top-bar-title">角 色</div>
+        <span style="width:40px;"></span>
+      </div>
+      <div id="char-list-wrap"></div>
+      <button class="fab" data-act="new" aria-label="新建角色">${ICON.plus}</button>
+      <style>
+        .char-page { min-height: 100vh; padding-bottom: 100px; }
+        .char-list { list-style: none; }
+        .row-icon-btn {
+          padding: 8px; border-radius: 8px;
+          color: var(--color-text-tertiary);
+          transition: color 0.2s, background 0.2s;
+        }
+        .row-icon-btn:active { color: #dc2626; background: var(--color-bg-secondary); }
+
+        .editor-form { max-height: 68vh; overflow-y: auto; padding-right: 4px; }
+        .avatar-picker {
+          display: flex; align-items: center; gap: 16px;
+          padding: 4px 4px 20px; border-bottom: 1px solid var(--color-border);
+          margin-bottom: 20px;
+        }
+        .avatar-preview .avatar { width: 84px; height: 84px; font-size: 32px; }
+        .avatar-actions { display: flex; flex-direction: column; gap: 8px; }
+        .avatar-actions .btn { min-height: 34px; padding: 8px 14px; font-size: 12px; letter-spacing: 1px; }
+
+        .deck-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+        .deck-chip {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 7px 12px;
+          border-radius: 999px;
+          background: var(--color-bg-secondary);
+          border: 1px solid var(--color-border);
+          color: var(--color-text-secondary);
+          font-size: 12px; letter-spacing: 1px;
+          cursor: pointer;
+          transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .deck-chip input { display: none; }
+        .deck-chip.on {
+          background: var(--color-bg-tertiary);
+          border-color: var(--color-accent);
+          color: var(--color-text-primary);
+        }
+        .deck-chip-count {
+          font-size: 10px;
+          padding: 1px 6px;
+          border-radius: 999px;
+          background: var(--color-bg-primary);
+          color: var(--color-text-tertiary);
+        }
+      </style>
+    </div>
+  `;
+
+  const list = await loadCharacters();
+  document.getElementById('char-list-wrap').innerHTML = renderList(list);
+  bindRowEvents();
+
+  root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
+  root.querySelector('[data-act=new]').addEventListener('click', () => { haptic(8); openEditor(null); });
+
+  // 从其他页面带参数进入
+  if (params.new === '1') openEditor(null);
+  else if (params.edit) openEditor(Number(params.edit));
+}
+
+export function destroy() {}

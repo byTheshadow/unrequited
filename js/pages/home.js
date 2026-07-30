@@ -3,8 +3,6 @@ import { navigate } from '../router.js';
 
 function moonSVG(phase) {
   const size = 22, r = 9, cx = size / 2, cy = size / 2;
-  // phase: 0 新月 -> 0.5 满月 -> 1 新月
-  // 用一个 currentColor 圆 + 遮罩内的偏移圆挖出阴影
   const offset = Math.cos(phase * Math.PI * 2) * r * 2;
   const maskId = 'moon-mask-' + Math.random().toString(36).slice(2, 8);
   return `
@@ -23,8 +21,7 @@ function moonSVG(phase) {
 }
 
 const settingsIcon = `
-  <svg viewBox="0 0 24 24" width="22" height="22" fill="none"
-       stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="3"/>
     <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
   </svg>
@@ -62,10 +59,7 @@ function attachTilt(el) {
       el.style.transform = `perspective(700px) rotateX(${-y * 6}deg) rotateY(${x * 6}deg)`;
     });
   };
-  const onLeave = () => {
-    cancelAnimationFrame(raf);
-    el.style.transform = '';
-  };
+  const onLeave = () => { cancelAnimationFrame(raf); el.style.transform = ''; };
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerleave', onLeave);
   el.addEventListener('pointercancel', onLeave);
@@ -78,7 +72,7 @@ function attachTilt(el) {
   });
 }
 
-const PHASE1_PATHS = ['/home'];
+const IMPLEMENTED = ['/home', '/cards'];
 
 export function render(root) {
   const phase = getMoonPhase();
@@ -92,13 +86,11 @@ export function render(root) {
           <span class="moon-name">${phaseName}</span>
         </div>
       </header>
-
       <main class="home-main">
         <div class="brand-wrap">
           <div class="brand">Unrequited</div>
           <div class="brand-sub">恋 恋 不 忘</div>
         </div>
-
         <div class="entries">
           <button class="entry" data-nav="/cards" type="button">
             <div class="entry-glyph">${cardsGlyph}</div>
@@ -110,7 +102,6 @@ export function render(root) {
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
           </button>
-
           <button class="entry" data-nav="/divination" type="button">
             <div class="entry-glyph">${divinationGlyph}</div>
             <div class="entry-body">
@@ -123,129 +114,51 @@ export function render(root) {
           </button>
         </div>
       </main>
-
       <footer class="home-bottom">
         <button class="icon-btn" data-nav="/settings" type="button" aria-label="设置">${settingsIcon}</button>
       </footer>
-
       <style>
-        .home-page {
-          display: flex; flex-direction: column;
-          min-height: 100vh; min-height: 100dvh;
-          padding: 16px 20px;
-          padding-top: calc(16px + env(safe-area-inset-top));
-          padding-bottom: calc(16px + env(safe-area-inset-bottom));
-          animation: fadeInPlain 0.5s ease;
-        }
-        .home-top {
-          display: flex; justify-content: flex-end;
-        }
-        .moon-widget {
-          display: inline-flex; align-items: center; gap: 8px;
-          padding: 7px 14px;
-          border-radius: 999px;
-          color: var(--color-text-secondary);
-          font-size: 11px;
-          letter-spacing: 3px;
-          background: var(--glass-bg);
-          backdrop-filter: blur(var(--glass-blur));
-          -webkit-backdrop-filter: blur(var(--glass-blur));
-          border: 1px solid var(--color-border);
-        }
+        .home-page { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh;
+          padding: 16px 20px; padding-top: calc(16px + env(safe-area-inset-top));
+          padding-bottom: calc(16px + env(safe-area-inset-bottom)); animation: fadeInPlain 0.5s ease; }
+        .home-top { display: flex; justify-content: flex-end; }
+        .moon-widget { display: inline-flex; align-items: center; gap: 8px;
+          padding: 7px 14px; border-radius: 999px;
+          color: var(--color-text-secondary); font-size: 11px; letter-spacing: 3px;
+          background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+          -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--color-border); }
         .moon-svg { display: inline-flex; }
-
-        .home-main {
-          flex: 1;
-          display: flex; flex-direction: column;
-          justify-content: center;
-          gap: 40px;
-          padding: 24px 0;
-        }
+        .home-main { flex: 1; display: flex; flex-direction: column; justify-content: center;
+          gap: 40px; padding: 24px 0; }
         .brand-wrap { text-align: center; }
-        .brand {
-          font-size: 28px;
-          letter-spacing: 8px;
-          font-weight: 300;
-          color: var(--color-text-primary);
-        }
-        .brand-sub {
-          margin-top: 10px;
-          font-size: 11px;
-          letter-spacing: 8px;
-          color: var(--color-text-tertiary);
-        }
-
-        .entries {
-          display: flex; flex-direction: column;
-          gap: 16px;
-        }
-        .entry {
-          display: flex; align-items: center; gap: 16px;
-          width: 100%;
-          padding: 22px 20px;
-          background: var(--glass-bg);
-          backdrop-filter: blur(var(--glass-blur));
-          -webkit-backdrop-filter: blur(var(--glass-blur));
-          border: 1px solid var(--color-border);
-          border-radius: var(--radius-lg);
-          color: var(--color-text-primary);
-          text-align: left;
+        .brand { font-size: 28px; letter-spacing: 8px; font-weight: 300; color: var(--color-text-primary); }
+        .brand-sub { margin-top: 10px; font-size: 11px; letter-spacing: 8px; color: var(--color-text-tertiary); }
+        .entries { display: flex; flex-direction: column; gap: 16px; }
+        .entry { display: flex; align-items: center; gap: 16px; width: 100%;
+          padding: 22px 20px; background: var(--glass-bg);
+          backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+          border: 1px solid var(--color-border); border-radius: var(--radius-lg);
+          color: var(--color-text-primary); text-align: left;
           box-shadow: 0 4px 24px var(--color-shadow);
           transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.3s;
-          will-change: transform;
-        }
-        .entry:active {
-          transform: scale(0.985) !important;
-          box-shadow: 0 2px 12px var(--color-shadow);
-        }
-        .entry-glyph {
-          flex-shrink: 0;
-          width: 54px; height: 54px;
+          will-change: transform; }
+        .entry:active { transform: scale(0.985) !important; box-shadow: 0 2px 12px var(--color-shadow); }
+        .entry-glyph { flex-shrink: 0; width: 54px; height: 54px;
           display: flex; align-items: center; justify-content: center;
-          border-radius: var(--radius-md);
-          color: var(--color-accent);
-          background: var(--color-bg-secondary);
-        }
+          border-radius: var(--radius-md); color: var(--color-accent);
+          background: var(--color-bg-secondary); }
         .entry-body { flex: 1; min-width: 0; }
-        .entry-title {
-          font-size: 19px;
-          letter-spacing: 6px;
-          font-weight: 400;
-          margin-bottom: 4px;
-        }
-        .entry-sub {
-          font-size: 11px;
-          color: var(--color-text-tertiary);
-          letter-spacing: 2px;
-        }
-        .entry-chev {
-          color: var(--color-text-tertiary);
-          flex-shrink: 0;
-        }
-
-        .home-bottom {
-          display: flex; justify-content: center;
-          padding-top: 12px;
-        }
-        .icon-btn {
-          display: inline-flex;
-          align-items: center; justify-content: center;
-          width: 44px; height: 44px;
-          border-radius: 999px;
-          color: var(--color-text-secondary);
-          transition: color 0.2s, transform 0.2s;
-        }
-        .icon-btn:active {
-          color: var(--color-accent);
-          transform: rotate(30deg);
-        }
-
-        /* 窄屏微调 */
+        .entry-title { font-size: 19px; letter-spacing: 6px; font-weight: 400; margin-bottom: 4px; }
+        .entry-sub { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 2px; }
+        .entry-chev { color: var(--color-text-tertiary); flex-shrink: 0; }
+        .home-bottom { display: flex; justify-content: center; padding-top: 12px; }
+        .icon-btn { display: inline-flex; align-items: center; justify-content: center;
+          width: 44px; height: 44px; border-radius: 999px;
+          color: var(--color-text-secondary); transition: color 0.2s, transform 0.2s; }
+        .icon-btn:active { color: var(--color-accent); transform: rotate(30deg); }
         @media (max-height: 640px) {
-          .brand { font-size: 24px; }
-          .home-main { gap: 24px; }
-          .entry { padding: 18px 18px; }
-          .entry-glyph { width: 46px; height: 46px; }
+          .brand { font-size: 24px; } .home-main { gap: 24px; }
+          .entry { padding: 18px 18px; } .entry-glyph { width: 46px; height: 46px; }
           .entry-title { font-size: 17px; }
         }
       </style>
@@ -256,9 +169,9 @@ export function render(root) {
     el.addEventListener('click', () => {
       haptic(8);
       const path = el.getAttribute('data-nav');
-      if (!PHASE1_PATHS.includes(path)) {
-        const name = path === '/cards' ? '字卡' : path === '/divination' ? '占卜' : '设置';
-        toast(`「${name}」将在下一阶段实装`);
+      if (!IMPLEMENTED.includes(path)) {
+        const name = path === '/divination' ? '占卜' : path === '/settings' ? '设置' : '';
+        toast(`「${name}」将在后续阶段实装`);
         return;
       }
       navigate(path);

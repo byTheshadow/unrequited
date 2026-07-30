@@ -6,6 +6,7 @@ const routes = {
   '/characters': () => import('./pages/characters.js'),
   '/decks': () => import('./pages/decks.js'),
   '/settings': () => import('./pages/settings/index.js'),
+  '/divination': () => import('./pages/divination/index.js'),
 };
 
 let currentPage = null;

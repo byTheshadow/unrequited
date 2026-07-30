@@ -1,0 +1,920 @@
+[
+  {
+    "id": "tarot_00",
+    "name": "愚人",
+    "type": "major",
+    "number": 0,
+    "keywords": ["冒险", "开始", "自由", "纯真", "未知"],
+    "meanings": {
+      "upright": "新的开始，勇敢踏入未知，追求自由与可能性，适合尝试新旅程。",
+      "reversed": "鲁莽冒险，缺乏计划，逃避责任，判断天真，可能错失时机或方向混乱。"
+    }
+  },
+  {
+    "id": "tarot_01",
+    "name": "魔术师",
+    "type": "major",
+    "number": 1,
+    "keywords": ["创造力", "行动", "资源", "意志", "显化"],
+    "meanings": {
+      "upright": "具备实现目标的能力与资源，适合主动行动，将想法转化为现实。",
+      "reversed": "能力不足或误用资源，沟通不佳，欺骗操控，计划难以落实。"
+    }
+  },
+  {
+    "id": "tarot_02",
+    "name": "女祭司",
+    "type": "major",
+    "number": 2,
+    "keywords": ["直觉", "智慧", "神秘", "潜意识", "等待"],
+    "meanings": {
+      "upright": "倾听内在声音，保持观察与沉静，事情尚未完全明朗，需要直觉与智慧。",
+      "reversed": "忽视直觉，信息隐藏或判断偏差，内心封闭，情绪与认知混乱。"
+    }
+  },
+  {
+    "id": "tarot_03",
+    "name": "皇后",
+    "type": "major",
+    "number": 3,
+    "keywords": ["丰盛", "母性", "滋养", "创造", "爱"],
+    "meanings": {
+      "upright": "丰收、滋养与创造力增强，关系中充满关怀，物质与情感层面较为丰盛。",
+      "reversed": "过度享乐、依赖或情感索取，创造力受阻，关系失衡，物质或情绪浪费。"
+    }
+  },
+  {
+    "id": "tarot_04",
+    "name": "皇帝",
+    "type": "major",
+    "number": 4,
+    "keywords": ["权威", "稳定", "规则", "责任", "掌控"],
+    "meanings": {
+      "upright": "秩序、责任与领导力，适合建立结构、明确目标并掌控局面。",
+      "reversed": "控制欲过强、固执独裁，或缺乏责任感与行动力，局面失控。"
+    }
+  },
+  {
+    "id": "tarot_05",
+    "name": "教皇",
+    "type": "major",
+    "number": 5,
+    "keywords": ["传统", "信仰", "指导", "制度", "智慧"],
+    "meanings": {
+      "upright": "获得导师、传统或制度的帮助，适合学习、遵循规则、寻求精神或现实指导。",
+      "reversed": "错误指导、教条束缚、盲目依赖，也可能代表挑战传统与权威。"
+    }
+  },
+  {
+    "id": "tarot_06",
+    "name": "恋人",
+    "type": "major",
+    "number": 6,
+    "keywords": ["爱情", "关系", "选择", "和谐", "价值观"],
+    "meanings": {
+      "upright": "爱情、吸引与重要选择，关系发展需要基于真诚、沟通与共同价值观。",
+      "reversed": "关系失衡、价值观冲突、诱惑、优柔寡断，可能出现分离或承诺不足。"
+    }
+  },
+  {
+    "id": "tarot_07",
+    "name": "战车",
+    "type": "major",
+    "number": 7,
+    "keywords": ["胜利", "决心", "掌控", "前进", "自律"],
+    "meanings": {
+      "upright": "凭借意志力、自律和明确目标取得进展，适合主动推进与克服阻碍。",
+      "reversed": "方向混乱、失控、冲动或动力不足，目标难以统一。"
+    }
+  },
+  {
+    "id": "tarot_08",
+    "name": "力量",
+    "type": "major",
+    "number": 8,
+    "keywords": ["勇气", "耐心", "内在力量", "自控", "温柔"],
+    "meanings": {
+      "upright": "以柔克刚，凭耐心、信心和内在力量克服困难，关系中更亲密坦诚。",
+      "reversed": "失去信心、情绪化、恐惧退缩，容易被欲望或外界压力控制。"
+    }
+  },
+  {
+    "id": "tarot_09",
+    "name": "隐士",
+    "type": "major",
+    "number": 9,
+    "keywords": ["内省", "独处", "智慧", "寻找", "指引"],
+    "meanings": {
+      "upright": "需要独处、沉淀与反思，通过内在探索找到答案或获得智慧指引。",
+      "reversed": "孤立逃避、方向迷失、错误判断，或因过度封闭而与外界脱节。"
+    }
+  },
+  {
+    "id": "tarot_10",
+    "name": "命运之轮",
+    "type": "major",
+    "number": 10,
+    "keywords": ["变化", "命运", "转机", "循环", "机会"],
+    "meanings": {
+      "upright": "局势转变，好运或机会到来，顺应变化并把握关键时机。",
+      "reversed": "错失良机、局势失控、运势受阻，可能被环境牵制或陷入重复循环。"
+    }
+  },
+  {
+    "id": "tarot_11",
+    "name": "正义",
+    "type": "major",
+    "number": 11,
+    "keywords": ["公平", "平衡", "因果", "真相", "判断"],
+    "meanings": {
+      "upright": "公正判断、承担责任，事情会依据事实与因果得到结果。",
+      "reversed": "不公平、偏见、逃避责任、判断失衡，可能涉及契约或法律问题。"
+    }
+  },
+  {
+    "id": "tarot_12",
+    "name": "倒吊人",
+    "type": "major",
+    "number": 12,
+    "keywords": ["牺牲", "暂停", "放下", "新视角", "等待"],
+    "meanings": {
+      "upright": "需要暂停行动、换角度思考，接受必要牺牲与沉淀，等待转机。",
+      "reversed": "无谓牺牲、抗拒改变、缺乏耐心，或以错误方式看待问题。"
+    }
+  },
+  {
+    "id": "tarot_13",
+    "name": "死神",
+    "type": "major",
+    "number": 13,
+    "keywords": ["结束", "转化", "重生", "放下", "蜕变"],
+    "meanings": {
+      "upright": "旧阶段结束，清理过去并迎来深层转变与新的开始。",
+      "reversed": "抗拒结束、停滞不前，或已经走过转化阶段但仍未完全放下。"
+    }
+  },
+  {
+    "id": "tarot_14",
+    "name": "节制",
+    "type": "major",
+    "number": 14,
+    "keywords": ["平衡", "调和", "耐心", "疗愈", "适度"],
+    "meanings": {
+      "upright": "平衡理性与感性，沟通顺畅，循序渐进地整合与疗愈。",
+      "reversed": "失衡、沟通不良、过度消耗，缺乏节制与自我控制。"
+    }
+  },
+  {
+    "id": "tarot_15",
+    "name": "恶魔",
+    "type": "major",
+    "number": 15,
+    "keywords": ["诱惑", "束缚", "欲望", "沉迷", "执念"],
+    "meanings": {
+      "upright": "被欲望、恐惧、物质或不健康关系束缚，需要看清内在阴影。",
+      "reversed": "开始摆脱束缚、看清现实，也可能表示隐性控制或欲望失控。"
+    }
+  },
+  {
+    "id": "tarot_16",
+    "name": "高塔",
+    "type": "major",
+    "number": 16,
+    "keywords": ["突变", "崩塌", "毁灭", "觉醒", "重建"],
+    "meanings": {
+      "upright": "突发冲击或结构崩塌，旧有模式无法维持，需要面对真相并重建。",
+      "reversed": "危机延后或已经历灾变后准备重建，也可能因抗拒改变而承受压力。"
+    }
+  },
+  {
+    "id": "tarot_17",
+    "name": "星星",
+    "type": "major",
+    "number": 17,
+    "keywords": ["希望", "疗愈", "灵感", "信心", "指引"],
+    "meanings": {
+      "upright": "希望重燃、心灵疗愈，未来逐渐明朗，适合恢复信心与追随理想。",
+      "reversed": "失去希望、目标虚幻、信心不足，可能理想与现实脱节。"
+    }
+  },
+  {
+    "id": "tarot_18",
+    "name": "月亮",
+    "type": "major",
+    "number": 18,
+    "keywords": ["不安", "幻象", "潜意识", "恐惧", "直觉"],
+    "meanings": {
+      "upright": "局势不明、情绪波动、隐藏信息或幻象影响判断，需要谨慎探索真相。",
+      "reversed": "迷雾逐渐散去，误会解除，恐惧缓解，现实脉络开始清晰。"
+    }
+  },
+  {
+    "id": "tarot_19",
+    "name": "太阳",
+    "type": "major",
+    "number": 19,
+    "keywords": ["快乐", "成功", "活力", "清晰", "成长"],
+    "meanings": {
+      "upright": "成功、喜悦与光明前景，事情顺利发展，生命力和自信增强。",
+      "reversed": "热情下降、信心不足、快乐受阻，需注意过度消耗或未来风险。"
+    }
+  },
+  {
+    "id": "tarot_20",
+    "name": "审判",
+    "type": "major",
+    "number": 20,
+    "keywords": ["觉醒", "复苏", "决定", "清算", "重生"],
+    "meanings": {
+      "upright": "内在觉醒、重新评估过去，迎来复苏、决定或第二次机会。",
+      "reversed": "抗拒改变、不愿反省、错失召唤，旧问题可能重复出现。"
+    }
+  },
+  {
+    "id": "tarot_21",
+    "name": "世界",
+    "type": "major",
+    "number": 21,
+    "keywords": ["完成", "圆满", "成就", "整合", "成功"],
+    "meanings": {
+      "upright": "阶段圆满完成，目标达成，经验整合，迎来成功与满足。",
+      "reversed": "尚未完成、缺少最后一步，结果延迟或感觉不够圆满。"
+    }
+  },
+
+  {
+    "id": "tarot_wands_ace",
+    "name": "权杖首牌",
+    "type": "minor",
+    "suit": "wands",
+    "number": 1,
+    "keywords": ["灵感", "机会", "新行动", "热情", "创造"],
+    "meanings": {
+      "upright": "新的事业、创意或行动机会出现，充满热情和潜力，适合主动开始。",
+      "reversed": "错误开始、热情不足、计划取消，目标难以实现或机会尚未成熟。"
+    }
+  },
+  {
+    "id": "tarot_wands_02",
+    "name": "权杖二",
+    "type": "minor",
+    "suit": "wands",
+    "number": 2,
+    "keywords": ["计划", "远见", "选择", "胆识", "权力"],
+    "meanings": {
+      "upright": "规划未来，评估方向，具备掌控力与远见，适合制定长期计划。",
+      "reversed": "犹豫、失去信心、受到阻碍，计划不稳或对未来缺乏把握。"
+    }
+  },
+  {
+    "id": "tarot_wands_03",
+    "name": "权杖三",
+    "type": "minor",
+    "suit": "wands",
+    "number": 3,
+    "keywords": ["扩展", "探索", "远见", "合作", "贸易"],
+    "meanings": {
+      "upright": "事业或计划开始扩展，适合合作、远行、谈判和等待成果。",
+      "reversed": "合作受阻、援助别有用心、进展延迟，需谨慎判断外部资源。"
+    }
+  },
+  {
+    "id": "tarot_wands_04",
+    "name": "权杖四",
+    "type": "minor",
+    "suit": "wands",
+    "number": 4,
+    "keywords": ["稳定", "庆祝", "家庭", "和谐", "繁荣"],
+    "meanings": {
+      "upright": "阶段成果、庆祝、家庭和谐与稳定，努力后获得喘息与喜悦。",
+      "reversed": "稳定感下降、关系未完成、局促不安，快乐或成果不够完整。"
+    }
+  },
+  {
+    "id": "tarot_wands_05",
+    "name": "权杖五",
+    "type": "minor",
+    "suit": "wands",
+    "number": 5,
+    "keywords": ["竞争", "冲突", "挑战", "混乱", "争执"],
+    "meanings": {
+      "upright": "面临竞争、意见冲突或挑战，需要协调分歧并寻找共识。",
+      "reversed": "竞争不公平、内耗或诉讼麻烦，也可能表示混乱逐渐平息。"
+    }
+  },
+  {
+    "id": "tarot_wands_06",
+    "name": "权杖六",
+    "type": "minor",
+    "suit": "wands",
+    "number": 6,
+    "keywords": ["胜利", "认可", "自信", "荣耀", "好消息"],
+    "meanings": {
+      "upright": "获得成功、认可和赞美，事业或学业有好消息，适合公开展示成果。",
+      "reversed": "自信下降、胜利不彻底、内部问题浮现，成功感不足。"
+    }
+  },
+  {
+    "id": "tarot_wands_07",
+    "name": "权杖七",
+    "type": "minor",
+    "suit": "wands",
+    "number": 7,
+    "keywords": ["防御", "坚持", "勇气", "挑战", "对立"],
+    "meanings": {
+      "upright": "面对压力仍需坚持立场，以勇气和主动性守住优势。",
+      "reversed": "焦虑、挫败、难以抉择，可能因压力过大而放弃防守。"
+    }
+  },
+  {
+    "id": "tarot_wands_08",
+    "name": "权杖八",
+    "type": "minor",
+    "suit": "wands",
+    "number": 8,
+    "keywords": ["快速", "消息", "进展", "激情", "目标明确"],
+    "meanings": {
+      "upright": "事情迅速推进，消息到来，行动效率高，关系或项目发展很快。",
+      "reversed": "方向错误、目标不清、阻力停滞，沟通或行动节奏出现问题。"
+    }
+  },
+  {
+    "id": "tarot_wands_09",
+    "name": "权杖九",
+    "type": "minor",
+    "suit": "wands",
+    "number": 9,
+    "keywords": ["坚持", "警觉", "疲惫", "防备", "韧性"],
+    "meanings": {
+      "upright": "经历困难后仍坚持守护目标，虽疲惫但具备韧性和警觉。",
+      "reversed": "失去信心、斗志低落、遭遇逆境，可能防备过度或想放弃。"
+    }
+  },
+  {
+    "id": "tarot_wands_10",
+    "name": "权杖十",
+    "type": "minor",
+    "suit": "wands",
+    "number": 10,
+    "keywords": ["责任", "压力", "负担", "忍耐", "劳累"],
+    "meanings": {
+      "upright": "承担沉重责任，压力较大但仍在坚持，接近目标却身心疲惫。",
+      "reversed": "负担过重、难以承受、逃避或放弃，也可能开始卸下压力。"
+    }
+  },
+  {
+    "id": "tarot_wands_page",
+    "name": "权杖侍从",
+    "type": "minor",
+    "suit": "wands",
+    "rank": "page",
+    "keywords": ["探索", "热情", "消息", "冲动", "新机会"],
+    "meanings": {
+      "upright": "带来新消息或新机会，充满探索精神和行动热情，但经验尚浅。",
+      "reversed": "三分钟热度、不成熟、缺乏决断，可能有坏消息或行动停滞。"
+    }
+  },
+  {
+    "id": "tarot_wands_knight",
+    "name": "权杖骑士",
+    "type": "minor",
+    "suit": "wands",
+    "rank": "knight",
+    "keywords": ["行动", "冲动", "热情", "冒险", "开创"],
+    "meanings": {
+      "upright": "行动力强、热情高涨，适合冒险、旅行、突破和追求目标。",
+      "reversed": "冲动鲁莽、阻力增多、意见不合，感情或计划发展不顺。"
+    }
+  },
+  {
+    "id": "tarot_wands_queen",
+    "name": "权杖女王",
+    "type": "minor",
+    "suit": "wands",
+    "rank": "queen",
+    "keywords": ["自信", "魅力", "热情", "独立", "领导力"],
+    "meanings": {
+      "upright": "独当一面，自信有魅力，事业心强，有决断力和感染力。",
+      "reversed": "傲慢、情绪化、不稳定，吸引力下降，可能暴躁或刻薄。"
+    }
+  },
+  {
+    "id": "tarot_wands_king",
+    "name": "权杖国王",
+    "type": "minor",
+    "suit": "wands",
+    "rank": "king",
+    "keywords": ["领导", "远见", "行动力", "成熟", "权威"],
+    "meanings": {
+      "upright": "成熟稳重、目标明确，具备领导力、行动力和高瞻远瞩的视野。",
+      "reversed": "专断独行、目标激进、冲动，决策失误或领导能力不足。"
+    }
+  },
+
+  {
+    "id": "tarot_cups_ace",
+    "name": "圣杯首牌",
+    "type": "minor",
+    "suit": "cups",
+    "number": 1,
+    "keywords": ["新感情", "爱", "疗愈", "情绪", "祝福"],
+    "meanings": {
+      "upright": "新的情感、爱情或内在疗愈开始，心灵敞开，充满爱与可能性。",
+      "reversed": "情绪封闭、爱意难以表达，感情受阻或内在空虚。"
+    }
+  },
+  {
+    "id": "tarot_cups_02",
+    "name": "圣杯二",
+    "type": "minor",
+    "suit": "cups",
+    "number": 2,
+    "keywords": ["吸引", "平等", "合作", "关系", "协议"],
+    "meanings": {
+      "upright": "互相吸引、平等合作，关系和谐，可能形成恋爱或稳定伙伴关系。",
+      "reversed": "互动不和谐、关系失衡、信任下降，双方可能出现裂痕。"
+    }
+  },
+  {
+    "id": "tarot_cups_03",
+    "name": "圣杯三",
+    "type": "minor",
+    "suit": "cups",
+    "number": 3,
+    "keywords": ["团体", "分享", "喜悦", "庆祝", "友谊"],
+    "meanings": {
+      "upright": "合作达成、朋友支持、社交愉快，适合庆祝、团聚和情感分享。",
+      "reversed": "乐极生悲、团队不和、友谊破裂，可能有社交过度或结盟失败。"
+    }
+  },
+  {
+    "id": "tarot_cups_04",
+    "name": "圣杯四",
+    "type": "minor",
+    "suit": "cups",
+    "number": 4,
+    "keywords": ["抗拒", "停滞", "观望", "不满", "内省"],
+    "meanings": {
+      "upright": "情绪低潮、冷淡或不满，可能忽视眼前机会，需要休息和重新评价。",
+      "reversed": "新的可能性出现，走出低潮，发现新机会或对旧问题有新理解。"
+    }
+  },
+  {
+    "id": "tarot_cups_05",
+    "name": "圣杯五",
+    "type": "minor",
+    "suit": "cups",
+    "number": 5,
+    "keywords": ["悲伤", "失落", "失望", "遗憾", "仍有希望"],
+    "meanings": {
+      "upright": "沉浸在失去、背叛或遗憾中，只看到损失而忽略仍拥有的部分。",
+      "reversed": "重新出发、峰回路转，情绪恢复，可能出现复合或新的机会。"
+    }
+  },
+  {
+    "id": "tarot_cups_06",
+    "name": "圣杯六",
+    "type": "minor",
+    "suit": "cups",
+    "number": 6,
+    "keywords": ["回忆", "童真", "分享", "照顾", "旧人"],
+    "meanings": {
+      "upright": "美好回忆、旧人重逢、单纯温暖的关系，带来安全感与照顾。",
+      "reversed": "沉溺过去、忽视现实，也可能表示新的机会与新的展望。"
+    }
+  },
+  {
+    "id": "tarot_cups_07",
+    "name": "圣杯七",
+    "type": "minor",
+    "suit": "cups",
+    "number": 7,
+    "keywords": ["幻想", "选择", "迷茫", "欲望", "诱惑"],
+    "meanings": {
+      "upright": "选择繁多但不切实际，容易被幻想、欲望或诱惑迷惑。",
+      "reversed": "走出迷雾，看清现实并做出选择，经受诱惑或考验后更清醒。"
+    }
+  },
+  {
+    "id": "tarot_cups_08",
+    "name": "圣杯八",
+    "type": "minor",
+    "suit": "cups",
+    "number": 8,
+    "keywords": ["离开", "追寻", "不满足", "放弃", "转身"],
+    "meanings": {
+      "upright": "经过思考后选择离开不再满足的关系或环境，追寻更深意义。",
+      "reversed": "犹豫不决、难以离开，可能回归旧处或在生活中出现转机。"
+    }
+  },
+  {
+    "id": "tarot_cups_09",
+    "name": "圣杯九",
+    "type": "minor",
+    "suit": "cups",
+    "number": 9,
+    "keywords": ["满足", "成功", "愿望实现", "得意", "享受"],
+    "meanings": {
+      "upright": "愿望达成，情感或生活层面感到满足、幸福与得意。",
+      "reversed": "不懂节制、满足感落空，可能消耗力量或发现表面成功背后的差异。"
+    }
+  },
+  {
+    "id": "tarot_cups_10",
+    "name": "圣杯十",
+    "type": "minor",
+    "suit": "cups",
+    "number": 10,
+    "keywords": ["幸福", "家庭", "和谐", "圆满", "美好生活"],
+    "meanings": {
+      "upright": "家庭幸福、关系和谐，事情发展顺利，内心平和满足。",
+      "reversed": "不满足、有遗憾，人际或家庭关系不和，出现对立、纷争或失去爱情。"
+    }
+  },
+  {
+    "id": "tarot_cups_page",
+    "name": "圣杯侍从",
+    "type": "minor",
+    "suit": "cups",
+    "rank": "page",
+    "keywords": ["亲切", "愉快", "直觉", "情感消息", "想象"],
+    "meanings": {
+      "upright": "愉悦沟通、情感丰富，可能有好消息、好人缘或新的情感体验。",
+      "reversed": "情感不稳定、不专一、暧昧或诱惑，情绪判断容易偏差。"
+    }
+  },
+  {
+    "id": "tarot_cups_knight",
+    "name": "圣杯骑士",
+    "type": "minor",
+    "suit": "cups",
+    "rank": "knight",
+    "keywords": ["浪漫", "敏感", "追求", "邀请", "多情"],
+    "meanings": {
+      "upright": "温柔浪漫，可能带来情感邀约或消息，重视感受但行动较慢。",
+      "reversed": "不切实际、任性花心、喜怒无常，感情行动过多但缺乏稳定。"
+    }
+  },
+  {
+    "id": "tarot_cups_queen",
+    "name": "圣杯女王",
+    "type": "minor",
+    "suit": "cups",
+    "rank": "queen",
+    "keywords": ["仁慈", "直觉", "深情", "女性特质", "共情"],
+    "meanings": {
+      "upright": "情感细腻、富有母性与直觉，能掌握内心情绪并给予关怀。",
+      "reversed": "情绪化、品行不稳、迷失情感，可能出现浪费或不正当关系。"
+    }
+  },
+  {
+    "id": "tarot_cups_king",
+    "name": "圣杯国王",
+    "type": "minor",
+    "suit": "cups",
+    "rank": "king",
+    "keywords": ["智慧", "温柔", "平静", "支持", "情绪成熟"],
+    "meanings": {
+      "upright": "情绪成熟、镇定温和，具备同情心、保护力和情感智慧。",
+      "reversed": "失去耐心、虚伪、表里不一，缺乏同情或过度重视物质。"
+    }
+  },
+
+  {
+    "id": "tarot_swords_ace",
+    "name": "宝剑首牌",
+    "type": "minor",
+    "suit": "swords",
+    "number": 1,
+    "keywords": ["理智", "真相", "决心", "突破", "公正"],
+    "meanings": {
+      "upright": "思维清晰，适合理性分析、做出决定，迎来新的挑战或突破机会。",
+      "reversed": "争端、伤害、阻力与发展不顺，沟通或判断可能出现偏差。"
+    }
+  },
+  {
+    "id": "tarot_swords_02",
+    "name": "宝剑二",
+    "type": "minor",
+    "suit": "swords",
+    "number": 2,
+    "keywords": ["选择", "僵局", "防御", "停滞", "两难"],
+    "meanings": {
+      "upright": "面对选择却自我封闭，局势僵持，需要打破逃避并看清真相。",
+      "reversed": "卸下防备、做出选择，打破僵局并开始面对事实。"
+    }
+  },
+  {
+    "id": "tarot_swords_03",
+    "name": "宝剑三",
+    "type": "minor",
+    "suit": "swords",
+    "number": 3,
+    "keywords": ["心碎", "伤害", "分裂", "痛苦", "困难"],
+    "meanings": {
+      "upright": "感情或沟通中受到伤害，可能出现分手、委屈、争执或失望。",
+      "reversed": "从伤害中抽离，但仍可能敏感不安或更加自我封闭。"
+    }
+  },
+  {
+    "id": "tarot_swords_04",
+    "name": "宝剑四",
+    "type": "minor",
+    "suit": "swords",
+    "number": 4,
+    "keywords": ["休息", "自省", "恢复", "暂停", "准备"],
+    "meanings": {
+      "upright": "需要休养生息、反省与等待，储备能量后再行动。",
+      "reversed": "逐渐恢复行动力，走出懈怠或被动状态，开始重新推动。"
+    }
+  },
+  {
+    "id": "tarot_swords_05",
+    "name": "宝剑五",
+    "type": "minor",
+    "suit": "swords",
+    "number": 5,
+    "keywords": ["冲突", "争斗", "自私", "不公平", "代价"],
+    "meanings": {
+      "upright": "竞争或冲突中可能有伤害与敌意，即使胜利也可能代价很高。",
+      "reversed": "从争执中走出，重归平静，局势可能出现转机或意外变化。"
+    }
+  },
+  {
+    "id": "tarot_swords_06",
+    "name": "宝剑六",
+    "type": "minor",
+    "suit": "swords",
+    "number": 6,
+    "keywords": ["过渡", "旅行", "陪伴", "忧伤", "前行"],
+    "meanings": {
+      "upright": "带着过去的伤口前行，从低潮进入较平静阶段，可能得到他人支持。",
+      "reversed": "分离、逃避或情况恶化，难以离开旧问题。"
+    }
+  },
+  {
+    "id": "tarot_swords_07",
+    "name": "宝剑七",
+    "type": "minor",
+    "suit": "swords",
+    "number": 7,
+    "keywords": ["欺诈", "策略", "小聪明", "隐瞒", "尝试"],
+    "meanings": {
+      "upright": "可能有隐瞒、侥幸或策略行为，提醒不要过度依赖小聪明。",
+      "reversed": "意外好运或秘密曝光，需要听取建议、谨慎行事。"
+    }
+  },
+  {
+    "id": "tarot_swords_08",
+    "name": "宝剑八",
+    "type": "minor",
+    "suit": "swords",
+    "number": 8,
+    "keywords": ["束缚", "限制", "困境", "恐惧", "无助"],
+    "meanings": {
+      "upright": "感觉受限、无助或被困，但限制可能部分来自自我认知。",
+      "reversed": "摆脱束缚、获得自由，直面危机并重新开始。"
+    }
+  },
+  {
+    "id": "tarot_swords_09",
+    "name": "宝剑九",
+    "type": "minor",
+    "suit": "swords",
+    "number": 9,
+    "keywords": ["焦虑", "失眠", "痛苦", "梦魇", "担忧"],
+    "meanings": {
+      "upright": "精神压力大，焦虑、失眠、痛苦或内疚，需要面对内在恐惧。",
+      "reversed": "直面痛苦后逐渐解放，也可能表示恐惧加深、沮丧或犹豫。"
+    }
+  },
+  {
+    "id": "tarot_swords_10",
+    "name": "宝剑十",
+    "type": "minor",
+    "suit": "swords",
+    "number": 10,
+    "keywords": ["结束", "失败", "痛苦", "最低点", "黎明前黑暗"],
+    "meanings": {
+      "upright": "局势到达低谷或结束，虽然痛苦但也意味着旧阶段即将终结。",
+      "reversed": "脱离困境、重生机会或改善可能，也可能表示彻底绝望。"
+    }
+  },
+  {
+    "id": "tarot_swords_page",
+    "name": "宝剑侍从",
+    "type": "minor",
+    "suit": "swords",
+    "rank": "page",
+    "keywords": ["观察", "警觉", "思维", "沟通", "洞察"],
+    "meanings": {
+      "upright": "警觉、聪明、善于观察与学习，适合收集信息和沟通交流。",
+      "reversed": "疑心过重、沟通不畅、信息漏洞或方向迷失。"
+    }
+  },
+  {
+    "id": "tarot_swords_knight",
+    "name": "宝剑骑士",
+    "type": "minor",
+    "suit": "swords",
+    "rank": "knight",
+    "keywords": ["冲锋", "行动力", "强势", "急躁", "挑战"],
+    "meanings": {
+      "upright": "行动迅速、头脑清晰、敢于挑战，但需注意过快导致冲突。",
+      "reversed": "草率、自负、不计后果，行动或情绪失去控制。"
+    }
+  },
+  {
+    "id": "tarot_swords_queen",
+    "name": "宝剑女王",
+    "type": "minor",
+    "suit": "swords",
+    "rank": "queen",
+    "keywords": ["诚实", "理性", "公平", "尖锐", "独立"],
+    "meanings": {
+      "upright": "理性清醒、追求公平，能建立边界并做出谨慎判断。",
+      "reversed": "偏执、小心眼、过度尖锐，负面情绪或感性判断影响理智。"
+    }
+  },
+  {
+    "id": "tarot_swords_king",
+    "name": "宝剑国王",
+    "type": "minor",
+    "suit": "swords",
+    "rank": "king",
+    "keywords": ["权威", "清晰", "公正", "审判", "决策"],
+    "meanings": {
+      "upright": "具备权威、洞察力与决断力，适合理性分析、管理和公正裁决。",
+      "reversed": "刚愎、极端、失控或不成熟，可能滥用权威或过度重视物质。"
+    }
+  },
+
+  {
+    "id": "tarot_pentacles_ace",
+    "name": "星币首牌",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 1,
+    "keywords": ["机会", "物质", "安稳", "财富", "现实开始"],
+    "meanings": {
+      "upright": "新的工作、金钱或现实机会出现，适合务实行动并建立稳定基础。",
+      "reversed": "机会受阻、金钱损失、发展不顺，缺乏实际行动或基础不稳。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_02",
+    "name": "星币二",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 2,
+    "keywords": ["平衡", "选择", "协调", "波动", "权衡"],
+    "meanings": {
+      "upright": "在多项事务、金钱或关系中维持平衡，灵活应对变化。",
+      "reversed": "协调能力不足、难以维持平衡，可能面临物质损失或放弃选择。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_03",
+    "name": "星币三",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 3,
+    "keywords": ["合作", "技能", "团队", "沟通", "共同目标"],
+    "meanings": {
+      "upright": "团队合作顺利，专业能力受到重视，适合沟通、分工和共同建设。",
+      "reversed": "分工不明、人际不和、发展不顺，专业技能或配合度不足。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_04",
+    "name": "星币四",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 4,
+    "keywords": ["安全感", "保守", "守财", "控制", "谨慎"],
+    "meanings": {
+      "upright": "重视安全与稳定，谨慎保护资源，但可能显得吝啬或不愿冒险。",
+      "reversed": "挥霍、不节制、占有欲下降或控制力不足，可能有物质损失。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_05",
+    "name": "星币五",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 5,
+    "keywords": ["艰难", "贫困", "困乏", "隔阂", "风雪同行"],
+    "meanings": {
+      "upright": "经济或现实处境艰难，但仍可能有人陪伴或外界存在帮助。",
+      "reversed": "关系分离、混乱与阻力，也可能表示困难逐渐改善。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_06",
+    "name": "星币六",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 6,
+    "keywords": ["分享", "给予", "权衡", "互助", "资源分配"],
+    "meanings": {
+      "upright": "给予与接受、慷慨援助、资源分配，可能涉及上下级或不对等关系。",
+      "reversed": "资源分配不公、贪婪、人际混乱，可能出现物质损失。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_07",
+    "name": "星币七",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 7,
+    "keywords": ["等待", "评估", "收获", "暂停", "思索"],
+    "meanings": {
+      "upright": "已有阶段成果，但仍需等待、评估方向，避免急于求成。",
+      "reversed": "做出选择，或因判断不佳面临物质损失与回报不佳。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_08",
+    "name": "星币八",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 8,
+    "keywords": ["专注", "技能", "学习", "努力", "钻研"],
+    "meanings": {
+      "upright": "认真工作、提升技能，专注钻研能带来稳定进步和收获。",
+      "reversed": "精力分散、专业不足、浪费时间，工作或学习态度不够投入。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_09",
+    "name": "星币九",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 9,
+    "keywords": ["收获", "独立", "富有", "安逸", "自信"],
+    "meanings": {
+      "upright": "通过努力获得丰收与财富，享受独立、安逸和高品质生活。",
+      "reversed": "失去财富或自信，可能摆脱某种束缚，也可能物质安全感下降。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_10",
+    "name": "星币十",
+    "type": "minor",
+    "suit": "pentacles",
+    "number": 10,
+    "keywords": ["家庭", "成功", "繁荣", "传承", "稳定"],
+    "meanings": {
+      "upright": "事业有成、家庭或团队稳定，物质层面圆满并具备长期基础。",
+      "reversed": "家庭矛盾、投资不顺、物质流失，也可能情感需求比物质更突出。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_page",
+    "name": "星币侍从",
+    "type": "minor",
+    "suit": "pentacles",
+    "rank": "page",
+    "keywords": ["学习", "机会", "务实", "信任", "求知"],
+    "meanings": {
+      "upright": "新的学习、工作或金钱机会，态度务实，适合吸收经验并打基础。",
+      "reversed": "金钱损失、自我认知不足、知识贫乏，缺乏务实态度。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_knight",
+    "name": "星币骑士",
+    "type": "minor",
+    "suit": "pentacles",
+    "rank": "knight",
+    "keywords": ["务实", "稳定", "谨慎", "责任", "收获"],
+    "meanings": {
+      "upright": "踏实可靠、责任感强，按部就班推进目标，虽然缓慢但稳定。",
+      "reversed": "懈怠、不积极、过度保守，停滞不前或效率低下。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_queen",
+    "name": "星币女王",
+    "type": "minor",
+    "suit": "pentacles",
+    "rank": "queen",
+    "keywords": ["慷慨", "信任", "母爱", "繁荣", "务实"],
+    "meanings": {
+      "upright": "成熟、温暖、值得信任，擅长照顾生活与资源，带来安宁和繁荣。",
+      "reversed": "生活虚华、不稳定、内心淡漠，情绪不佳或缺乏自制力。"
+    }
+  },
+  {
+    "id": "tarot_pentacles_king",
+    "name": "星币国王",
+    "type": "minor",
+    "suit": "pentacles",
+    "rank": "king",
+    "keywords": ["富有", "踏实", "成熟", "专业", "稳定"],
+    "meanings": {
+      "upright": "事业和财富稳定，善于经营资源，成熟可靠，重视现实成果。",
+      "reversed": "缺乏信任、物质损失、人际复杂，可能过度固执或失去依赖。"
+    }
+  }
+]

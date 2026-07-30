@@ -9,6 +9,8 @@ const THEMES = [
   { id: 'ocean-blue',          name: '海洋蓝' },
   { id: 'ocean-white',         name: '海洋白' },
   { id: 'green-healing-light', name: '治愈绿白' },
+  { id: 'mono-starfield',      name: '星砂黑白' },
+  
 ];
 
 const STORAGE_KEY = 'unrequited:theme';
@@ -20,11 +22,7 @@ export function getThemes() {
 
 export function getCurrentTheme() {
   const saved = localStorage.getItem(STORAGE_KEY);
-
-  if (THEMES.some((t) => t.id === saved)) {
-    return saved;
-  }
-
+  if (THEMES.some((t) => t.id === saved)) return saved;
   return 'minimal-dark';
 }
 

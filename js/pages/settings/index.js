@@ -19,6 +19,8 @@ const THEMES = [
   { id: 'ocean-blue',    name: '海洋蓝' },
   { id: 'ocean-white',   name: '海洋白' },
   { id: 'green-healing-light',   name: '治愈绿白' },
+  { id: 'mono-starfield',      name: '星砂黑白' },
+  
 
 ];
 

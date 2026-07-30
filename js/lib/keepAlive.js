@@ -1,16 +1,25 @@
-// 后台保活（实验）
-// 原理：循环播放一段无声音频，尝试让浏览器把页面视为"正在播放媒体"，从而减少节流。
-// 实际效果：
-//   Android Chrome 有一定作用，能延缓后台冻结；
-//   iOS Safari PWA 通常仍会在锁屏或长时间后台后被系统暂停，仅能延缓；
-//   非常费电。用户可自行开关。
-// 必须由用户交互（点击）触发首次 play，否则浏览器会拒绝。
+// 后台保活（实验，多手段并用）
+// 手段一：无声 WAV 循环播放（Audio 元素）
+// 手段二：AudioContext 极低音量振荡器（辅助告诉浏览器有音频输出）
+// 手段三：MediaSession API（声明本页面为媒体会话，锁屏栏可能显示）
+// 手段四：visibilitychange 自动重试 play
+//
+// 效果（实测经验，非承诺）：
+//   Android Chrome：明显延缓后台冻结
+//   iOS Safari PWA：短时后台可保持，锁屏或长时间后台仍会被系统暂停
+//   桌面浏览器：无需保活
+//
+// 需要用户交互后才能启动，浏览器策略限制。
 
 import { db } from '../db.js';
 
 let audio = null;
-let started = false;
 let objectUrl = null;
+let ctx = null;
+let osc = null;
+let gain = null;
+let started = false;
+let onVisibility = null;
 
 function makeSilentWavBlob(seconds = 1) {
   const sampleRate = 8000;
@@ -25,21 +34,19 @@ function makeSilentWavBlob(seconds = 1) {
   setStr(8, 'WAVE');
   setStr(12, 'fmt ');
   view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);       // PCM
-  view.setUint16(22, 1, true);       // mono
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
   view.setUint32(24, sampleRate, true);
   view.setUint32(28, sampleRate, true);
   view.setUint16(32, 1, true);
-  view.setUint16(34, 8, true);       // 8-bit
+  view.setUint16(34, 8, true);
   setStr(36, 'data');
   view.setUint32(40, numSamples, true);
-  for (let i = 0; i < numSamples; i++) view.setUint8(44 + i, 128); // silence
+  for (let i = 0; i < numSamples; i++) view.setUint8(44 + i, 128);
   return new Blob([buffer], { type: 'audio/wav' });
 }
 
-export function isRunning() {
-  return started;
-}
+export function isRunning() { return started; }
 
 export async function loadEnabled() {
   const rec = await db.settings.get('keepAlive.enabled');
@@ -50,39 +57,107 @@ export async function saveEnabled(v) {
   await db.settings.put({ key: 'keepAlive.enabled', value: !!v });
 }
 
-export async function start() {
-  if (started && audio && !audio.paused) return true;
+function setupMediaSession() {
+  if (!('mediaSession' in navigator)) return;
   try {
-    if (!audio) {
-      objectUrl = URL.createObjectURL(makeSilentWavBlob(1));
-      audio = new Audio(objectUrl);
-      audio.loop = true;
-      audio.volume = 0;
-      audio.preload = 'auto';
-      audio.setAttribute('playsinline', '');
-    }
-    await audio.play();
-    started = true;
-    return true;
-  } catch (e) {
-    console.warn('[keepAlive] start failed:', e && e.message);
-    started = false;
-    return false;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: 'Unrequited',
+      artist: '恋恋不忘',
+      album: '静默陪伴',
+    });
+    navigator.mediaSession.playbackState = 'playing';
+    navigator.mediaSession.setActionHandler('play', () => { tryPlay(); });
+    // 拦截暂停：不主动响应系统暂停指令
+    navigator.mediaSession.setActionHandler('pause', () => { tryPlay(); });
+    navigator.mediaSession.setActionHandler('stop', () => {});
+    navigator.mediaSession.setActionHandler('seekbackward', null);
+    navigator.mediaSession.setActionHandler('seekforward', null);
+  } catch (e) { /* 忽略 */ }
+}
+
+async function tryPlay() {
+  if (!audio) return false;
+  try { await audio.play(); return true; }
+  catch (e) { return false; }
+}
+
+async function startAudioElement() {
+  if (!audio) {
+    objectUrl = URL.createObjectURL(makeSilentWavBlob(1));
+    audio = new Audio(objectUrl);
+    audio.loop = true;
+    audio.volume = 0;
+    audio.preload = 'auto';
+    audio.setAttribute('playsinline', '');
   }
+  return tryPlay();
+}
+
+function startOscillator() {
+  try {
+    if (!ctx) {
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return false;
+      ctx = new Ctor();
+    }
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+    if (!osc) {
+      osc = ctx.createOscillator();
+      gain = ctx.createGain();
+      gain.gain.value = 0.00001;
+      osc.frequency.value = 20;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+    }
+    return true;
+  } catch (e) { return false; }
+}
+
+function stopOscillator() {
+  try { if (osc) osc.stop(); } catch (e) {}
+  try { if (osc) osc.disconnect(); } catch (e) {}
+  try { if (gain) gain.disconnect(); } catch (e) {}
+  osc = null;
+  gain = null;
+  try { if (ctx) ctx.close(); } catch (e) {}
+  ctx = null;
+}
+
+export async function start() {
+  const ok = await startAudioElement();
+  startOscillator();
+  setupMediaSession();
+  started = ok;
+
+  if (!onVisibility) {
+    onVisibility = async () => {
+      if (!started) return;
+      if (document.visibilityState === 'visible' && audio && audio.paused) {
+        await tryPlay();
+        if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+  }
+  return ok;
 }
 
 export function stop() {
-  if (audio) {
-    try { audio.pause(); } catch (e) {}
+  try { if (audio) audio.pause(); } catch (e) {}
+  stopOscillator();
+  if (onVisibility) {
+    document.removeEventListener('visibilitychange', onVisibility);
+    onVisibility = null;
+  }
+  if ('mediaSession' in navigator) {
+    try { navigator.mediaSession.playbackState = 'none'; } catch (e) {}
   }
   started = false;
 }
 
 export function dispose() {
   stop();
-  if (objectUrl) {
-    try { URL.revokeObjectURL(objectUrl); } catch (e) {}
-    objectUrl = null;
-  }
+  if (objectUrl) { try { URL.revokeObjectURL(objectUrl); } catch (e) {} objectUrl = null; }
   audio = null;
 }

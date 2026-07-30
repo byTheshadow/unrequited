@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unrequited-shell-v3';
+const CACHE_NAME = 'unrequited-shell-v4';
 const CORE = [
   './',
   './index.html',
@@ -56,3 +56,4 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+

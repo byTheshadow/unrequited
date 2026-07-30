@@ -24,6 +24,7 @@ let state = {
   thinkingTimer: null,
   thinkingRotate: null,
   onVisibility: null,
+  onViewport: null,
 };
 
 function shouldShowTimeSep(prev, curr) {
@@ -166,13 +167,11 @@ function hideTyping() {
   if (t) t.remove();
 }
 
-// ============ 回复定时器 ============
-
 async function schedulePendingReply() {
   const cfg = (state.character && state.character.replyConfig) || {};
   const minD = Math.max(0, cfg.minReplyDelaySec || 0);
   const maxD = Math.max(minD, cfg.maxReplyDelaySec || 0);
-  if (maxD === 0) return; // 未启用延迟回复，等手动触发
+  if (maxD === 0) return;
 
   const delayMs = Math.round((minD + Math.random() * (maxD - minD)) * 1000);
   const target = Date.now() + delayMs;
@@ -186,10 +185,7 @@ function scheduleTimers() {
   if (!state.conv || !state.conv.pendingReplyAt) return;
 
   const remain = state.conv.pendingReplyAt - Date.now();
-  if (remain <= 0) {
-    executeReply();
-    return;
-  }
+  if (remain <= 0) { executeReply(); return; }
 
   const cfg = (state.character && state.character.replyConfig) || {};
   const hints = (cfg.thinkingHints && cfg.thinkingHints.length) ? cfg.thinkingHints : DEFAULT_THINKING_HINTS;
@@ -252,17 +248,14 @@ async function executeReply() {
   if (state.destroyed) return;
   if (!state.character) { toast('未绑定角色'); return; }
 
-  // 清除 pending 标记
   await db.conversations.update(state.convId, { pendingReplyAt: null });
   if (state.conv) state.conv.pendingReplyAt = null;
 
   const cfg = state.character.replyConfig || {};
 
-  // 已读不回判定
   const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
   if (skipChance > 0 && Math.random() < skipChance) {
     const skipList = (cfg.skipHints && cfg.skipHints.length) ? cfg.skipHints : DEFAULT_SKIP_HINTS;
-    // user 上一条设为"已读"（对方看到了但没回）
     const lastUserMsg = [...state.messages].reverse().find((m) => m.sender === 'user' && !m.isRead);
     if (lastUserMsg) {
       await db.messages.update(lastUserMsg.id, { isRead: true });
@@ -284,7 +277,6 @@ async function executeReply() {
     return;
   }
 
-  // 正常生成
   showTyping();
   await sleep(randInt(400, 900));
   if (state.destroyed) return;
@@ -327,15 +319,11 @@ async function executeReply() {
   await persistConvSummary();
 }
 
-// 手动星形按钮：跳过等待，立刻发送
 async function manualTrigger() {
   const btn = document.querySelector('[data-act=trigger]');
   if (btn) btn.disabled = true;
-  try {
-    await executeReply();
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+  try { await executeReply(); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 function updateSendBtn() {
@@ -348,6 +336,26 @@ function updateSendBtn() {
 function autoGrow(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// 输入框跟随键盘：iOS Safari visualViewport
+function bindViewportFollow() {
+  if (!window.visualViewport) return;
+  const vv = window.visualViewport;
+  const dock = document.querySelector('.chat-input-dock');
+  if (!dock) return;
+  const update = () => {
+    const d = document.querySelector('.chat-input-dock');
+    if (!d) return;
+    const keyboardOffset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    d.style.transform = `translateY(-${keyboardOffset}px)`;
+  };
+  vv.addEventListener('resize', update);
+  vv.addEventListener('scroll', update);
+  state.onViewport = () => {
+    vv.removeEventListener('resize', update);
+    vv.removeEventListener('scroll', update);
+  };
 }
 
 let longPressTimer = null;
@@ -465,7 +473,7 @@ export async function render(root, params = {}) {
     conv: null, character: null, user: null,
     messages: [], typing: false, destroyed: false,
     replyTimer: null, thinkingTimer: null, thinkingRotate: null,
-    onVisibility: null,
+    onVisibility: null, onViewport: null,
   };
   if (!state.convId) { navigate('/cards'); return; }
 
@@ -482,10 +490,10 @@ export async function render(root, params = {}) {
 
       <div class="msg-scroll" id="msg-scroll"></div>
 
-      <div class="chat-input-bar">
-        <button class="input-icon-btn" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
-        <textarea id="chat-input" class="chat-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
-        <button class="input-icon-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
+      <div class="chat-input-dock">
+        <button class="dock-btn" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
+        <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
+        <button class="dock-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
       </div>
 
       <style>
@@ -493,6 +501,7 @@ export async function render(root, params = {}) {
           display: flex; flex-direction: column;
           height: 100vh; height: 100dvh;
           overflow: hidden;
+          position: relative;
         }
         .chat-title-wrap { flex: 1; text-align: center; overflow: hidden; }
         .chat-title { font-size: 14px; letter-spacing: 2px; color: var(--color-text-primary); }
@@ -509,7 +518,7 @@ export async function render(root, params = {}) {
         .msg-scroll {
           flex: 1;
           overflow-y: auto; overflow-x: hidden;
-          padding: 12px 14px 8px;
+          padding: 12px 14px 96px;
           -webkit-overflow-scrolling: touch;
           scroll-behavior: smooth;
         }
@@ -551,7 +560,6 @@ export async function render(root, params = {}) {
           letter-spacing: 1px;
         }
 
-        /* system 消息（居中灰） */
         .msg-system {
           text-align: center;
           font-size: 11px;
@@ -562,10 +570,7 @@ export async function render(root, params = {}) {
           animation: fadeIn 0.45s ease;
         }
 
-        /* 输入指示器 */
-        .typing-bubble {
-          display: inline-flex; gap: 4px; padding: 12px 14px;
-        }
+        .typing-bubble { display: inline-flex; gap: 4px; padding: 12px 14px; }
         .typing-bubble .dot {
           width: 6px; height: 6px; border-radius: 50%;
           background: var(--color-text-tertiary);
@@ -578,38 +583,60 @@ export async function render(root, params = {}) {
           30% { transform: translateY(-4px); opacity: 1; }
         }
 
-        /* 输入栏 */
-        .chat-input-bar {
-          display: flex; align-items: flex-end; gap: 6px;
-          padding: 8px 10px;
-          padding-bottom: calc(8px + env(safe-area-inset-bottom));
-          border-top: 1px solid var(--color-border);
-          background: var(--glass-bg);
-          backdrop-filter: blur(var(--glass-blur));
-          -webkit-backdrop-filter: blur(var(--glass-blur));
-        }
-        .chat-input {
-          flex: 1; min-height: 40px; max-height: 120px;
-          padding: 10px 14px;
-          border-radius: 20px;
-          border: 1px solid var(--color-border);
+        /* 悬浮胶囊输入框 */
+        .chat-input-dock {
+          position: fixed;
+          left: 12px;
+          right: 12px;
+          bottom: calc(env(safe-area-inset-bottom) + 10px);
+          max-width: 456px;
+          margin: 0 auto;
+          display: flex;
+          align-items: flex-end;
+          gap: 6px;
+          padding: 6px;
           background: var(--color-bg-secondary);
-          color: var(--color-text-primary);
-          font-size: 14px; line-height: 1.4;
-          resize: none; overflow-y: auto;
+          border: 1px solid var(--color-border);
+          border-radius: 28px;
+          box-shadow:
+            0 4px 12px var(--color-shadow),
+            0 12px 40px var(--color-shadow);
+          backdrop-filter: blur(20px) saturate(1.2);
+          -webkit-backdrop-filter: blur(20px) saturate(1.2);
+          z-index: 40;
+          transition: transform 0.18s ease;
         }
-        .chat-input:focus { border-color: var(--color-accent); }
-        .input-icon-btn {
-          width: 40px; height: 40px; flex-shrink: 0;
+        .dock-input {
+          flex: 1;
+          min-height: 40px;
+          max-height: 120px;
+          padding: 10px 12px;
+          border: none;
+          outline: none;
+          background: transparent;
+          color: var(--color-text-primary);
+          font-size: 14px;
+          line-height: 1.4;
+          font-family: inherit;
+          resize: none;
+          overflow-y: auto;
+        }
+        .dock-input::placeholder { color: var(--color-text-tertiary); }
+        .dock-btn {
+          width: 40px; height: 40px;
+          flex-shrink: 0;
           border-radius: 50%;
           display: inline-flex; align-items: center; justify-content: center;
           color: var(--color-text-secondary);
-          background: var(--color-bg-secondary);
+          background: transparent;
           transition: transform 0.15s, background 0.2s, color 0.2s;
         }
-        .input-icon-btn:active { transform: scale(0.9); }
-        .input-icon-btn.send { background: var(--color-accent); color: var(--color-bg-primary); }
-        .input-icon-btn:disabled { opacity: 0.35; }
+        .dock-btn:active { transform: scale(0.88); }
+        .dock-btn.send {
+          background: var(--color-accent);
+          color: var(--color-bg-primary);
+        }
+        .dock-btn:disabled { opacity: 0.32; }
 
         .ka-toggle {
           font-size: 12px; letter-spacing: 2px;
@@ -641,7 +668,6 @@ export async function render(root, params = {}) {
 
   renderMessages();
 
-  // 事件
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
   root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
   root.querySelector('[data-act=trigger]').addEventListener('click', () => { haptic(10); manualTrigger(); });
@@ -657,16 +683,13 @@ export async function render(root, params = {}) {
     }
   });
 
-  // 恢复 pending 定时器（进入页面时检查）
-  if (state.conv && state.conv.pendingReplyAt) {
-    scheduleTimers();
-  }
+  bindViewportFollow();
 
-  // visibilitychange：回到前台时重新调度（兜底）
+  if (state.conv && state.conv.pendingReplyAt) scheduleTimers();
+
   state.onVisibility = async () => {
     if (state.destroyed) return;
     if (document.visibilityState !== 'visible') return;
-    // 重新读一下 conv，可能被别处更新
     const fresh = await db.conversations.get(state.convId);
     if (fresh) {
       state.conv = fresh;
@@ -675,10 +698,7 @@ export async function render(root, params = {}) {
   };
   document.addEventListener('visibilitychange', state.onVisibility);
 
-  // 尝试启动保活（如果用户之前开启过）
-  if (await keepAlive.loadEnabled()) {
-    keepAlive.start(); // 可能因未交互而失败，等用户下次点击后再触发
-  }
+  if (await keepAlive.loadEnabled()) keepAlive.start();
 }
 
 export function destroy() {
@@ -689,4 +709,5 @@ export function destroy() {
     document.removeEventListener('visibilitychange', state.onVisibility);
     state.onVisibility = null;
   }
+  if (state.onViewport) { state.onViewport(); state.onViewport = null; }
 }

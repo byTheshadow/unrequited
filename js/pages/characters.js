@@ -132,11 +132,11 @@ async function openEditor(charId) {
         <div class="row-2col">
           <div>
             <div class="field-hint">最少消息条数</div>
-            <input class="input" type="number" id="f-min-msgs" min="1" max="50" value="${cfg.minMsgs ?? 1}">
+            <input class="input" type="number" id="f-min-msgs" min="1" max="999" value="${cfg.minMsgs ?? 1}">
           </div>
           <div>
             <div class="field-hint">最多消息条数</div>
-            <input class="input" type="number" id="f-max-msgs" min="1" max="50" value="${cfg.maxMsgs ?? 3}">
+            <input class="input" type="number" id="f-max-msgs" min="1" max="999" value="${cfg.maxMsgs ?? 3}">
           </div>
         </div>
         <div class="row-2col" style="margin-top:12px;">
@@ -146,7 +146,7 @@ async function openEditor(charId) {
           </div>
           <div>
             <div class="field-hint">最多拼接卡数</div>
-            <input class="input" type="number" id="f-max-combo" min="1" max="50" value="${cfg.maxCombo ?? 3}">
+            <input class="input" type="number" id="f-max-combo" min="1" max="999" value="${cfg.maxCombo ?? 3}">
           </div>
         </div>
         <label class="toggle-row">
@@ -241,11 +241,11 @@ async function openEditor(charId) {
     const signature = sheetRoot.querySelector('#f-signature').value.trim();
     const selected = [...sheetRoot.querySelectorAll('.deck-chip input:checked')].map((el) => Number(el.value));
 
-    const minMsgs = Math.max(1, Math.min(50, Number(sheetRoot.querySelector('#f-min-msgs').value) || 1));
-    let maxMsgs = Math.max(1, Math.min(50, Number(sheetRoot.querySelector('#f-max-msgs').value) || 3));
+    const minMsgs = Math.max(1, Math.min(999, Number(sheetRoot.querySelector('#f-min-msgs').value) || 1));
+    let maxMsgs = Math.max(1, Math.min(999, Number(sheetRoot.querySelector('#f-max-msgs').value) || 3));
     if (maxMsgs < minMsgs) maxMsgs = minMsgs;
     const comboChance = Math.max(0, Math.min(1, Number(sheetRoot.querySelector('#f-combo-chance').value) || 0));
-    const maxCombo = Math.max(1, Math.min(50, Number(sheetRoot.querySelector('#f-max-combo').value) || 3));
+    const maxCombo = Math.max(1, Math.min(999, Number(sheetRoot.querySelector('#f-max-combo').value) || 3));
     const pureRandom = !!sheetRoot.querySelector('#f-pure-random').checked;
 
     const minDelay = Math.max(0, Math.min(1200, Number(sheetRoot.querySelector('#f-min-delay').value) || 0));
@@ -381,3 +381,4 @@ export async function render(root, params = {}) {
 }
 
 export function destroy() {}
+

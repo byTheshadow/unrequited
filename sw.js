@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unrequited-shell-v7';
+const CACHE_NAME = 'unrequited-shell-v8';
 const CORE = [
   './',
   './index.html',
@@ -15,13 +15,14 @@ const CORE = [
   './js/utils.js',
   './js/cardEngine.js',
   './js/lib/keepAlive.js',
-   './js/lib/sound.js',
+  './js/lib/sound.js',
   './js/pages/launch.js',
   './js/pages/home.js',
   './js/pages/cards.js',
   './js/pages/chat.js',
   './js/pages/characters.js',
   './js/pages/decks.js',
+  './js/pages/settings/index.js',
   './data/healingQuotes.json'
 ];
 
@@ -57,4 +58,3 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
-

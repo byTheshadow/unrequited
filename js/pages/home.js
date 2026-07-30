@@ -72,7 +72,7 @@ function attachTilt(el) {
   });
 }
 
-const IMPLEMENTED = ['/home', '/cards'];
+const IMPLEMENTED = ['/home', '/cards', '/settings'];
 
 export function render(root) {
   const phase = getMoonPhase();

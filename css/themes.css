@@ -135,6 +135,97 @@
     linear-gradient(180deg, #fef6ee 0%, #fce9d6 100%);
 }
 
+/* 粉色治愈 */
+[data-theme="pink-healing"] {
+  --color-bg-primary: #fff5f8;
+  --color-bg-secondary: rgba(255,232,240,0.78);
+  --color-bg-tertiary: rgba(255,214,228,0.9);
+  --color-text-primary: #4a1f2f;
+  --color-text-secondary: rgba(74,31,47,0.64);
+  --color-text-tertiary: rgba(74,31,47,0.4);
+  --color-accent: #ec4899;
+  --color-border: rgba(236,72,153,0.14);
+  --color-bubble-user: #fbcfe8;
+  --color-bubble-character: #fff0f5;
+  --color-bubble-text: #4a1f2f;
+  --color-shadow: rgba(236,72,153,0.13);
+  --glass-blur: 14px;
+  --glass-bg: rgba(255,245,248,0.76);
+  --bg-image:
+    radial-gradient(circle at 18% 12%, rgba(251,207,232,0.9) 0%, transparent 50%),
+    radial-gradient(circle at 82% 22%, rgba(254,205,211,0.65) 0%, transparent 46%),
+    radial-gradient(circle at 78% 88%, rgba(255,228,230,0.9) 0%, transparent 54%),
+    linear-gradient(180deg, #fff5f8 0%, #ffe8f0 100%);
+}
+
+/* 海洋蓝 */
+[data-theme="ocean-blue"] {
+  --color-bg-primary: #061525;
+  --color-bg-secondary: rgba(13,39,64,0.82);
+  --color-bg-tertiary: rgba(20,67,103,0.78);
+  --color-text-primary: #e5f7ff;
+  --color-text-secondary: rgba(229,247,255,0.68);
+  --color-text-tertiary: rgba(229,247,255,0.4);
+  --color-accent: #38bdf8;
+  --color-border: rgba(56,189,248,0.18);
+  --color-bubble-user: #075985;
+  --color-bubble-character: #0b263f;
+  --color-bubble-text: #e5f7ff;
+  --color-shadow: rgba(0,30,60,0.55);
+  --glass-blur: 16px;
+  --glass-bg: rgba(8,35,58,0.62);
+  --bg-image:
+    radial-gradient(circle at 20% 12%, rgba(56,189,248,0.28) 0%, transparent 48%),
+    radial-gradient(circle at 80% 88%, rgba(14,165,233,0.22) 0%, transparent 52%),
+    radial-gradient(ellipse at 50% 100%, rgba(6,182,212,0.18) 0%, transparent 58%),
+    linear-gradient(180deg, #061525 0%, #082f49 100%);
+}
+
+/* 海洋白 */
+[data-theme="ocean-white"] {
+  --color-bg-primary: #f3fbff;
+  --color-bg-secondary: rgba(224,244,255,0.78);
+  --color-bg-tertiary: rgba(204,235,250,0.86);
+  --color-text-primary: #123047;
+  --color-text-secondary: rgba(18,48,71,0.64);
+  --color-text-tertiary: rgba(18,48,71,0.4);
+  --color-accent: #0284c7;
+  --color-border: rgba(2,132,199,0.13);
+  --color-bubble-user: #bae6fd;
+  --color-bubble-character: #ffffff;
+  --color-bubble-text: #123047;
+  --color-shadow: rgba(14,116,144,0.13);
+  --glass-blur: 16px;
+  --glass-bg: rgba(243,251,255,0.76);
+  --bg-image:
+    radial-gradient(circle at 16% 12%, rgba(186,230,253,0.85) 0%, transparent 52%),
+    radial-gradient(circle at 82% 78%, rgba(207,250,254,0.9) 0%, transparent 54%),
+    linear-gradient(180deg, #f3fbff 0%, #e0f7ff 100%);
+}
+
+/* 治愈绿白 */
+[data-theme="green-healing-light"] {
+  --color-bg-primary: #f7fff8;
+  --color-bg-secondary: rgba(231,248,235,0.82);
+  --color-bg-tertiary: rgba(210,239,219,0.9);
+  --color-text-primary: #1f3a2b;
+  --color-text-secondary: rgba(31,58,43,0.64);
+  --color-text-tertiary: rgba(31,58,43,0.4);
+  --color-accent: #22c55e;
+  --color-border: rgba(34,197,94,0.13);
+  --color-bubble-user: #bbf7d0;
+  --color-bubble-character: #ffffff;
+  --color-bubble-text: #1f3a2b;
+  --color-shadow: rgba(34,120,70,0.12);
+  --glass-blur: 14px;
+  --glass-bg: rgba(247,255,248,0.78);
+  --bg-image:
+    radial-gradient(circle at 18% 14%, rgba(187,247,208,0.88) 0%, transparent 52%),
+    radial-gradient(circle at 84% 82%, rgba(220,252,231,0.95) 0%, transparent 56%),
+    radial-gradient(ellipse at 50% 100%, rgba(134,239,172,0.28) 0%, transparent 60%),
+    linear-gradient(180deg, #f7fff8 0%, #eafbea 100%);
+}
+
 /* 动效开关：设置里可关闭 */
 [data-anim="off"] * {
   animation: none !important;

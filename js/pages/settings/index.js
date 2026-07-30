@@ -15,6 +15,11 @@ const THEMES = [
   { id: 'glass-light',   name: '玻璃 · 昼' },
   { id: 'starry',        name: '星夜' },
   { id: 'warm-healing',  name: '暖愈' },
+  { id: 'pink-healing',  name: '粉色治愈' },
+  { id: 'ocean-blue',    name: '海洋蓝' },
+  { id: 'ocean-white',   name: '海洋白' },
+  { id: 'green-healing-light',   name: '治愈绿白' },
+
 ];
 
 let state = {};

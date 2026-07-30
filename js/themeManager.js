@@ -1,10 +1,14 @@
 const THEMES = [
-  { id: 'minimal-dark',  name: '极简 暗' },
-  { id: 'minimal-light', name: '极简 亮' },
-  { id: 'glass-dark',    name: '毛玻璃 暗' },
-  { id: 'glass-light',   name: '毛玻璃 亮' },
-  { id: 'starry',        name: '星夜' },
-  { id: 'warm-healing',  name: '暖光治愈' },
+  { id: 'minimal-dark',        name: '极简 暗' },
+  { id: 'minimal-light',       name: '极简 亮' },
+  { id: 'glass-dark',          name: '毛玻璃 暗' },
+  { id: 'glass-light',         name: '毛玻璃 亮' },
+  { id: 'starry',              name: '星夜' },
+  { id: 'warm-healing',        name: '暖光治愈' },
+  { id: 'pink-healing',        name: '粉色治愈' },
+  { id: 'ocean-blue',          name: '海洋蓝' },
+  { id: 'ocean-white',         name: '海洋白' },
+  { id: 'green-healing-light', name: '治愈绿白' },
 ];
 
 const STORAGE_KEY = 'unrequited:theme';
@@ -15,18 +19,29 @@ export function getThemes() {
 }
 
 export function getCurrentTheme() {
-  return localStorage.getItem(STORAGE_KEY) || 'minimal-dark';
+  const saved = localStorage.getItem(STORAGE_KEY);
+
+  if (THEMES.some((t) => t.id === saved)) {
+    return saved;
+  }
+
+  return 'minimal-dark';
 }
 
 export function setTheme(id) {
   if (!THEMES.some((t) => t.id === id)) return;
+
   localStorage.setItem(STORAGE_KEY, id);
   document.body.setAttribute('data-theme', id);
 
   requestAnimationFrame(() => {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (!meta) return;
-    const bg = getComputedStyle(document.body).backgroundColor;
+
+    const bg =
+      getComputedStyle(document.body).getPropertyValue('--color-bg-primary').trim() ||
+      getComputedStyle(document.body).backgroundColor;
+
     meta.setAttribute('content', bg);
   });
 }

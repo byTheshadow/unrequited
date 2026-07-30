@@ -5,6 +5,8 @@ import {
   openSheet, confirmSheet, readFileAsText, downloadJSON,
 } from '../utils.js';
 
+let currentCategory = 'all';
+
 async function loadDecks() {
   return db.decks.orderBy('createdAt').reverse().toArray();
 }
@@ -27,20 +29,59 @@ function dedup(arr) {
 }
 
 async function refresh() {
-  const wrap = document.getElementById('deck-list-wrap');
-  if (!wrap) return;
+  const filterWrap = document.getElementById('deck-filter-wrap');
+  const listWrap = document.getElementById('deck-list-wrap');
+  if (!listWrap) return;
+
   const list = await loadDecks();
-  wrap.innerHTML = renderList(list);
+  const categories = Array.from(new Set(list.map((d) => d.category).filter(Boolean)));
+
+  if (currentCategory !== 'all' && currentCategory !== 'none' && !categories.includes(currentCategory)) {
+    currentCategory = 'all';
+  }
+
+  if (filterWrap) {
+    if (categories.length === 0) {
+      filterWrap.innerHTML = '';
+    } else {
+      filterWrap.innerHTML = `
+        <div class="deck-filter-bar">
+          <button class="filter-chip ${currentCategory === 'all' ? 'active' : ''}" data-cat="all">全部</button>
+          <button class="filter-chip ${currentCategory === 'none' ? 'active' : ''}" data-cat="none">未分类</button>
+          ${categories.map((cat) => `
+            <button class="filter-chip ${currentCategory === cat ? 'active' : ''}" data-cat="${escapeAttr(cat)}">${escapeHtml(cat)}</button>
+          `).join('')}
+        </div>
+      `;
+      filterWrap.querySelectorAll('.filter-chip').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          haptic(4);
+          currentCategory = btn.getAttribute('data-cat');
+          refresh();
+        });
+      });
+    }
+  }
+
+  let filtered = list;
+  if (currentCategory === 'none') {
+    filtered = list.filter((d) => !d.category);
+  } else if (currentCategory !== 'all') {
+    filtered = list.filter((d) => d.category === currentCategory);
+  }
+
+  listWrap.innerHTML = renderList(filtered);
   bindRowEvents();
 }
 
 function renderList(list) {
   if (!list.length) {
+    const isFiltered = currentCategory !== 'all';
     return `
       <div class="empty-state">
         <div class="empty-state-icon">${ICON.deck}</div>
-        <div class="empty-state-title">还没有字卡库</div>
-        <div class="empty-state-sub">点击右下角加号创建<br>一行一条，可粘贴大段文本</div>
+        <div class="empty-state-title">${isFiltered ? '分类下无内容' : '还没有字卡库'}</div>
+        <div class="empty-state-sub">${isFiltered ? '可以新建该分类下的字卡库<br>或者修改已有库的分类' : '点击右下角加号创建<br>一行一条，可粘贴大段文本'}</div>
       </div>
     `;
   }
@@ -52,6 +93,7 @@ function renderList(list) {
           <div class="list-row-body">
             <div class="list-row-title">${escapeHtml(d.name)}</div>
             <div class="list-row-sub">
+              ${d.category ? `<span class="deck-category-tag">${escapeHtml(d.category)}</span>` : ''}
               ${(d.fragments || []).length} 条碎片
               ${d.bindCharacterId ? '　·　已绑定角色' : '　·　通用'}
             </div>
@@ -85,6 +127,7 @@ function bindRowEvents() {
       const payload = {
         deckName: d.name,
         bindCharacter: null,
+        category: d.category || null,
         fragments: d.fragments || [],
       };
       downloadJSON(`${d.name || 'deck'}.json`, payload);
@@ -97,7 +140,6 @@ function bindRowEvents() {
       const id = Number(btn.getAttribute('data-id'));
       const ok = await confirmSheet('删除此字卡库？绑定它的角色仍会保留', { danger: true, okText: '删除' });
       if (!ok) return;
-      // 从所有角色的 linkedDeckIds 移除
       const chars = await db.characters.toArray();
       for (const c of chars) {
         if ((c.linkedDeckIds || []).includes(id)) {
@@ -116,7 +158,7 @@ function bindRowEvents() {
 async function openEditor(deckId) {
   const isNew = !deckId;
   const deck = isNew
-    ? { name: '', bindCharacterId: null, fragments: [] }
+    ? { name: '', bindCharacterId: null, fragments: [], category: '' }
     : await db.decks.get(deckId);
   if (!deck) { toast('字卡库不存在'); return; }
 
@@ -127,6 +169,12 @@ async function openEditor(deckId) {
       <div class="field">
         <label class="field-label">字卡库名称</label>
         <input class="input" id="d-name" placeholder="例如：日常问候" maxlength="60" value="${escapeAttr(deck.name || '')}">
+      </div>
+
+      <div class="field">
+        <label class="field-label">分类标签（可选）</label>
+        <input class="input" id="d-category" placeholder="例如：日常、深夜、共时" maxlength="20" value="${escapeAttr(deck.category || '')}">
+        <div class="field-hint">用于在字卡库列表页过滤和整理</div>
       </div>
 
       <div class="field">
@@ -173,6 +221,7 @@ async function openEditor(deckId) {
 
   const sheetRoot = document.querySelector('.sheet-backdrop:last-of-type');
   const nameEl = sheetRoot.querySelector('#d-name');
+  const categoryEl = sheetRoot.querySelector('#d-category');
   const bindEl = sheetRoot.querySelector('#d-bind');
   const fragEl = sheetRoot.querySelector('#d-frags');
   const countEl = sheetRoot.querySelector('#frag-count');
@@ -201,10 +250,11 @@ async function openEditor(deckId) {
       const text = await readFileAsText(f);
       let incoming = [];
       let importedName = '';
+      let importedCategory = '';
       if (importMode === 'json') {
         const j = JSON.parse(text);
         importedName = j.deckName || j.name || '';
-        // 兼容旧模板：fragments 可能是数组或分类对象
+        importedCategory = j.category || '';
         if (Array.isArray(j.fragments)) {
           incoming = j.fragments;
         } else if (j.fragments && typeof j.fragments === 'object') {
@@ -221,6 +271,7 @@ async function openEditor(deckId) {
       const merged = dedup([...textToFragments(fragEl.value), ...incoming.map((s) => String(s).trim()).filter(Boolean)]);
       fragEl.value = merged.join('\n');
       if (importedName && !nameEl.value.trim()) nameEl.value = importedName;
+      if (importedCategory && !categoryEl.value.trim()) categoryEl.value = importedCategory;
       updateCount();
       toast(`导入 ${incoming.length} 条，去重后共 ${merged.length} 条`, 2200);
     } catch (e) {
@@ -236,7 +287,8 @@ async function openEditor(deckId) {
     if (!name) { toast('请填写名称'); return; }
     const fragments = dedup(textToFragments(fragEl.value));
     const bindCharacterId = bindEl.value ? Number(bindEl.value) : null;
-    const payload = { name, bindCharacterId, fragments };
+    const category = categoryEl.value.trim() || null;
+    const payload = { name, bindCharacterId, fragments, category };
     if (isNew) {
       await db.decks.add({ ...payload, createdAt: Date.now() });
     } else {
@@ -256,6 +308,7 @@ export async function render(root, params = {}) {
         <div class="top-bar-title">字 卡 库</div>
         <span style="width:40px;"></span>
       </div>
+      <div id="deck-filter-wrap"></div>
       <div id="deck-list-wrap"></div>
       <button class="fab" data-act="new" aria-label="新建字卡库">${ICON.plus}</button>
       <style>
@@ -269,13 +322,50 @@ export async function render(root, params = {}) {
           flex-shrink: 0;
         }
         .list-row-aside { flex-direction: row; gap: 4px; }
+        
+        .deck-filter-bar {
+          display: flex;
+          gap: 8px;
+          padding: 12px 16px 4px 16px;
+          overflow-x: auto;
+          white-space: nowrap;
+          scrollbar-width: none;
+        }
+        .deck-filter-bar::-webkit-scrollbar {
+          display: none;
+        }
+        .filter-chip {
+          display: inline-block;
+          padding: 6px 12px;
+          border-radius: 16px;
+          font-size: 13px;
+          background: var(--color-bg-secondary);
+          color: var(--color-text-secondary);
+          border: none;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .filter-chip.active {
+          background: var(--color-accent);
+          color: var(--color-bg);
+          font-weight: 500;
+        }
+        .deck-category-tag {
+          display: inline-block;
+          padding: 1px 5px;
+          border-radius: 4px;
+          font-size: 10px;
+          background: var(--color-bg-secondary);
+          color: var(--color-accent);
+          border: 1px solid var(--color-border);
+          vertical-align: middle;
+          margin-right: 6px;
+        }
       </style>
     </div>
   `;
 
-  const list = await loadDecks();
-  document.getElementById('deck-list-wrap').innerHTML = renderList(list);
-  bindRowEvents();
+  await refresh();
 
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
   root.querySelector('[data-act=new]').addEventListener('click', () => { haptic(8); openEditor(null); });

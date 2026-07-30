@@ -7,6 +7,9 @@ import {
 } from '../utils.js';
 import {
   generateForCharacter,
+  parseChoiceFragment,
+  choiceToContent,
+  parseChoiceContent,
   DEFAULT_THINKING_HINTS,
   DEFAULT_SKIP_HINTS,
   DEFAULT_SYNC_HINTS,
@@ -18,6 +21,9 @@ import * as sound from '../lib/sound.js';
 const DEFAULT_QUOTE_CHANCE = 0.4;
 const QUOTE_PREVIEW_MAX = 40;
 const DEFAULT_MUSIC = { signature: '一支未命名的曲子', distance: '相距 1024 光年' };
+const DEFAULT_CALL_MIN_SEC = 45;
+const DEFAULT_CALL_MAX_SEC = 180;
+const CALL_RING_TIMEOUT = 15000;
 
 let state = {
   convId: null,
@@ -34,8 +40,16 @@ let state = {
   onViewport: null,
   pendingQuoteId: null,
   panelExpanded: false,
-  panelTab: 'status',        // 'status' | 'music'
-  statusCardIndex: 0,        // 0 = 角色卡, 1 = user 卡
+  panelTab: 'status',
+  statusCardIndex: 0,
+
+  call: null,
+  callTimer: null,
+  callRingTimer: null,
+  callEndTimer: null,
+  callStartedAt: null,
+  callDurationSec: 0,
+  callExpanded: false,
 };
 
 const PRESET_LABELS = {
@@ -62,6 +76,9 @@ const SVG_PALETTE = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none"
 const SVG_MUSIC = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
 const SVG_NOTE = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/></svg>`;
 const SVG_PLAY = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+const SVG_PHONE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v2.2a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.45 19.45 0 0 1-6-6A19.8 19.8 0 0 1 2.12 3.38 2 2 0 0 1 4.11 1.2h2.2a2 2 0 0 1 2 1.72c.13.96.35 1.9.66 2.8a2 2 0 0 1-.45 2.11L7.6 8.75a16 16 0 0 0 7.65 7.65l.92-.92a2 2 0 0 1 2.11-.45c.9.31 1.84.53 2.8.66A2 2 0 0 1 22 16.92Z"/></svg>`;
+const SVG_PHONE_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.7 5.1 10 2.6A2 2 0 0 0 8.07 1.2H5.84A2 2 0 0 0 3.86 3.5a19.7 19.7 0 0 0 5.23 9.65"/><path d="M14.8 18.45a19.6 19.6 0 0 0 5.7 1.66 2 2 0 0 0 2.3-1.98v-2.2a2 2 0 0 0-1.72-1.98l-2.55-.37a2 2 0 0 0-1.78.58l-.92.92"/><path d="m2 2 20 20"/></svg>`;
+const SVG_MINIMIZE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
 
 /* ---------- 工具 ---------- */
 function shouldShowTimeSep(prev, curr) {
@@ -85,14 +102,110 @@ function isQuotableMsg(msg) {
   if (msg.type === 'system' || msg.type === 'sync') return false;
   return true;
 }
+function formatDuration(sec) {
+  const n = Math.max(0, Math.floor(sec || 0));
+  const m = Math.floor(n / 60);
+  const s = n % 60;
+  return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+function choiceSummary(content) {
+  const c = parseChoiceContent(content);
+  if (!c) return summarize(content);
+  return c.prompt;
+}
+function msgPreviewContent(msg) {
+  if (!msg) return '';
+  if (msg.type === 'choice') return choiceSummary(msg.content);
+  return msg.content;
+}
+
+/* ---------- 选择题 ---------- */
+function findLatestUnansweredUserChoice() {
+  for (let i = state.messages.length - 1; i >= 0; i--) {
+    const m = state.messages[i];
+    if (!m || m.sender !== 'user' || m.type !== 'choice') continue;
+    const c = parseChoiceContent(m.content);
+    if (c && !c.answered) return { msg: m, choice: c };
+  }
+  return null;
+}
+
+async function markChoiceAnswered(msgId, answer, answeredBy) {
+  const msg = state.messages.find((m) => m.id === msgId);
+  if (!msg || msg.type !== 'choice') return;
+  const c = parseChoiceContent(msg.content);
+  if (!c) return;
+  const next = {
+    ...c,
+    answered: true,
+    answer: String(answer || ''),
+    answeredBy: String(answeredBy || ''),
+  };
+  const nextContent = choiceToContent(next);
+  await db.messages.update(msgId, { content: nextContent });
+  msg.content = nextContent;
+}
+
+function choiceBubbleHTML(msg) {
+  const choice = parseChoiceContent(msg.content);
+  if (!choice) {
+    return `<div class="msg-body">${escapeHtml(msg.content)}</div>`;
+  }
+  const canAnswer = msg.sender === 'character' && !choice.answered;
+  const opts = canAnswer ? `
+    <div class="choice-options">
+      ${choice.options.map((opt, idx) => `
+        <button class="choice-option" data-choice-msg="${msg.id}" data-choice-idx="${idx}" type="button">
+          ${escapeHtml(opt)}
+        </button>
+      `).join('')}
+    </div>
+  ` : '';
+  return `
+    <div class="msg-body choice-prompt">${escapeHtml(choice.prompt)}</div>
+    ${opts}
+  `;
+}
+
+async function answerCharacterChoice(msgId, idx) {
+  const msg = state.messages.find((m) => m.id === msgId);
+  if (!msg || msg.type !== 'choice' || msg.sender !== 'character') return;
+
+  const choice = parseChoiceContent(msg.content);
+  if (!choice || choice.answered) return;
+
+  const answer = choice.options[idx];
+  if (!answer) return;
+
+  await markChoiceAnswered(msgId, answer, 'user');
+  renderMessages();
+
+  const userMsg = {
+    conversationId: state.convId,
+    sender: 'user',
+    content: answer,
+    type: 'text',
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: false,
+  };
+  const id = await db.messages.add(userMsg);
+  userMsg.id = id;
+  appendMessage(userMsg);
+  playUserSound();
+  await persistConvSummary();
+  await schedulePendingReply();
+}
 
 /* ---------- 引用相关 HTML ---------- */
 function quoteCardHTML(quotedId) {
   if (!quotedId) return '';
   const q = state.messages.find((m) => m.id === quotedId);
   if (!q) return `<div class="quote-card missing">[原消息已删除]</div>`;
+  if (q.status === 'recalled') return `<div class="quote-card missing">[原消息已撤回]</div>`;
   const author = authorNameOf(q);
-  const preview = summarize(q.content);
+  const preview = summarize(msgPreviewContent(q));
   return `
     <div class="quote-card" data-quote-jump="${q.id}">
       <div class="quote-card-author">${escapeHtml(author)}</div>
@@ -103,7 +216,7 @@ function quoteCardHTML(quotedId) {
 function quoteBarHTML(quoted) {
   if (!quoted) return '';
   const author = authorNameOf(quoted);
-  const preview = summarize(quoted.content);
+  const preview = summarize(msgPreviewContent(quoted));
   return `
     <div class="quote-bar" id="quote-bar">
       <div class="quote-bar-line"></div>
@@ -124,8 +237,8 @@ function bubbleHTML(msg, character, user, showTimeSep) {
     ? `<div class="msg-time-sep">${formatDateSep(msg.timestamp)}　${formatTime(msg.timestamp)}</div>`
     : '';
 
-  if (msg.sender === 'system' || msg.type === 'system' || msg.type === 'sync') {
-    const isSync = msg.type === 'sync';
+  if (msg.sender === 'system' || msg.type === 'system' || msg.type === 'sync' || msg.type === 'call_start' || msg.type === 'call_end') {
+    const isSync = msg.type === 'sync' || msg.type === 'call_start' || msg.type === 'call_end';
     return `${timeSep}<div class="msg-system ${isSync ? 'msg-sync' : ''}" data-id="${msg.id}">
       ${isSync ? '<span class="sync-mark">◈</span>' : ''}${escapeHtml(msg.content)}
     </div>`;
@@ -139,12 +252,16 @@ function bubbleHTML(msg, character, user, showTimeSep) {
     ? `<span class="msg-read">${msg.isRead ? '已读' : '送达'}</span>`
     : '';
   const quote = quoteCardHTML(msg.quotedMessageId);
+  const body = msg.type === 'choice'
+    ? choiceBubbleHTML(msg)
+    : `<div class="msg-body">${escapeHtml(msg.content)}</div>`;
+
   return `
     ${timeSep}
-    <div class="msg-row ${isUser ? 'msg-user' : 'msg-char'}" data-id="${msg.id}">
+    <div class="msg-row ${isUser ? 'msg-user' : 'msg-char'} ${msg.type === 'choice' ? 'msg-choice' : ''}" data-id="${msg.id}">
       ${!isUser ? `<div class="msg-avatar">${av}</div>` : ''}
       <div class="msg-bubble-wrap">
-        <div class="msg-bubble">${quote}<div class="msg-body">${escapeHtml(msg.content)}</div></div>
+        <div class="msg-bubble">${quote}${body}</div>
         ${isUser ? `<div class="msg-meta">${readMark}</div>` : ''}
       </div>
       ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
@@ -284,6 +401,18 @@ function applyChatStyles() {
       wp.classList.remove('has-wallpaper');
     }
   }
+
+  const callBg = document.querySelector('.call-full-bg');
+  if (callBg) {
+    if (c.wallpaper) {
+      const safe = String(c.wallpaper).replace(/"/g, '\\"');
+      callBg.style.backgroundImage = `url("${safe}")`;
+      callBg.classList.add('has-wallpaper');
+    } else {
+      callBg.style.backgroundImage = '';
+      callBg.classList.remove('has-wallpaper');
+    }
+  }
 }
 
 function playCharSound() {
@@ -346,13 +475,17 @@ async function sendUserMessage() {
   if (dock) { dock.classList.remove('sent-pulse'); void dock.offsetWidth; dock.classList.add('sent-pulse'); }
 
   const quotedId = state.pendingQuoteId || null;
+  const choice = parseChoiceFragment(text);
 
   const msg = {
     conversationId: state.convId,
-    sender: 'user', content: text,
-    type: 'text', status: 'sent',
+    sender: 'user',
+    content: choice ? choiceToContent(choice) : text,
+    type: choice ? 'choice' : 'text',
+    status: 'sent',
     quotedMessageId: quotedId,
-    timestamp: Date.now(), isRead: false,
+    timestamp: Date.now(),
+    isRead: false,
   };
   const id = await db.messages.add(msg);
   msg.id = id;
@@ -494,6 +627,16 @@ async function maybeInsertSyncMessage() {
   return true;
 }
 
+async function markLatestUserUnreadAsRead() {
+  const lastUserMsg = [...state.messages].reverse().find((m) => m.sender === 'user' && !m.isRead);
+  if (lastUserMsg) {
+    await db.messages.update(lastUserMsg.id, { isRead: true });
+    lastUserMsg.isRead = true;
+    const el = document.querySelector(`.msg-row[data-id="${lastUserMsg.id}"] .msg-read`);
+    if (el) el.textContent = '已读';
+  }
+}
+
 async function executeReply() {
   cancelTimers();
   if (state.destroyed) return;
@@ -507,29 +650,32 @@ async function executeReply() {
   await maybeInsertSyncMessage();
   if (state.destroyed) return;
 
-  const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
-  if (skipChance > 0 && Math.random() < skipChance) {
-    const skipList = (cfg.skipHints && cfg.skipHints.length) ? cfg.skipHints : DEFAULT_SKIP_HINTS;
-    const lastUserMsg = [...state.messages].reverse().find((m) => m.sender === 'user' && !m.isRead);
-    if (lastUserMsg) {
-      await db.messages.update(lastUserMsg.id, { isRead: true });
-      lastUserMsg.isRead = true;
-      const el = document.querySelector(`.msg-row[data-id="${lastUserMsg.id}"] .msg-read`);
-      if (el) el.textContent = '已读';
+  const userChoice = findLatestUnansweredUserChoice();
+
+  if (!userChoice) {
+    const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
+    if (skipChance > 0 && Math.random() < skipChance) {
+      const skipList = (cfg.skipHints && cfg.skipHints.length) ? cfg.skipHints : DEFAULT_SKIP_HINTS;
+      await markLatestUserUnreadAsRead();
+      const sysMsg = {
+        conversationId: state.convId,
+        sender: 'system',
+        content: pick(skipList),
+        type: 'system',
+        status: 'sent',
+        quotedMessageId: null,
+        timestamp: Date.now(),
+        isRead: true,
+      };
+      const sysId = await db.messages.add(sysMsg);
+      sysMsg.id = sysId;
+      appendMessage(sysMsg);
+      await persistConvSummary();
+      return;
     }
-    const sysMsg = {
-      conversationId: state.convId,
-      sender: 'system', content: pick(skipList),
-      type: 'system', status: 'sent',
-      quotedMessageId: null,
-      timestamp: Date.now(), isRead: true,
-    };
-    const sysId = await db.messages.add(sysMsg);
-    sysMsg.id = sysId;
-    appendMessage(sysMsg);
-    await persistConvSummary();
-    return;
   }
+
+  await maybeStartCallByChance();
 
   showShuffling();
   await sleep(700);
@@ -540,24 +686,71 @@ async function executeReply() {
   await sleep(randInt(400, 900));
   if (state.destroyed) return;
 
-  const { messages, reason } = await generateForCharacter(state.character.id);
+  await markLatestUserUnreadAsRead();
+
+  const quoteChance = typeof cfg.quoteChance === 'number' ? cfg.quoteChance : DEFAULT_QUOTE_CHANCE;
+
+  if (userChoice) {
+    const answer = pick(userChoice.choice.options);
+    await markChoiceAnswered(userChoice.msg.id, answer, 'character');
+
+    let autoQuoteId = null;
+    if (quoteChance > 0 && Math.random() < quoteChance) {
+      autoQuoteId = userChoice.msg.id;
+    }
+
+    const msg = {
+      conversationId: state.convId,
+      sender: 'character',
+      content: answer,
+      type: 'card',
+      status: 'sent',
+      quotedMessageId: autoQuoteId,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+    const id = await db.messages.add(msg);
+    msg.id = id;
+    hideTyping();
+    renderMessages();
+    playCharSound();
+    await persistConvSummary();
+    return;
+  }
+
+  const { messages, choices, reason } = await generateForCharacter(state.character.id);
   if (state.destroyed) return;
 
-  if (!messages.length) {
+  if ((!messages || !messages.length) && (!choices || !choices.length)) {
     hideTyping();
     toast(reason === 'no_fragments' ? '此角色暂无可用的字卡内容' : '生成失败', 2200);
     return;
   }
 
-  const lastUserMsg = [...state.messages].reverse().find((m) => m.sender === 'user' && !m.isRead);
-  if (lastUserMsg) {
-    await db.messages.update(lastUserMsg.id, { isRead: true });
-    lastUserMsg.isRead = true;
-    const el = document.querySelector(`.msg-row[data-id="${lastUserMsg.id}"] .msg-read`);
-    if (el) el.textContent = '已读';
+  if (choices && choices.length) {
+    const choice = choices[0];
+    let autoQuoteId = null;
+    if (quoteChance > 0 && Math.random() < quoteChance) {
+      autoQuoteId = pickAutoQuoteTarget();
+    }
+    const msg = {
+      conversationId: state.convId,
+      sender: 'character',
+      content: choiceToContent(choice),
+      type: 'choice',
+      status: 'sent',
+      quotedMessageId: autoQuoteId,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+    const id = await db.messages.add(msg);
+    msg.id = id;
+    hideTyping();
+    appendMessage(msg);
+    playCharSound();
+    await persistConvSummary();
+    return;
   }
-
-  const quoteChance = typeof cfg.quoteChance === 'number' ? cfg.quoteChance : DEFAULT_QUOTE_CHANCE;
 
   for (let i = 0; i < messages.length; i++) {
     if (state.destroyed) return;
@@ -571,10 +764,13 @@ async function executeReply() {
     }
     const msg = {
       conversationId: state.convId,
-      sender: 'character', content: messages[i],
-      type: 'card', status: 'sent',
+      sender: 'character',
+      content: messages[i],
+      type: 'card',
+      status: 'sent',
       quotedMessageId: autoQuoteId,
-      timestamp: Date.now(), isRead: true,
+      timestamp: Date.now(),
+      isRead: true,
     };
     const id = await db.messages.add(msg);
     msg.id = id;
@@ -630,7 +826,8 @@ function bindBubbleEvents() {
   document.querySelectorAll('.msg-scroll [data-id]').forEach((row) => {
     const id = Number(row.getAttribute('data-id'));
     let moved = false;
-    row.addEventListener('pointerdown', () => {
+    row.addEventListener('pointerdown', (e) => {
+      if (e.target.closest('button, input, textarea, [data-choice-msg], [data-quote-jump]')) return;
       moved = false;
       clearTimeout(longPressTimer);
       longPressTimer = setTimeout(() => { if (!moved) openMsgActions(id); }, 500);
@@ -671,7 +868,8 @@ async function openMsgActions(id) {
       close();
       await setPendingQuote(id);
     } else if (act === 'copy' && target) {
-      try { await navigator.clipboard.writeText(target.content); toast('已复制'); }
+      const text = target.type === 'choice' ? choiceSummary(target.content) : target.content;
+      try { await navigator.clipboard.writeText(text); toast('已复制'); }
       catch (e) { toast('复制失败'); }
       close();
     } else if (act === 'delete') {
@@ -687,6 +885,211 @@ async function openMsgActions(id) {
       }
     }
   });
+}
+/* ---------- 虚拟通话 ---------- */
+function getCallRangeSec() {
+  const cfg = (state.character && state.character.replyConfig) || {};
+  const rawMin = Number(cfg.callMinSec ?? cfg.minCallDurationSec ?? DEFAULT_CALL_MIN_SEC);
+  const rawMax = Number(cfg.callMaxSec ?? cfg.maxCallDurationSec ?? DEFAULT_CALL_MAX_SEC);
+  const min = Math.max(10, Math.floor(rawMin || DEFAULT_CALL_MIN_SEC));
+  const max = Math.max(min, Math.floor(rawMax || DEFAULT_CALL_MAX_SEC));
+  return { min, max };
+}
+
+function getCallChance() {
+  const cfg = (state.character && state.character.replyConfig) || {};
+  return Math.min(1, Math.max(0, Number(cfg.callChance || 0)));
+}
+
+async function maybeStartCallByChance() {
+  if (state.call) return false;
+  const chance = getCallChance();
+  if (chance <= 0 || Math.random() >= chance) return false;
+  await startVirtualCall();
+  return true;
+}
+
+function callStatusText() {
+  if (!state.call) return '';
+  if (state.call.status === 'ringing') return '正在呼叫';
+  if (state.call.status === 'connected') return '通话中';
+  if (state.call.status === 'missed') return '未接听';
+  if (state.call.status === 'ended') return '已结束';
+  return '';
+}
+
+function callMiniHTML() {
+  if (!state.call) return '';
+  return `
+    <button class="call-heart ${state.call.status}" id="call-heart" data-act="open-call" type="button" aria-label="打开通话">
+      <span class="call-heart-ring"></span>
+      <span class="call-heart-core">
+        ${SVG_PHONE}
+      </span>
+    </button>
+  `;
+}
+
+function callFullHTML() {
+  if (!state.call || !state.callExpanded) return '';
+  const c = state.character || {};
+  const status = callStatusText();
+  const duration = state.call.status === 'ringing'
+    ? '00:00'
+    : formatDuration(state.callDurationSec);
+  return `
+    <div class="call-full" id="call-full">
+      <div class="call-full-bg"></div>
+      <div class="call-full-shade"></div>
+      <div class="call-full-inner">
+        <button class="call-min-btn" data-act="min-call" type="button" aria-label="最小化">${SVG_MINIMIZE}</button>
+        <div class="call-orbit">
+          <div class="call-avatar-lg">${avatarHTML(c.avatar, c.name || '?', 104)}</div>
+        </div>
+        <div class="call-name">${escapeHtml(c.name || '未知来电')}</div>
+        <div class="call-status">${escapeHtml(status)}</div>
+        <div class="call-duration" id="call-duration">${duration}</div>
+        <div class="call-actions">
+          ${state.call.status === 'ringing' ? `
+            <button class="call-action call-accept" data-act="accept-call" type="button">
+              ${SVG_PHONE}<span>接听</span>
+            </button>
+            <button class="call-action call-hang" data-act="hang-call" type="button">
+              ${SVG_PHONE_OFF}<span>挂断</span>
+            </button>
+          ` : `
+            <button class="call-action call-hang" data-act="hang-call" type="button">
+              ${SVG_PHONE_OFF}<span>挂断</span>
+            </button>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderCallLayer() {
+  const host = document.getElementById('call-layer');
+  if (!host) return;
+  host.innerHTML = `${callMiniHTML()}${callFullHTML()}`;
+  applyChatStyles();
+}
+
+function updateCallDurationUI() {
+  const el = document.getElementById('call-duration');
+  if (el) el.textContent = formatDuration(state.callDurationSec);
+}
+
+function clearCallTimers() {
+  clearInterval(state.callTimer);
+  clearTimeout(state.callRingTimer);
+  clearTimeout(state.callEndTimer);
+  state.callTimer = null;
+  state.callRingTimer = null;
+  state.callEndTimer = null;
+}
+
+async function insertCallMessage(type, content) {
+  const msg = {
+    conversationId: state.convId,
+    sender: 'system',
+    content,
+    type,
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: true,
+  };
+  const id = await db.messages.add(msg);
+  msg.id = id;
+  appendMessage(msg);
+  await persistConvSummary();
+}
+
+async function startVirtualCall() {
+  if (state.call || !state.character) return;
+  const range = getCallRangeSec();
+  const planned = randInt(range.min, range.max);
+  state.call = {
+    status: 'ringing',
+    plannedDurationSec: planned,
+    startedAt: Date.now(),
+  };
+  state.callExpanded = false;
+  state.callStartedAt = null;
+  state.callDurationSec = 0;
+  renderCallLayer();
+  haptic(20);
+  playCharSound();
+  await insertCallMessage('call_start', '通话请求');
+
+  clearTimeout(state.callRingTimer);
+  state.callRingTimer = setTimeout(() => {
+    if (!state.call || state.call.status !== 'ringing') return;
+    endVirtualCall('missed');
+  }, CALL_RING_TIMEOUT);
+}
+
+function acceptVirtualCall() {
+  if (!state.call || state.call.status !== 'ringing') return;
+  clearTimeout(state.callRingTimer);
+  state.call.status = 'connected';
+  state.callStartedAt = Date.now();
+  state.callDurationSec = 0;
+  haptic(12);
+  renderCallLayer();
+
+  clearInterval(state.callTimer);
+  state.callTimer = setInterval(() => {
+    if (!state.call || state.call.status !== 'connected') return;
+    state.callDurationSec = Math.floor((Date.now() - state.callStartedAt) / 1000);
+    updateCallDurationUI();
+  }, 1000);
+
+  clearTimeout(state.callEndTimer);
+  state.callEndTimer = setTimeout(() => {
+    if (!state.call || state.call.status !== 'connected') return;
+    endVirtualCall('ended');
+  }, state.call.plannedDurationSec * 1000);
+}
+
+async function endVirtualCall(reason = 'ended') {
+  if (!state.call) return;
+  const wasConnected = state.call.status === 'connected';
+  const duration = wasConnected ? state.callDurationSec : 0;
+  state.call.status = reason === 'missed' ? 'missed' : 'ended';
+  clearCallTimers();
+  renderCallLayer();
+
+  const text = reason === 'missed'
+    ? '未接听'
+    : `通话结束 ${formatDuration(duration)}`;
+  await insertCallMessage('call_end', text);
+  haptic(10);
+
+  setTimeout(() => {
+    if (state.destroyed) return;
+    if (!state.call) return;
+    state.call = null;
+    state.callExpanded = false;
+    state.callStartedAt = null;
+    state.callDurationSec = 0;
+    renderCallLayer();
+  }, 650);
+}
+
+function openCallFull() {
+  if (!state.call) return;
+  state.callExpanded = true;
+  renderCallLayer();
+  haptic(8);
+}
+
+function minimizeCallFull() {
+  if (!state.call) return;
+  state.callExpanded = false;
+  renderCallLayer();
+  haptic(6);
 }
 
 /* ---------- 面板：状态卡 + 音乐共听 ---------- */
@@ -949,7 +1352,6 @@ function bindPanelEvents() {
   const panel = document.getElementById('chat-panel');
   if (!panel) return;
 
-  // ghost input：change 时提交
   panel.addEventListener('change', async (e) => {
     const input = e.target.closest('.ghost-input');
     if (!input) return;
@@ -965,12 +1367,10 @@ function bindPanelEvents() {
     }
   });
 
-  // tab 切换
   panel.querySelectorAll('.panel-tab').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
 
-  // dots 切换
   panel.querySelectorAll('.status-dot').forEach(btn => {
     btn.addEventListener('click', () => {
       state.statusCardIndex = Number(btn.dataset.dot) || 0;
@@ -979,7 +1379,6 @@ function bindPanelEvents() {
     });
   });
 
-  // 卡片背景按钮
   panel.addEventListener('click', (e) => {
     const bgBtn = e.target.closest('[data-card-bg]');
     if (bgBtn) {
@@ -1132,6 +1531,12 @@ async function openChatMenu() {
           <div class="sheet-list-sub">${soundText}</div>
         </div>
       </div>
+      <div class="sheet-list-item" data-act="call-now">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">发起虚拟通话</div>
+          <div class="sheet-list-sub">显示心跳挂件，可展开全屏通话界面</div>
+        </div>
+      </div>
       <div class="sheet-list-item" data-act="clear">
         <div class="sheet-list-body"><div class="sheet-list-title">清空消息</div></div>
       </div>
@@ -1157,6 +1562,15 @@ async function openChatMenu() {
     else if (act === 'wallpaper') { close(); await sleep(280); openWallpaperSheet(); }
     else if (act === 'typing-hint') { close(); await sleep(280); openTypingHintSheet(); }
     else if (act === 'sound') { close(); await sleep(280); openSoundSheet(); }
+    else if (act === 'call-now') {
+      close();
+      if (state.call) {
+        openCallFull();
+      } else {
+        await startVirtualCall();
+        openCallFull();
+      }
+    }
     else if (act === 'clear') {
       close();
       const ok = await confirmSheet('清空所有消息？', { danger: true, okText: '清空' });
@@ -1233,6 +1647,7 @@ function openCustomCSSSheet() {
         <code>.msg-row.msg-char .msg-bubble</code> 角色气泡<br>
         <code>.msg-body</code> 气泡正文<br>
         <code>.quote-card</code> 气泡内引用卡<br>
+        <code>.choice-option</code> 选择题按钮<br>
         <code>.msg-time-sep</code> 时间分隔
       </div>
       <textarea id="custom-css-input" class="textarea" style="min-height:200px; font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size:12.5px; letter-spacing:0;" placeholder=".msg-bubble { background: #1a1a2e; border-radius: 12px; }">${escapeHtml(current)}</textarea>
@@ -1521,7 +1936,6 @@ async function openSoundSheet() {
     }
   });
 }
-
 /* ============================================================
    checkPendingReplyOnVisible
    ============================================================ */
@@ -1530,6 +1944,9 @@ async function checkPendingReplyOnVisible() {
   const conv = await db.conversations.get(state.convId);
   if (!conv) return;
   state.conv = conv;
+  if (conv.pendingQuoteId) {
+    state.pendingQuoteId = conv.pendingQuoteId;
+  }
   if (conv.pendingReplyAt) {
     const remain = conv.pendingReplyAt - Date.now();
     if (remain <= 0) {
@@ -1549,12 +1966,29 @@ async function checkPendingReplyOnVisible() {
 export async function render(root, params = {}) {
   state = {
     convId: Number(params.id),
-    conv: null, character: null, user: null,
-    messages: [], typing: false, destroyed: false,
-    replyTimer: null, thinkingTimer: null, thinkingRotate: null,
-    onVisibility: null, onViewport: null,
+    conv: null,
+    character: null,
+    user: null,
+    messages: [],
+    typing: false,
+    destroyed: false,
+    replyTimer: null,
+    thinkingTimer: null,
+    thinkingRotate: null,
+    onVisibility: null,
+    onViewport: null,
     pendingQuoteId: null,
-    panelExpanded: false, panelTab: 'status', statusCardIndex: 0,
+    panelExpanded: false,
+    panelTab: 'status',
+    statusCardIndex: 0,
+
+    call: null,
+    callTimer: null,
+    callRingTimer: null,
+    callEndTimer: null,
+    callStartedAt: null,
+    callDurationSec: 0,
+    callExpanded: false,
   };
   if (!state.convId) { navigate('/cards'); return; }
 
@@ -1579,6 +2013,8 @@ export async function render(root, params = {}) {
 
       <div class="msg-scroll" id="msg-scroll"></div>
 
+      <div class="call-layer" id="call-layer"></div>
+
       <div class="chat-input-dock">
         <button class="dock-btn spark" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
         <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
@@ -1587,13 +2023,16 @@ export async function render(root, params = {}) {
 
       <style>
         .chat-page {
-          display: flex; flex-direction: column;
-          height: 100vh; height: 100dvh;
+          display: flex;
+          flex-direction: column;
+          height: 100vh;
+          height: 100dvh;
           overflow: hidden;
           position: relative;
         }
         .chat-wallpaper {
-          position: absolute; inset: 0;
+          position: absolute;
+          inset: 0;
           z-index: 0;
           pointer-events: none;
           background-size: cover;
@@ -1602,7 +2041,8 @@ export async function render(root, params = {}) {
         }
         .chat-wallpaper.has-wallpaper::after {
           content: '';
-          position: absolute; inset: 0;
+          position: absolute;
+          inset: 0;
           background: var(--color-bg-primary);
           opacity: 0.5;
         }
@@ -1618,9 +2058,12 @@ export async function render(root, params = {}) {
           background: transparent;
         }
         .chat-nav-btn {
-          width: 40px; height: 40px;
+          width: 40px;
+          height: 40px;
           border-radius: 50%;
-          display: inline-flex; align-items: center; justify-content: center;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           color: var(--color-text-secondary);
           background: color-mix(in srgb, var(--color-bg-secondary) 55%, transparent);
           border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
@@ -1652,24 +2095,33 @@ export async function render(root, params = {}) {
         .chat-pill:active { transform: scale(0.98); }
         .chat-pill .pill-avatar { flex-shrink: 0; display: inline-flex; }
         .chat-pill .pill-avatar .avatar {
-          width: 30px; height: 30px; font-size: 12px;
+          width: 30px;
+          height: 30px;
+          font-size: 12px;
         }
         .chat-pill .pill-text {
-          flex: 1; min-width: 0;
-          display: flex; flex-direction: column;
-          align-items: flex-start; gap: 1px;
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 1px;
         }
         .chat-pill .chat-title {
           font-size: 13px;
           letter-spacing: 2px;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
           max-width: 100%;
         }
         .chat-pill .chat-subtitle {
           font-size: 10px;
           color: var(--color-text-tertiary);
           letter-spacing: 1px;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
           max-width: 100%;
           transition: color 0.4s;
         }
@@ -1765,7 +2217,8 @@ export async function render(root, params = {}) {
         }
         .status-card.card-image::before {
           content: '';
-          position: absolute; inset: 0;
+          position: absolute;
+          inset: 0;
           background: color-mix(in srgb, var(--color-bg-primary) 62%, transparent);
           z-index: 0;
         }
@@ -1785,11 +2238,15 @@ export async function render(root, params = {}) {
         }
         .card-bg-btn {
           position: absolute;
-          top: 10px; right: 10px;
+          top: 10px;
+          right: 10px;
           z-index: 3;
-          width: 28px; height: 28px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          display: inline-flex; align-items: center; justify-content: center;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           background: color-mix(in srgb, var(--color-bg-primary) 45%, transparent);
           color: var(--color-text-secondary);
           border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
@@ -1801,11 +2258,15 @@ export async function render(root, params = {}) {
           color: var(--color-text-primary);
         }
         .card-header {
-          display: flex; align-items: center; gap: 14px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
           margin-bottom: 10px;
         }
         .card-avatar-lg .avatar {
-          width: 58px; height: 58px; font-size: 20px;
+          width: 58px;
+          height: 58px;
+          font-size: 20px;
           border-radius: 12px;
           box-shadow: 0 2px 6px var(--color-shadow);
         }
@@ -1815,7 +2276,9 @@ export async function render(root, params = {}) {
           letter-spacing: 2px;
           color: var(--color-text-primary);
           margin-bottom: 4px;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         input.ghost-input.card-name {
           font-size: 16px;
@@ -1863,7 +2326,8 @@ export async function render(root, params = {}) {
         }
         .card-serial {
           position: absolute;
-          bottom: 8px; right: 14px;
+          bottom: 8px;
+          right: 14px;
           font-family: ui-monospace, 'SF Mono', Consolas, monospace;
           font-size: 10px;
           letter-spacing: 2px;
@@ -1904,7 +2368,8 @@ export async function render(root, params = {}) {
           margin: 12px 0 4px;
         }
         .status-dot {
-          width: 6px; height: 6px;
+          width: 6px;
+          height: 6px;
           border-radius: 3px;
           background: var(--color-text-tertiary);
           opacity: 0.35;
@@ -1945,12 +2410,17 @@ export async function render(root, params = {}) {
         }
         .music-card > * { position: relative; z-index: 1; }
         .music-header {
-          display: flex; align-items: center; gap: 8px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
           margin-bottom: 14px;
         }
         .music-icon {
-          width: 22px; height: 22px;
-          display: inline-flex; align-items: center; justify-content: center;
+          width: 22px;
+          height: 22px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           color: var(--color-accent);
         }
         .music-title {
@@ -1967,7 +2437,8 @@ export async function render(root, params = {}) {
         }
         .music-avatar { display: inline-flex; flex-shrink: 0; }
         .music-avatar .avatar {
-          width: 44px; height: 44px;
+          width: 44px;
+          height: 44px;
           box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
           animation: musicPulse 2.6s ease-in-out infinite;
         }
@@ -1980,7 +2451,8 @@ export async function render(root, params = {}) {
           position: relative;
           flex: 1;
           height: 26px;
-          display: flex; align-items: center;
+          display: flex;
+          align-items: center;
           max-width: 140px;
           overflow: hidden;
         }
@@ -2024,7 +2496,9 @@ export async function render(root, params = {}) {
           margin-bottom: 4px;
         }
         .mp3-bar {
-          display: flex; align-items: center; gap: 10px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
           margin-top: 14px;
           padding: 8px 14px;
           background: color-mix(in srgb, var(--color-bg-primary) 60%, transparent);
@@ -2033,7 +2507,8 @@ export async function render(root, params = {}) {
         }
         .mp3-play {
           color: var(--color-accent);
-          display: inline-flex; align-items: center;
+          display: inline-flex;
+          align-items: center;
         }
         .mp3-track {
           flex: 1;
@@ -2045,7 +2520,9 @@ export async function render(root, params = {}) {
         }
         .mp3-fill {
           position: absolute;
-          top: 0; left: 0; bottom: 0;
+          top: 0;
+          left: 0;
+          bottom: 0;
           width: 30%;
           background: linear-gradient(90deg,
             var(--color-accent),
@@ -2078,23 +2555,28 @@ export async function render(root, params = {}) {
           margin: 0 4px;
         }
 
-        /* ---------- 消息滚动区（补上顶部余白，避免第一条被顶栏挡） ---------- */
+        /* ---------- 消息滚动区 ---------- */
         .msg-scroll {
           position: relative;
           z-index: 1;
           flex: 1;
-          overflow-y: auto; overflow-x: hidden;
+          overflow-y: auto;
+          overflow-x: hidden;
           padding: 8px 14px 108px;
           -webkit-overflow-scrolling: touch;
           scroll-behavior: smooth;
         }
         .msg-time-sep {
-          text-align: center; font-size: 10px;
+          text-align: center;
+          font-size: 10px;
           color: var(--color-text-tertiary);
-          letter-spacing: 2px; padding: 14px 0 6px;
+          letter-spacing: 2px;
+          padding: 14px 0 6px;
         }
         .msg-row {
-          display: flex; gap: 8px; margin-bottom: 6px;
+          display: flex;
+          gap: 8px;
+          margin-bottom: 6px;
           align-items: flex-end;
           animation: fadeIn 0.35s ease;
         }
@@ -2119,11 +2601,15 @@ export async function render(root, params = {}) {
           border-top-left-radius: 18px;
           border-top-right-radius: 6px;
         }
-        .msg-body { white-space: pre-wrap; word-break: break-word; }
+        .msg-body {
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
         .msg-meta {
           font-size: 10px;
           color: var(--color-text-tertiary);
-          margin-top: 3px; padding: 0 4px;
+          margin-top: 3px;
+          padding: 0 4px;
           letter-spacing: 1px;
         }
         .msg-system {
@@ -2175,18 +2661,52 @@ export async function render(root, params = {}) {
         .quote-card:active { background: color-mix(in srgb, currentColor 14%, transparent); }
         .quote-card.missing { opacity: 0.55; cursor: default; font-style: italic; }
         .quote-card-author {
-          font-size: 10.5px; opacity: 0.75; letter-spacing: 0.5px;
+          font-size: 10.5px;
+          opacity: 0.75;
+          letter-spacing: 0.5px;
           margin-bottom: 2px;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .quote-card-content {
           opacity: 0.9;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .choice-prompt {
+          margin-bottom: 8px;
+        }
+        .choice-options {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-top: 10px;
+        }
+        .choice-option {
+          min-height: 40px;
+          padding: 10px 12px;
+          text-align: left;
+          border-radius: 14px;
+          border: 1px solid var(--color-border);
+          background: color-mix(in srgb, var(--color-bg-primary) 35%, transparent);
+          color: var(--color-text-primary);
+          font-size: 13px;
+          line-height: 1.4;
+          transition: transform 0.15s, background 0.2s, border-color 0.2s;
+        }
+        .choice-option:active {
+          transform: scale(0.985);
+          background: var(--color-bg-tertiary);
+          border-color: var(--color-accent);
         }
 
         .quote-bar {
           position: absolute;
-          left: 0; right: 0;
+          left: 0;
+          right: 0;
           bottom: calc(100% + 6px);
           display: flex;
           align-items: stretch;
@@ -2202,26 +2722,49 @@ export async function render(root, params = {}) {
           from { opacity: 0; transform: translateY(6px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .quote-bar-line { width: 3px; border-radius: 2px; background: var(--color-accent); flex-shrink: 0; }
-        .quote-bar-body {
-          flex: 1; min-width: 0;
-          display: flex; flex-direction: column; gap: 3px; justify-content: center;
+        .quote-bar-line {
+          width: 3px;
+          border-radius: 2px;
+          background: var(--color-accent);
+          flex-shrink: 0;
         }
-        .quote-bar-author { font-size: 11px; color: var(--color-accent); letter-spacing: 1px; }
+        .quote-bar-body {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          justify-content: center;
+        }
+        .quote-bar-author {
+          font-size: 11px;
+          color: var(--color-accent);
+          letter-spacing: 1px;
+        }
         .quote-bar-content {
-          font-size: 12px; color: var(--color-text-secondary); line-height: 1.4;
-          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          line-height: 1.4;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .quote-bar-close {
-          width: 28px; height: 28px;
+          width: 28px;
+          height: 28px;
           align-self: center;
           border-radius: 50%;
-          display: inline-flex; align-items: center; justify-content: center;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           color: var(--color-text-tertiary);
           flex-shrink: 0;
           transition: color 0.15s, background 0.15s;
         }
-        .quote-bar-close:active { color: var(--color-text-primary); background: var(--color-bg-tertiary); }
+        .quote-bar-close:active {
+          color: var(--color-text-primary);
+          background: var(--color-bg-tertiary);
+        }
 
         @keyframes msgHighlightPulse {
           0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 55%, transparent); }
@@ -2232,18 +2775,27 @@ export async function render(root, params = {}) {
           border-radius: 18px;
         }
 
-        .typing-bubble { display: inline-flex; align-items: center; gap: 4px; padding: 12px 14px; }
+        .typing-bubble {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 12px 14px;
+        }
         .typing-bubble .dot {
-          width: 6px; height: 6px; border-radius: 50%;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
           background: var(--color-text-tertiary);
           animation: typingBounce 1.2s infinite ease-in-out;
         }
         .typing-bubble .dot:nth-child(2) { animation-delay: 0.15s; }
         .typing-bubble .dot:nth-child(3) { animation-delay: 0.3s; }
         .typing-hint {
-          margin-left: 8px; font-size: 12px;
+          margin-left: 8px;
+          font-size: 12px;
           color: var(--color-text-secondary);
-          letter-spacing: 1px; opacity: 0.85;
+          letter-spacing: 1px;
+          opacity: 0.85;
         }
         @keyframes typingBounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
@@ -2253,13 +2805,16 @@ export async function render(root, params = {}) {
         .msg-shuffling { align-items: center; }
         .shuffle-stage {
           position: relative;
-          width: 90px; height: 44px;
+          width: 90px;
+          height: 44px;
           margin-left: 4px;
         }
         .shuffle-stage .frag {
           position: absolute;
-          left: 30px; top: 12px;
-          width: 24px; height: 32px;
+          left: 30px;
+          top: 12px;
+          width: 24px;
+          height: 32px;
           background: var(--color-bg-tertiary);
           border: 1px solid var(--color-border);
           border-radius: 5px;
@@ -2280,7 +2835,8 @@ export async function render(root, params = {}) {
 
         .chat-input-dock {
           position: fixed;
-          left: 12px; right: 12px;
+          left: 12px;
+          right: 12px;
           bottom: calc(env(safe-area-inset-bottom) + 12px);
           max-width: 456px;
           margin: 0 auto;
@@ -2297,7 +2853,8 @@ export async function render(root, params = {}) {
           z-index: 40;
           animation: dockRise 0.5s cubic-bezier(0.22, 1, 0.36, 1);
           transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-                      box-shadow 0.3s ease, border-color 0.3s ease;
+                      box-shadow 0.3s ease,
+                      border-color 0.3s ease;
         }
         .chat-input-dock:focus-within {
           border-color: var(--color-accent);
@@ -2317,25 +2874,34 @@ export async function render(root, params = {}) {
         }
         .dock-input {
           flex: 1;
-          min-height: 40px; max-height: 120px;
+          min-height: 40px;
+          max-height: 120px;
           padding: 10px 12px;
-          border: none; outline: none;
+          border: none;
+          outline: none;
           background: transparent;
           color: var(--color-text-primary);
-          font-size: 14px; line-height: 1.4;
+          font-size: 14px;
+          line-height: 1.4;
           font-family: inherit;
-          resize: none; overflow-y: auto;
+          resize: none;
+          overflow-y: auto;
         }
         .dock-input::placeholder { color: var(--color-text-tertiary); }
         .dock-btn {
-          width: 40px; height: 40px;
+          width: 40px;
+          height: 40px;
           flex-shrink: 0;
           border-radius: 50%;
-          display: inline-flex; align-items: center; justify-content: center;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
           color: var(--color-text-secondary);
           background: transparent;
           transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-                      background 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+                      background 0.25s ease,
+                      color 0.25s ease,
+                      opacity 0.25s ease;
         }
         .dock-btn:active { transform: scale(0.86); }
         .dock-btn:disabled { opacity: 0.32; }
@@ -2353,14 +2919,16 @@ export async function render(root, params = {}) {
         }
 
         .ka-toggle {
-          font-size: 12px; letter-spacing: 2px;
-          padding: 3px 10px; border-radius: 999px;
+          font-size: 12px;
+          letter-spacing: 2px;
+          padding: 3px 10px;
+          border-radius: 999px;
           background: var(--color-bg-tertiary);
           color: var(--color-text-tertiary);
         }
         .ka-toggle.on { background: var(--color-accent); color: var(--color-bg-primary); }
 
-        /* 气泡样式预设（沿用） */
+        /* 气泡样式预设 */
         .chat-page[data-bubble-preset="preset-2"] .msg-bubble {
           border-radius: 4px;
           padding: 9px 13px;
@@ -2405,7 +2973,207 @@ export async function render(root, params = {}) {
           border-top-right-radius: 4px;
         }
 
-        /* sound sheet 元素（沿用） */
+        /* call layer */
+        .call-layer {
+          position: absolute;
+          inset: 0;
+          z-index: 60;
+          pointer-events: none;
+        }
+        .call-heart {
+          position: fixed;
+          top: calc(env(safe-area-inset-top) + 62px);
+          right: 18px;
+          width: 58px;
+          height: 58px;
+          border-radius: 50%;
+          pointer-events: auto;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 61;
+          background: color-mix(in srgb, var(--color-bg-secondary) 65%, transparent);
+          border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+          backdrop-filter: blur(14px) saturate(1.15);
+          -webkit-backdrop-filter: blur(14px) saturate(1.15);
+          box-shadow: 0 8px 20px var(--color-shadow);
+          overflow: hidden;
+        }
+        .call-heart-ring {
+          position: absolute;
+          inset: 6px;
+          border-radius: 50%;
+          border: 1px solid color-mix(in srgb, var(--color-accent) 65%, transparent);
+          animation: heartBeat 1.2s ease-in-out infinite;
+        }
+        .call-heart-core {
+          position: relative;
+          z-index: 1;
+          color: var(--color-accent);
+          animation: heartCore 1.2s ease-in-out infinite;
+        }
+        .call-heart.ringing .call-heart-ring,
+        .call-heart.connected .call-heart-ring {
+          animation-duration: 0.95s;
+        }
+        .call-heart.connected .call-heart-core {
+          color: var(--color-text-primary);
+        }
+        @keyframes heartBeat {
+          0%, 100% { transform: scale(0.96); opacity: 0.55; }
+          35% { transform: scale(1.08); opacity: 1; }
+          70% { transform: scale(1.01); opacity: 0.8; }
+        }
+        @keyframes heartCore {
+          0%, 100% { transform: scale(0.94); }
+          35% { transform: scale(1.08); }
+          70% { transform: scale(1.0); }
+        }
+        .call-full {
+          position: fixed;
+          inset: 0;
+          z-index: 70;
+          pointer-events: auto;
+          display: flex;
+          align-items: stretch;
+          justify-content: stretch;
+          background: var(--color-bg-primary);
+        }
+        .call-full-bg {
+          position: absolute;
+          inset: -20px;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          filter: blur(24px) saturate(1.1);
+          transform: scale(1.12);
+        }
+        .call-full-bg.has-wallpaper::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: color-mix(in srgb, var(--color-bg-primary) 55%, transparent);
+        }
+        .call-full-shade {
+          position: absolute;
+          inset: 0;
+          background:
+            linear-gradient(180deg, color-mix(in srgb, var(--color-bg-primary) 35%, transparent), color-mix(in srgb, var(--color-bg-primary) 72%, transparent));
+        }
+        .call-full-inner {
+          position: relative;
+          z-index: 1;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 24px);
+          text-align: center;
+        }
+        .call-min-btn {
+          position: absolute;
+          top: calc(env(safe-area-inset-top) + 14px);
+          right: 14px;
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--color-text-primary);
+          background: color-mix(in srgb, var(--color-bg-secondary) 45%, transparent);
+          border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+        }
+        .call-orbit {
+          position: relative;
+          width: 168px;
+          height: 168px;
+          margin-bottom: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .call-orbit::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 1px solid color-mix(in srgb, var(--color-accent) 22%, transparent);
+          animation: orbitPulse 2.8s ease-in-out infinite;
+        }
+        .call-orbit::after {
+          content: '';
+          position: absolute;
+          inset: 18px;
+          border-radius: 50%;
+          border: 1px solid color-mix(in srgb, var(--color-accent) 10%, transparent);
+          animation: orbitPulse 2.8s ease-in-out infinite reverse;
+        }
+        @keyframes orbitPulse {
+          0%, 100% { transform: scale(0.95); opacity: 0.45; }
+          50% { transform: scale(1.02); opacity: 1; }
+        }
+        .call-avatar-lg .avatar {
+          width: 104px;
+          height: 104px;
+          font-size: 34px;
+          box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-bg-primary) 55%, transparent),
+                      0 14px 40px var(--color-shadow);
+        }
+        .call-name {
+          font-size: 22px;
+          letter-spacing: 4px;
+          color: var(--color-text-primary);
+          margin-bottom: 10px;
+        }
+        .call-status {
+          font-size: 12px;
+          letter-spacing: 4px;
+          color: var(--color-text-secondary);
+          margin-bottom: 12px;
+        }
+        .call-duration {
+          font-size: 30px;
+          letter-spacing: 3px;
+          color: var(--color-text-primary);
+          margin-bottom: 28px;
+          font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+        }
+        .call-actions {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          flex-wrap: wrap;
+        }
+        .call-action {
+          min-width: 128px;
+          min-height: 46px;
+          padding: 0 18px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-size: 13px;
+          letter-spacing: 2px;
+          border: 1px solid var(--color-border);
+          background: color-mix(in srgb, var(--color-bg-secondary) 45%, transparent);
+          color: var(--color-text-primary);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+        .call-accept {
+          border-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+          color: var(--color-accent);
+        }
+        .call-hang {
+          border-color: color-mix(in srgb, #dc2626 55%, transparent);
+          color: #dc2626;
+        }
+
+        /* sound sheet 元素 */
         .sound-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; }
         .sound-label { font-size: 13px; color: var(--color-text-primary); letter-spacing: 1px; min-width: 40px; }
         .sound-val { font-size: 12px; color: var(--color-text-tertiary); min-width: 30px; text-align: right; }
@@ -2414,28 +3182,44 @@ export async function render(root, params = {}) {
         .mini-switch input { opacity: 0; width: 0; height: 0; }
         .mini-switch span { position: absolute; inset: 0; background: var(--color-bg-tertiary); border-radius: 22px; transition: background 0.2s; cursor: pointer; }
         .mini-switch span::before {
-          content: ''; position: absolute; width: 16px; height: 16px;
-          left: 3px; top: 3px;
-          background: var(--color-text-secondary); border-radius: 50%;
+          content: '';
+          position: absolute;
+          width: 16px;
+          height: 16px;
+          left: 3px;
+          top: 3px;
+          background: var(--color-text-secondary);
+          border-radius: 50%;
           transition: transform 0.2s, background 0.2s;
         }
         .mini-switch input:checked + span { background: var(--color-accent); }
         .mini-switch input:checked + span::before { transform: translateX(20px); background: var(--color-bg-primary); }
         .btn-mini { min-height: 30px; padding: 4px 12px; font-size: 12px; letter-spacing: 1px; }
         input[type="range"] {
-          -webkit-appearance: none; appearance: none;
+          -webkit-appearance: none;
+          appearance: none;
           height: 4px;
           background: var(--color-bg-tertiary);
-          border-radius: 2px; outline: none;
+          border-radius: 2px;
+          outline: none;
         }
         input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none; appearance: none;
-          width: 16px; height: 16px;
-          border-radius: 50%; background: var(--color-accent); cursor: pointer; border: none;
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: var(--color-accent);
+          cursor: pointer;
+          border: none;
         }
         input[type="range"]::-moz-range-thumb {
-          width: 16px; height: 16px;
-          border-radius: 50%; background: var(--color-accent); cursor: pointer; border: none;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          background: var(--color-accent);
+          cursor: pointer;
+          border: none;
         }
       </style>
       <style id="chat-user-css"></style>
@@ -2460,18 +3244,16 @@ export async function render(root, params = {}) {
   renderPill();
   applyChatStyles();
 
-  // 面板内容
   renderCharCard();
   renderUserCard();
   renderMusicCard();
   updateStatusSwipe();
   bindPanelEvents();
 
-  // 消息
   renderMessages();
   renderQuoteBar();
+  renderCallLayer();
 
-  // 事件
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
   root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
   root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
@@ -2480,6 +3262,7 @@ export async function render(root, params = {}) {
     haptic(10);
     manualTrigger();
   });
+
   const sendBtn = document.getElementById('send-btn');
   sendBtn.addEventListener('click', () => {
     sound.unlock();
@@ -2504,12 +3287,37 @@ export async function render(root, params = {}) {
   });
 
   const scrollBox = document.getElementById('msg-scroll');
-  scrollBox.addEventListener('click', (e) => {
+  scrollBox.addEventListener('click', async (e) => {
+    const choiceBtn = e.target.closest('[data-choice-msg]');
+    if (choiceBtn) {
+      const msgId = Number(choiceBtn.getAttribute('data-choice-msg'));
+      const idx = Number(choiceBtn.getAttribute('data-choice-idx'));
+      await answerCharacterChoice(msgId, idx);
+      return;
+    }
     const jump = e.target.closest('[data-quote-jump]');
     if (!jump) return;
     if (jump.classList.contains('missing')) return;
     const id = Number(jump.getAttribute('data-quote-jump'));
     if (id) scrollToMessage(id);
+  });
+
+  const callHost = document.getElementById('call-layer');
+  callHost.addEventListener('click', async (e) => {
+    const actBtn = e.target.closest('button[data-act]');
+    if (!actBtn) return;
+    const act = actBtn.getAttribute('data-act');
+    if (act === 'open-call') {
+      openCallFull();
+    } else if (act === 'min-call') {
+      minimizeCallFull();
+    } else if (act === 'accept-call') {
+      acceptVirtualCall();
+    } else if (act === 'hang-call') {
+      await endVirtualCall('ended');
+      state.call = null;
+      renderCallLayer();
+    }
   });
 
   bindViewportFollow();
@@ -2527,6 +3335,7 @@ export async function render(root, params = {}) {
 export function destroy() {
   state.destroyed = true;
   cancelTimers();
+  clearCallTimers();
   if (state.onViewport) state.onViewport();
   if (state.onVisibility) {
     document.removeEventListener('visibilitychange', state.onVisibility);

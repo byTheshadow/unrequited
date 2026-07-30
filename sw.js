@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unrequited-shell-v9';
+const CACHE_NAME = 'unrequited-shell-v10';
 const CORE = [
   './',
   './index.html',

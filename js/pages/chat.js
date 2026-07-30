@@ -1,7 +1,7 @@
 import { db } from '../db.js';
 import { navigate, goBack } from '../router.js';
 import {
-  ICON, avatarHTML, escapeHtml, formatTime, formatDateSep,
+  ICON, avatarHTML, escapeHtml, escapeAttr, formatTime, formatDateSep,
   haptic, toast, sleep, randInt, pick,
   openSheet, confirmSheet,
 } from '../utils.js';
@@ -28,6 +28,18 @@ let state = {
   onVisibility: null,
   onViewport: null,
 };
+
+const PRESET_LABELS = {
+  'preset-1': '极简圆角',
+  'preset-2': '方角硬朗',
+  'preset-3': '大圆角糖果',
+  'preset-4': '描边气泡',
+  'preset-5': '长信笺',
+  'custom': '自定义 CSS',
+};
+function bubblePresetLabel(k) {
+  return PRESET_LABELS[k] || '极简圆角（默认）';
+}
 
 function shouldShowTimeSep(prev, curr) {
   if (!prev) return true;
@@ -66,7 +78,7 @@ function bubbleHTML(msg, character, user, showTimeSep) {
   `;
 }
 
-function typingHTML(character) {
+function typingHTML(character, hint) {
   const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
   return `
     <div class="msg-row msg-char msg-typing" id="typing-indicator">
@@ -74,6 +86,7 @@ function typingHTML(character) {
       <div class="msg-bubble-wrap">
         <div class="msg-bubble typing-bubble">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          ${hint ? `<span class="typing-hint">${escapeHtml(hint)}</span>` : ''}
         </div>
       </div>
     </div>
@@ -150,6 +163,38 @@ async function persistConvSummary() {
   });
 }
 
+async function updateConv(patch) {
+  await db.conversations.update(state.convId, patch);
+  if (state.conv) Object.assign(state.conv, patch);
+  applyChatStyles();
+}
+
+function applyChatStyles() {
+  const page = document.querySelector('.chat-page');
+  if (!page || !state.conv) return;
+  const c = state.conv;
+
+  const preset = c.bubbleStyle || 'preset-1';
+  page.dataset.bubblePreset = preset;
+
+  const styleEl = document.getElementById('chat-user-css');
+  if (styleEl) {
+    styleEl.textContent = (preset === 'custom' && c.customBubbleCSS) ? c.customBubbleCSS : '';
+  }
+
+  const wp = page.querySelector('.chat-wallpaper');
+  if (wp) {
+    if (c.wallpaper) {
+      const safe = String(c.wallpaper).replace(/"/g, '\\"');
+      wp.style.backgroundImage = `url("${safe}")`;
+      wp.classList.add('has-wallpaper');
+    } else {
+      wp.style.backgroundImage = '';
+      wp.classList.remove('has-wallpaper');
+    }
+  }
+}
+
 async function sendUserMessage() {
   const input = document.getElementById('chat-input');
   if (!input) return;
@@ -194,7 +239,8 @@ function showTyping() {
   state.typing = true;
   const box = document.getElementById('msg-scroll');
   if (!box) return;
-  box.insertAdjacentHTML('beforeend', typingHTML(state.character));
+  const hint = state.conv && state.conv.typingHint;
+  box.insertAdjacentHTML('beforeend', typingHTML(state.character, hint));
   scrollToBottom(true);
 }
 function hideTyping() {
@@ -316,7 +362,6 @@ async function executeReply() {
   await maybeInsertSyncMessage();
   if (state.destroyed) return;
 
-  // 已读不回
   const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
   if (skipChance > 0 && Math.random() < skipChance) {
     const skipList = (cfg.skipHints && cfg.skipHints.length) ? cfg.skipHints : DEFAULT_SKIP_HINTS;
@@ -341,7 +386,6 @@ async function executeReply() {
     return;
   }
 
-  // 洗牌 → 打字 → 生成
   showShuffling();
   await sleep(700);
   if (state.destroyed) return;
@@ -486,11 +530,35 @@ async function openMsgActions(id) {
 async function openChatMenu() {
   const kaOn = await keepAlive.loadEnabled();
   const kaLive = keepAlive.isRunning();
+  const wpText = state.conv && state.conv.wallpaper ? '已设置' : '未设置';
+  const bubbleText = bubblePresetLabel(state.conv && state.conv.bubbleStyle);
+  const typingText = (state.conv && state.conv.typingHint)
+    ? escapeHtml(state.conv.typingHint)
+    : '默认（仅三点动画）';
+
   const { close } = openSheet({
     title: '对话操作',
     body: `<div class="sheet-list">
       <div class="sheet-list-item" data-act="edit-char">
         <div class="sheet-list-body"><div class="sheet-list-title">编辑角色</div></div>
+      </div>
+      <div class="sheet-list-item" data-act="bubble-style">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">气泡样式</div>
+          <div class="sheet-list-sub">${bubbleText}</div>
+        </div>
+      </div>
+      <div class="sheet-list-item" data-act="wallpaper">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">聊天壁纸</div>
+          <div class="sheet-list-sub">${wpText}</div>
+        </div>
+      </div>
+      <div class="sheet-list-item" data-act="typing-hint">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">打字文案</div>
+          <div class="sheet-list-sub">${typingText}</div>
+        </div>
       </div>
       <div class="sheet-list-item" data-act="clear">
         <div class="sheet-list-body"><div class="sheet-list-title">清空消息</div></div>
@@ -513,6 +581,18 @@ async function openChatMenu() {
       close();
       if (state.character) navigate(`/characters?edit=${state.character.id}`);
       else toast('未绑定角色');
+    } else if (act === 'bubble-style') {
+      close();
+      await sleep(280);
+      openBubbleStyleSheet();
+    } else if (act === 'wallpaper') {
+      close();
+      await sleep(280);
+      openWallpaperSheet();
+    } else if (act === 'typing-hint') {
+      close();
+      await sleep(280);
+      openTypingHintSheet();
     } else if (act === 'clear') {
       close();
       const ok = await confirmSheet('清空所有消息？', { danger: true, okText: '清空' });
@@ -539,6 +619,194 @@ async function openChatMenu() {
   });
 }
 
+async function openBubbleStyleSheet() {
+  const current = (state.conv && state.conv.bubbleStyle) || 'preset-1';
+  const presets = ['preset-1', 'preset-2', 'preset-3', 'preset-4', 'preset-5'];
+  const listHTML = presets.map((k) => `
+    <div class="sheet-list-item ${k === current ? 'selected' : ''}" data-preset="${k}">
+      <div class="sheet-list-body">
+        <div class="sheet-list-title">${PRESET_LABELS[k]}</div>
+      </div>
+      <div class="sheet-list-check">${k === current ? '<span style="font-size:11px;">已选</span>' : ''}</div>
+    </div>
+  `).join('');
+
+  const { close } = openSheet({
+    title: '气泡样式',
+    body: `<div class="sheet-list">
+      ${listHTML}
+      <div class="sheet-list-item ${current === 'custom' ? 'selected' : ''}" data-preset="custom">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">${PRESET_LABELS.custom}</div>
+          <div class="sheet-list-sub">直接编辑本对话样式</div>
+        </div>
+        <div class="sheet-list-check">${current === 'custom' ? '<span style="font-size:11px;">已选</span>' : ''}</div>
+      </div>
+    </div>`,
+  });
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  root.addEventListener('click', async (e) => {
+    const item = e.target.closest('.sheet-list-item');
+    if (!item) return;
+    const preset = item.getAttribute('data-preset');
+    if (preset === 'custom') {
+      close();
+      await sleep(280);
+      openCustomCSSSheet();
+    } else {
+      await updateConv({ bubbleStyle: preset });
+      close();
+      toast('已应用');
+    }
+  });
+}
+
+function openCustomCSSSheet() {
+  const current = (state.conv && state.conv.customBubbleCSS) || '';
+  const { close } = openSheet({
+    title: '自定义 CSS',
+    body: `
+      <div class="field-hint" style="margin-bottom:10px; line-height:1.7;">
+        针对本对话生效。可用选择器示例：<br>
+        <code>.msg-bubble</code> 所有气泡<br>
+        <code>.msg-row.msg-user .msg-bubble</code> 用户气泡<br>
+        <code>.msg-row.msg-char .msg-bubble</code> 角色气泡<br>
+        <code>.msg-time-sep</code> 时间分隔
+      </div>
+      <textarea id="custom-css-input" class="textarea" style="min-height:200px; font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size:12.5px; letter-spacing:0;" placeholder=".msg-bubble { background: #1a1a2e; border-radius: 12px; }">${escapeHtml(current)}</textarea>
+      <div class="sheet-actions">
+        <button class="btn btn-secondary" data-act="cancel">取消</button>
+        <button class="btn btn-primary" data-act="save">保存并应用</button>
+      </div>
+    `,
+  });
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  root.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const act = btn.getAttribute('data-act');
+    if (act === 'cancel') { close(); }
+    else if (act === 'save') {
+      const val = document.getElementById('custom-css-input').value;
+      await updateConv({ bubbleStyle: 'custom', customBubbleCSS: val });
+      close();
+      toast('已应用');
+    }
+  });
+}
+
+function fileToWallpaperDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read fail'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('img fail'));
+      img.onload = () => {
+        const maxW = 1200;
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        try { resolve(canvas.toDataURL('image/jpeg', 0.82)); }
+        catch (err) { reject(err); }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openWallpaperSheet() {
+  const cur = state.conv && state.conv.wallpaper;
+  const hasWP = !!cur;
+  const isDataURL = hasWP && String(cur).startsWith('data:');
+  const currentURL = hasWP && !isDataURL ? cur : '';
+
+  const { close } = openSheet({
+    title: '聊天壁纸',
+    body: `
+      <div class="field">
+        <div class="field-label">图片 URL</div>
+        <input id="wp-url" class="input" type="text" placeholder="https://..." value="${escapeAttr(currentURL)}">
+      </div>
+      <div class="field">
+        <div class="field-label">或上传本地图片</div>
+        <input id="wp-file" type="file" accept="image/*" style="font-size:13px; color: var(--color-text-secondary);">
+        <div class="field-hint">会自动压缩到最大宽 1200</div>
+      </div>
+      ${hasWP ? '<div class="field-hint" style="margin-bottom:12px;">当前已有壁纸' + (isDataURL ? '（本地图片）' : '（URL）') + '</div>' : ''}
+      <div class="sheet-actions">
+        ${hasWP ? '<button class="btn btn-secondary" data-act="remove">移除</button>' : ''}
+        <button class="btn btn-secondary" data-act="cancel">取消</button>
+        <button class="btn btn-primary" data-act="save">应用</button>
+      </div>
+    `,
+  });
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  root.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const act = btn.getAttribute('data-act');
+    if (act === 'cancel') close();
+    else if (act === 'remove') {
+      await updateConv({ wallpaper: null });
+      close();
+      toast('已移除壁纸');
+    } else if (act === 'save') {
+      const url = document.getElementById('wp-url').value.trim();
+      const fileInput = document.getElementById('wp-file');
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      let val = null;
+      btn.disabled = true;
+      if (file) {
+        try { val = await fileToWallpaperDataURL(file); }
+        catch (err) { toast('图片读取失败'); btn.disabled = false; return; }
+      } else if (url) {
+        val = url;
+      }
+      if (!val) { toast('请输入 URL 或选择文件'); btn.disabled = false; return; }
+      await updateConv({ wallpaper: val });
+      close();
+      toast('壁纸已应用');
+    }
+  });
+}
+
+function openTypingHintSheet() {
+  const current = (state.conv && state.conv.typingHint) || '';
+  const { close } = openSheet({
+    title: '打字文案',
+    body: `
+      <div class="field">
+        <div class="field-label">显示在三点动画右侧（留空则只显示三点）</div>
+        <input id="th-input" class="input" type="text" placeholder="正在编辑" value="${escapeAttr(current)}" maxlength="20">
+        <div class="field-hint">建议 8 字以内</div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn btn-secondary" data-act="cancel">取消</button>
+        <button class="btn btn-primary" data-act="save">保存</button>
+      </div>
+    `,
+  });
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  root.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const act = btn.getAttribute('data-act');
+    if (act === 'cancel') close();
+    else if (act === 'save') {
+      const val = document.getElementById('th-input').value.trim();
+      await updateConv({ typingHint: val || null });
+      close();
+      toast('已保存');
+    }
+  });
+}
+
 export async function render(root, params = {}) {
   state = {
     convId: Number(params.id),
@@ -550,7 +818,9 @@ export async function render(root, params = {}) {
   if (!state.convId) { navigate('/cards'); return; }
 
   root.innerHTML = `
-    <div class="page chat-page">
+    <div class="page chat-page" data-bubble-preset="preset-1">
+      <div class="chat-wallpaper"></div>
+
       <header class="chat-header">
         <button class="chat-nav-btn" data-act="back" aria-label="返回">${ICON.back}</button>
         <div class="chat-header-center">
@@ -577,6 +847,22 @@ export async function render(root, params = {}) {
           height: 100vh; height: 100dvh;
           overflow: hidden;
           position: relative;
+        }
+
+        /* ============ 壁纸层 ============ */
+        .chat-wallpaper {
+          position: absolute; inset: 0;
+          z-index: 0;
+          pointer-events: none;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+        .chat-wallpaper.has-wallpaper::after {
+          content: '';
+          position: absolute; inset: 0;
+          background: var(--color-bg-primary);
+          opacity: 0.5;
         }
 
         /* ============ 精简浮动顶栏 ============ */
@@ -650,6 +936,8 @@ export async function render(root, params = {}) {
 
         /* ============ 消息区 ============ */
         .msg-scroll {
+          position: relative;
+          z-index: 1;
           flex: 1;
           overflow-y: auto; overflow-x: hidden;
           padding: 8px 14px 108px;
@@ -681,6 +969,7 @@ export async function render(root, params = {}) {
           color: var(--color-bubble-text);
           border-top-left-radius: 6px;
           box-shadow: 0 1px 2px var(--color-shadow);
+          transition: background 0.25s, border-color 0.25s, color 0.25s;
         }
         .msg-row.msg-user .msg-bubble {
           background: var(--color-bubble-user);
@@ -728,7 +1017,12 @@ export async function render(root, params = {}) {
         }
 
         /* ============ 打字指示器 ============ */
-        .typing-bubble { display: inline-flex; gap: 4px; padding: 12px 14px; }
+        .typing-bubble {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          padding: 12px 14px;
+        }
         .typing-bubble .dot {
           width: 6px; height: 6px; border-radius: 50%;
           background: var(--color-text-tertiary);
@@ -736,6 +1030,13 @@ export async function render(root, params = {}) {
         }
         .typing-bubble .dot:nth-child(2) { animation-delay: 0.15s; }
         .typing-bubble .dot:nth-child(3) { animation-delay: 0.3s; }
+        .typing-hint {
+          margin-left: 8px;
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          letter-spacing: 1px;
+          opacity: 0.85;
+        }
         @keyframes typingBounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
           30% { transform: translateY(-4px); opacity: 1; }
@@ -759,39 +1060,15 @@ export async function render(root, params = {}) {
           box-shadow: 0 2px 6px var(--color-shadow);
           animation: shuffleFrag 0.75s ease-out forwards;
         }
-        .shuffle-stage .frag:nth-child(1) {
-          animation-delay: 0s;
-          --tx: -22px; --ty: -18px; --rot: -14deg;
-        }
-        .shuffle-stage .frag:nth-child(2) {
-          animation-delay: 0.06s;
-          --tx: 6px; --ty: -22px; --rot: 4deg;
-        }
-        .shuffle-stage .frag:nth-child(3) {
-          animation-delay: 0.12s;
-          --tx: 26px; --ty: -14px; --rot: 12deg;
-        }
-        .shuffle-stage .frag:nth-child(4) {
-          animation-delay: 0.18s;
-          --tx: -8px; --ty: -6px; --rot: -6deg;
-        }
-        .shuffle-stage .frag:nth-child(5) {
-          animation-delay: 0.24s;
-          --tx: 14px; --ty: 4px; --rot: 8deg;
-        }
+        .shuffle-stage .frag:nth-child(1) { animation-delay: 0s; --tx: -22px; --ty: -18px; --rot: -14deg; }
+        .shuffle-stage .frag:nth-child(2) { animation-delay: 0.06s; --tx: 6px; --ty: -22px; --rot: 4deg; }
+        .shuffle-stage .frag:nth-child(3) { animation-delay: 0.12s; --tx: 26px; --ty: -14px; --rot: 12deg; }
+        .shuffle-stage .frag:nth-child(4) { animation-delay: 0.18s; --tx: -8px; --ty: -6px; --rot: -6deg; }
+        .shuffle-stage .frag:nth-child(5) { animation-delay: 0.24s; --tx: 14px; --ty: 4px; --rot: 8deg; }
         @keyframes shuffleFrag {
-          0% {
-            opacity: 0;
-            transform: translate(0, 10px) rotate(0deg) scale(0.7);
-          }
-          45% {
-            opacity: 0.95;
-            transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(calc(var(--tx) * 1.2), calc(var(--ty) - 12px)) rotate(var(--rot)) scale(0.85);
-          }
+          0% { opacity: 0; transform: translate(0, 10px) rotate(0deg) scale(0.7); }
+          45% { opacity: 0.95; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1); }
+          100% { opacity: 0; transform: translate(calc(var(--tx) * 1.2), calc(var(--ty) - 12px)) rotate(var(--rot)) scale(0.85); }
         }
 
         /* ============ 悬浮胶囊输入框 ============ */
@@ -832,9 +1109,7 @@ export async function render(root, params = {}) {
           from { opacity: 0; transform: translateY(24px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .chat-input-dock.sent-pulse {
-          animation: dockPulse 0.42s ease-out;
-        }
+        .chat-input-dock.sent-pulse { animation: dockPulse 0.42s ease-out; }
         @keyframes dockPulse {
           0% { transform: scale(1); }
           40% { transform: scale(1.015); }
@@ -846,25 +1121,15 @@ export async function render(root, params = {}) {
           inset: -1px;
           border-radius: inherit;
           padding: 1px;
-          background: linear-gradient(
-            135deg,
-            transparent 30%,
-            color-mix(in srgb, var(--color-accent) 30%, transparent) 50%,
-            transparent 70%
-          );
-          -webkit-mask:
-            linear-gradient(#000 0 0) content-box,
-            linear-gradient(#000 0 0);
+          background: linear-gradient(135deg, transparent 30%, color-mix(in srgb, var(--color-accent) 30%, transparent) 50%, transparent 70%);
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
           -webkit-mask-composite: xor;
           mask-composite: exclude;
           opacity: 0;
           transition: opacity 0.4s ease;
           pointer-events: none;
         }
-        .chat-input-dock:focus-within::before {
-          opacity: 1;
-          animation: dockShimmer 3s linear infinite;
-        }
+        .chat-input-dock:focus-within::before { opacity: 1; animation: dockShimmer 3s linear infinite; }
         @keyframes dockShimmer {
           0% { background-position: 0% 50%; }
           100% { background-position: 200% 50%; }
@@ -872,18 +1137,14 @@ export async function render(root, params = {}) {
 
         .dock-input {
           flex: 1;
-          min-height: 40px;
-          max-height: 120px;
+          min-height: 40px; max-height: 120px;
           padding: 10px 12px;
-          border: none;
-          outline: none;
+          border: none; outline: none;
           background: transparent;
           color: var(--color-text-primary);
-          font-size: 14px;
-          line-height: 1.4;
+          font-size: 14px; line-height: 1.4;
           font-family: inherit;
-          resize: none;
-          overflow-y: auto;
+          resize: none; overflow-y: auto;
         }
         .dock-input::placeholder { color: var(--color-text-tertiary); }
 
@@ -896,9 +1157,7 @@ export async function render(root, params = {}) {
           background: transparent;
           transition:
             transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-            background 0.25s ease,
-            color 0.25s ease,
-            opacity 0.25s ease;
+            background 0.25s ease, color 0.25s ease, opacity 0.25s ease;
         }
         .dock-btn:active { transform: scale(0.86); }
         .dock-btn:disabled { opacity: 0.32; }
@@ -907,12 +1166,8 @@ export async function render(root, params = {}) {
           color: var(--color-bg-primary);
           transform: scale(1);
         }
-        .dock-btn.send.active:active {
-          transform: scale(0.9) rotate(-10deg);
-        }
-        .dock-btn.spark.spin {
-          animation: sparkSpin 0.7s cubic-bezier(0.22, 1, 0.36, 1);
-        }
+        .dock-btn.send.active:active { transform: scale(0.9) rotate(-10deg); }
+        .dock-btn.spark.spin { animation: sparkSpin 0.7s cubic-bezier(0.22, 1, 0.36, 1); }
         @keyframes sparkSpin {
           0% { transform: rotate(0deg) scale(1); }
           50% { transform: rotate(180deg) scale(1.18); color: var(--color-accent); }
@@ -929,7 +1184,64 @@ export async function render(root, params = {}) {
           background: var(--color-accent);
           color: var(--color-bg-primary);
         }
+
+        /* ============ 气泡样式预设 ============ */
+        /* preset-1 极简圆角 = 默认，无覆盖 */
+
+        /* preset-2 方角硬朗 */
+        .chat-page[data-bubble-preset="preset-2"] .msg-bubble {
+          border-radius: 4px;
+          padding: 9px 13px;
+          font-size: 14px;
+          border: 1px solid var(--color-border);
+          border-top-left-radius: 4px;
+        }
+        .chat-page[data-bubble-preset="preset-2"] .msg-row.msg-user .msg-bubble {
+          border-top-left-radius: 4px;
+          border-top-right-radius: 4px;
+        }
+
+        /* preset-3 大圆角糖果 */
+        .chat-page[data-bubble-preset="preset-3"] .msg-bubble {
+          border-radius: 22px;
+          padding: 12px 18px;
+          font-size: 14.5px;
+          border-top-left-radius: 10px;
+        }
+        .chat-page[data-bubble-preset="preset-3"] .msg-row.msg-user .msg-bubble {
+          border-top-left-radius: 22px;
+          border-top-right-radius: 10px;
+        }
+
+        /* preset-4 描边气泡 */
+        .chat-page[data-bubble-preset="preset-4"] .msg-bubble {
+          background: transparent;
+          border: 1.5px solid var(--color-border);
+          color: var(--color-text-primary);
+          box-shadow: none;
+        }
+        .chat-page[data-bubble-preset="preset-4"] .msg-row.msg-user .msg-bubble {
+          background: transparent;
+          border-color: var(--color-accent);
+          color: var(--color-text-primary);
+        }
+
+        /* preset-5 长信笺 */
+        .chat-page[data-bubble-preset="preset-5"] .msg-bubble-wrap {
+          max-width: 65%;
+        }
+        .chat-page[data-bubble-preset="preset-5"] .msg-bubble {
+          border-radius: 10px;
+          padding: 14px 16px;
+          line-height: 1.85;
+          border-top-left-radius: 4px;
+        }
+        .chat-page[data-bubble-preset="preset-5"] .msg-row.msg-user .msg-bubble {
+          border-top-left-radius: 10px;
+          border-top-right-radius: 4px;
+        }
       </style>
+      <style id="chat-user-css"></style>
     </div>
   `;
 
@@ -949,6 +1261,7 @@ export async function render(root, params = {}) {
   document.getElementById('chat-header-avatar').innerHTML =
     avatarHTML(state.character && state.character.avatar, (state.character && state.character.name) || '?', 34);
 
+  applyChatStyles();
   renderMessages();
 
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
@@ -976,6 +1289,7 @@ export async function render(root, params = {}) {
     const fresh = await db.conversations.get(state.convId);
     if (fresh) {
       state.conv = fresh;
+      applyChatStyles();
       if (fresh.pendingReplyAt) scheduleTimers();
     }
   };
@@ -994,4 +1308,3 @@ export function destroy() {
   }
   if (state.onViewport) { state.onViewport(); state.onViewport = null; }
 }
-

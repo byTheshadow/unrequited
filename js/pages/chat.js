@@ -13,6 +13,7 @@ import {
   DEFAULT_SYNC_CHANCE,
 } from '../cardEngine.js';
 import * as keepAlive from '../lib/keepAlive.js';
+import * as sound from '../lib/sound.js';
 
 let state = {
   convId: null,
@@ -40,6 +41,14 @@ const PRESET_LABELS = {
 function bubblePresetLabel(k) {
   return PRESET_LABELS[k] || '极简圆角（默认）';
 }
+
+const SOUND_LABELS = {
+  inherit: '跟随全局',
+  silent: '静音',
+  bell: '清脆铃',
+  chime: '磬音',
+  custom: '自定义',
+};
 
 function shouldShowTimeSep(prev, curr) {
   if (!prev) return true;
@@ -195,6 +204,17 @@ function applyChatStyles() {
   }
 }
 
+function playCharSound() {
+  sound.play('character',
+    state.conv && state.conv.soundOption,
+    state.conv && state.conv.customSoundUrl);
+}
+function playUserSound() {
+  sound.play('user',
+    state.conv && state.conv.soundOption,
+    state.conv && state.conv.customSoundUrl);
+}
+
 async function sendUserMessage() {
   const input = document.getElementById('chat-input');
   if (!input) return;
@@ -214,6 +234,7 @@ async function sendUserMessage() {
   const id = await db.messages.add(msg);
   msg.id = id;
   appendMessage(msg);
+  playUserSound();
   input.value = '';
   autoGrow(input);
   await persistConvSummary();
@@ -429,6 +450,7 @@ async function executeReply() {
     msg.id = id;
     hideTyping();
     appendMessage(msg);
+    playCharSound();
   }
   await persistConvSummary();
 }
@@ -535,6 +557,8 @@ async function openChatMenu() {
   const typingText = (state.conv && state.conv.typingHint)
     ? escapeHtml(state.conv.typingHint)
     : '默认（仅三点动画）';
+  const soundOpt = (state.conv && state.conv.soundOption) || 'inherit';
+  const soundText = SOUND_LABELS[soundOpt] || '跟随全局';
 
   const { close } = openSheet({
     title: '对话操作',
@@ -560,6 +584,12 @@ async function openChatMenu() {
           <div class="sheet-list-sub">${typingText}</div>
         </div>
       </div>
+      <div class="sheet-list-item" data-act="sound">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">提示音</div>
+          <div class="sheet-list-sub">${soundText}</div>
+        </div>
+      </div>
       <div class="sheet-list-item" data-act="clear">
         <div class="sheet-list-body"><div class="sheet-list-title">清空消息</div></div>
       </div>
@@ -582,17 +612,13 @@ async function openChatMenu() {
       if (state.character) navigate(`/characters?edit=${state.character.id}`);
       else toast('未绑定角色');
     } else if (act === 'bubble-style') {
-      close();
-      await sleep(280);
-      openBubbleStyleSheet();
+      close(); await sleep(280); openBubbleStyleSheet();
     } else if (act === 'wallpaper') {
-      close();
-      await sleep(280);
-      openWallpaperSheet();
+      close(); await sleep(280); openWallpaperSheet();
     } else if (act === 'typing-hint') {
-      close();
-      await sleep(280);
-      openTypingHintSheet();
+      close(); await sleep(280); openTypingHintSheet();
+    } else if (act === 'sound') {
+      close(); await sleep(280); openSoundSheet();
     } else if (act === 'clear') {
       close();
       const ok = await confirmSheet('清空所有消息？', { danger: true, okText: '清空' });
@@ -650,9 +676,7 @@ async function openBubbleStyleSheet() {
     if (!item) return;
     const preset = item.getAttribute('data-preset');
     if (preset === 'custom') {
-      close();
-      await sleep(280);
-      openCustomCSSSheet();
+      close(); await sleep(280); openCustomCSSSheet();
     } else {
       await updateConv({ bubbleStyle: preset });
       close();
@@ -685,13 +709,22 @@ function openCustomCSSSheet() {
     const btn = e.target.closest('button[data-act]');
     if (!btn) return;
     const act = btn.getAttribute('data-act');
-    if (act === 'cancel') { close(); }
+    if (act === 'cancel') close();
     else if (act === 'save') {
       const val = document.getElementById('custom-css-input').value;
       await updateConv({ bubbleStyle: 'custom', customBubbleCSS: val });
       close();
       toast('已应用');
     }
+  });
+}
+
+function fileToDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read fail'));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
   });
 }
 
@@ -807,6 +840,171 @@ function openTypingHintSheet() {
   });
 }
 
+async function openSoundSheet() {
+  await sound.loadConfig();
+  const gCfg = sound.getConfig();
+  const convOpt = (state.conv && state.conv.soundOption) || 'inherit';
+  const convCustomUrl = (state.conv && state.conv.customSoundUrl) || '';
+  const customUrlShow = gCfg.customUrl
+    ? (gCfg.customUrl.startsWith('data:')
+        ? '当前已保存本地音频'
+        : '当前 URL: ' + escapeHtml(gCfg.customUrl.slice(0, 40)) + (gCfg.customUrl.length > 40 ? '...' : ''))
+    : '未设置';
+
+  const convOpts = ['inherit', 'silent', 'bell', 'chime', 'custom'];
+
+  const { close } = openSheet({
+    title: '提示音',
+    body: `
+      <div class="sound-row">
+        <div class="sound-label">静音</div>
+        <label class="mini-switch">
+          <input type="checkbox" id="snd-muted" ${gCfg.muted ? 'checked' : ''}>
+          <span></span>
+        </label>
+      </div>
+      <div class="sound-row">
+        <div class="sound-label">音量</div>
+        <input type="range" min="0" max="100" value="${Math.round(gCfg.volume * 100)}" id="snd-volume" style="flex:1;">
+        <div class="sound-val" id="snd-vol-val">${Math.round(gCfg.volume * 100)}</div>
+      </div>
+
+      <div class="sound-section-title">默认音色</div>
+      <div class="sheet-list">
+        <div class="sheet-list-item ${gCfg.builtin === 'bell' ? 'selected' : ''}" data-builtin="bell">
+          <div class="sheet-list-body"><div class="sheet-list-title">清脆铃</div></div>
+          <button class="btn btn-ghost btn-mini" data-preview="bell">试听</button>
+          <div class="sheet-list-check">${gCfg.builtin === 'bell' ? '<span style="font-size:11px;">已选</span>' : ''}</div>
+        </div>
+        <div class="sheet-list-item ${gCfg.builtin === 'chime' ? 'selected' : ''}" data-builtin="chime">
+          <div class="sheet-list-body"><div class="sheet-list-title">磬音</div></div>
+          <button class="btn btn-ghost btn-mini" data-preview="chime">试听</button>
+          <div class="sheet-list-check">${gCfg.builtin === 'chime' ? '<span style="font-size:11px;">已选</span>' : ''}</div>
+        </div>
+      </div>
+
+      <div class="sound-section-title">自定义音（URL 或上传）</div>
+      <div class="field">
+        <input id="snd-url" class="input" type="text" placeholder="https://.../sound.mp3" value="${escapeAttr(gCfg.customUrl && !gCfg.customUrl.startsWith('data:') ? gCfg.customUrl : '')}">
+        <div style="display:flex; gap:8px; margin-top:8px; align-items:center; flex-wrap:wrap;">
+          <input id="snd-file" type="file" accept="audio/*" style="font-size:12px; color:var(--color-text-secondary); flex:1; min-width:120px;">
+          <button class="btn btn-secondary btn-mini" data-act="save-custom">保存</button>
+          <button class="btn btn-ghost btn-mini" data-preview="custom">试听</button>
+          <button class="btn btn-ghost btn-mini" data-act="clear-custom">清空</button>
+        </div>
+        <div class="field-hint" style="margin-top:6px;">${customUrlShow}</div>
+      </div>
+
+      <div class="sound-section-title">本对话</div>
+      <div class="sheet-list">
+        ${convOpts.map((k) => `
+          <div class="sheet-list-item ${convOpt === k ? 'selected' : ''}" data-conv-opt="${k}">
+            <div class="sheet-list-body"><div class="sheet-list-title">${SOUND_LABELS[k]}</div></div>
+            <div class="sheet-list-check">${convOpt === k ? '<span style="font-size:11px;">已选</span>' : ''}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${convOpt === 'custom' ? `
+        <div class="field" style="margin-top:12px;">
+          <div class="field-label">本对话自定义 URL（留空则用全局自定义）</div>
+          <input id="snd-conv-url" class="input" type="text" placeholder="https://..." value="${escapeAttr(convCustomUrl)}">
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn btn-secondary btn-mini" data-act="save-conv-url">保存本对话 URL</button>
+          </div>
+        </div>
+      ` : ''}
+    `,
+    maxHeight: '82vh',
+  });
+
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+
+  const mutedInput = root.querySelector('#snd-muted');
+  mutedInput.addEventListener('change', async () => {
+    await sound.saveConfig({ muted: mutedInput.checked });
+  });
+
+  const volInput = root.querySelector('#snd-volume');
+  const volVal = root.querySelector('#snd-vol-val');
+  volInput.addEventListener('input', () => { volVal.textContent = volInput.value; });
+  volInput.addEventListener('change', async () => {
+    await sound.saveConfig({ volume: Number(volInput.value) / 100 });
+  });
+
+  root.addEventListener('click', async (e) => {
+    const prevBtn = e.target.closest('[data-preview]');
+    if (prevBtn) {
+      e.stopPropagation();
+      const type = prevBtn.getAttribute('data-preview');
+      await sound.unlock();
+      if (type === 'custom') {
+        const urlInput = root.querySelector('#snd-url');
+        const url = (urlInput && urlInput.value.trim()) || gCfg.customUrl;
+        if (!url) { toast('未设置自定义音'); return; }
+        await sound.preview('custom', url);
+      } else {
+        await sound.preview(type);
+      }
+      return;
+    }
+
+    const saveCustomBtn = e.target.closest('[data-act=save-custom]');
+    if (saveCustomBtn) {
+      const url = root.querySelector('#snd-url').value.trim();
+      const fileInput = root.querySelector('#snd-file');
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      let val = null;
+      saveCustomBtn.disabled = true;
+      if (file) {
+        try { val = await fileToDataURL(file); }
+        catch (err) { toast('读取失败'); saveCustomBtn.disabled = false; return; }
+      } else if (url) {
+        val = url;
+      } else {
+        toast('请填 URL 或选择文件'); saveCustomBtn.disabled = false; return;
+      }
+      await sound.saveConfig({ customUrl: val });
+      toast('已保存');
+      close(); await sleep(280); openSoundSheet();
+      return;
+    }
+
+    const clearBtn = e.target.closest('[data-act=clear-custom]');
+    if (clearBtn) {
+      await sound.saveConfig({ customUrl: null });
+      toast('已清空');
+      close(); await sleep(280); openSoundSheet();
+      return;
+    }
+
+    const saveConvUrlBtn = e.target.closest('[data-act=save-conv-url]');
+    if (saveConvUrlBtn) {
+      const url = root.querySelector('#snd-conv-url').value.trim();
+      await updateConv({ customSoundUrl: url || null });
+      toast('已保存');
+      return;
+    }
+
+    if (e.target.closest('button')) return;
+
+    const builtinItem = e.target.closest('[data-builtin]');
+    if (builtinItem) {
+      const k = builtinItem.getAttribute('data-builtin');
+      await sound.saveConfig({ builtin: k });
+      close(); await sleep(280); openSoundSheet();
+      return;
+    }
+
+    const convOptItem = e.target.closest('[data-conv-opt]');
+    if (convOptItem) {
+      const k = convOptItem.getAttribute('data-conv-opt');
+      await updateConv({ soundOption: k });
+      close(); await sleep(280); openSoundSheet();
+      return;
+    }
+  });
+}
+
 export async function render(root, params = {}) {
   state = {
     convId: Number(params.id),
@@ -848,8 +1046,6 @@ export async function render(root, params = {}) {
           overflow: hidden;
           position: relative;
         }
-
-        /* ============ 壁纸层 ============ */
         .chat-wallpaper {
           position: absolute; inset: 0;
           z-index: 0;
@@ -864,8 +1060,6 @@ export async function render(root, params = {}) {
           background: var(--color-bg-primary);
           opacity: 0.5;
         }
-
-        /* ============ 精简浮动顶栏 ============ */
         .chat-header {
           position: relative;
           z-index: 10;
@@ -898,34 +1092,26 @@ export async function render(root, params = {}) {
         .chat-header-center {
           flex: 1;
           display: flex; align-items: center; justify-content: center;
-          gap: 10px;
-          min-width: 0;
+          gap: 10px; min-width: 0;
         }
-        .chat-header-avatar .avatar {
-          width: 34px; height: 34px; font-size: 13px;
-        }
+        .chat-header-avatar .avatar { width: 34px; height: 34px; font-size: 13px; }
         .chat-header-text {
           display: flex; flex-direction: column;
           align-items: flex-start;
-          min-width: 0;
-          max-width: 62%;
+          min-width: 0; max-width: 62%;
         }
         .chat-title {
           font-size: 14px;
           letter-spacing: 2px;
           color: var(--color-text-primary);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         .chat-subtitle {
           font-size: 10px;
           color: var(--color-text-tertiary);
           letter-spacing: 1px;
           margin-top: 2px;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           max-width: 100%;
           transition: color 0.4s;
         }
@@ -933,8 +1119,6 @@ export async function render(root, params = {}) {
           color: var(--color-text-secondary);
           animation: breath 2.4s ease-in-out infinite;
         }
-
-        /* ============ 消息区 ============ */
         .msg-scroll {
           position: relative;
           z-index: 1;
@@ -982,7 +1166,6 @@ export async function render(root, params = {}) {
           margin-top: 3px; padding: 0 4px;
           letter-spacing: 1px;
         }
-
         .msg-system {
           text-align: center;
           font-size: 11px;
@@ -1015,8 +1198,6 @@ export async function render(root, params = {}) {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-
-        /* ============ 打字指示器 ============ */
         .typing-bubble {
           display: inline-flex;
           align-items: center;
@@ -1041,8 +1222,6 @@ export async function render(root, params = {}) {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
           30% { transform: translateY(-4px); opacity: 1; }
         }
-
-        /* ============ 洗牌动画 ============ */
         .msg-shuffling { align-items: center; }
         .shuffle-stage {
           position: relative;
@@ -1070,12 +1249,9 @@ export async function render(root, params = {}) {
           45% { opacity: 0.95; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1); }
           100% { opacity: 0; transform: translate(calc(var(--tx) * 1.2), calc(var(--ty) - 12px)) rotate(var(--rot)) scale(0.85); }
         }
-
-        /* ============ 悬浮胶囊输入框 ============ */
         .chat-input-dock {
           position: fixed;
-          left: 12px;
-          right: 12px;
+          left: 12px; right: 12px;
           bottom: calc(env(safe-area-inset-bottom) + 12px);
           max-width: 456px;
           margin: 0 auto;
@@ -1134,7 +1310,6 @@ export async function render(root, params = {}) {
           0% { background-position: 0% 50%; }
           100% { background-position: 200% 50%; }
         }
-
         .dock-input {
           flex: 1;
           min-height: 40px; max-height: 120px;
@@ -1147,7 +1322,6 @@ export async function render(root, params = {}) {
           resize: none; overflow-y: auto;
         }
         .dock-input::placeholder { color: var(--color-text-tertiary); }
-
         .dock-btn {
           width: 40px; height: 40px;
           flex-shrink: 0;
@@ -1173,7 +1347,6 @@ export async function render(root, params = {}) {
           50% { transform: rotate(180deg) scale(1.18); color: var(--color-accent); }
           100% { transform: rotate(360deg) scale(1); }
         }
-
         .ka-toggle {
           font-size: 12px; letter-spacing: 2px;
           padding: 3px 10px; border-radius: 999px;
@@ -1185,10 +1358,7 @@ export async function render(root, params = {}) {
           color: var(--color-bg-primary);
         }
 
-        /* ============ 气泡样式预设 ============ */
-        /* preset-1 极简圆角 = 默认，无覆盖 */
-
-        /* preset-2 方角硬朗 */
+        /* 气泡样式预设 */
         .chat-page[data-bubble-preset="preset-2"] .msg-bubble {
           border-radius: 4px;
           padding: 9px 13px;
@@ -1200,8 +1370,6 @@ export async function render(root, params = {}) {
           border-top-left-radius: 4px;
           border-top-right-radius: 4px;
         }
-
-        /* preset-3 大圆角糖果 */
         .chat-page[data-bubble-preset="preset-3"] .msg-bubble {
           border-radius: 22px;
           padding: 12px 18px;
@@ -1212,8 +1380,6 @@ export async function render(root, params = {}) {
           border-top-left-radius: 22px;
           border-top-right-radius: 10px;
         }
-
-        /* preset-4 描边气泡 */
         .chat-page[data-bubble-preset="preset-4"] .msg-bubble {
           background: transparent;
           border: 1.5px solid var(--color-border);
@@ -1225,11 +1391,7 @@ export async function render(root, params = {}) {
           border-color: var(--color-accent);
           color: var(--color-text-primary);
         }
-
-        /* preset-5 长信笺 */
-        .chat-page[data-bubble-preset="preset-5"] .msg-bubble-wrap {
-          max-width: 65%;
-        }
+        .chat-page[data-bubble-preset="preset-5"] .msg-bubble-wrap { max-width: 65%; }
         .chat-page[data-bubble-preset="preset-5"] .msg-bubble {
           border-radius: 10px;
           padding: 14px 16px;
@@ -1239,6 +1401,88 @@ export async function render(root, params = {}) {
         .chat-page[data-bubble-preset="preset-5"] .msg-row.msg-user .msg-bubble {
           border-top-left-radius: 10px;
           border-top-right-radius: 4px;
+        }
+
+        /* 提示音 sheet 内元素 */
+        .sound-row {
+          display: flex; align-items: center; gap: 12px;
+          padding: 10px 4px;
+        }
+        .sound-label {
+          font-size: 13px;
+          color: var(--color-text-primary);
+          letter-spacing: 1px;
+          min-width: 40px;
+        }
+        .sound-val {
+          font-size: 12px;
+          color: var(--color-text-tertiary);
+          min-width: 30px;
+          text-align: right;
+        }
+        .sound-section-title {
+          font-size: 11px;
+          letter-spacing: 3px;
+          color: var(--color-text-secondary);
+          margin: 18px 4px 8px;
+        }
+        .mini-switch {
+          position: relative;
+          width: 42px; height: 22px;
+          display: inline-block;
+          margin-left: auto;
+        }
+        .mini-switch input { opacity: 0; width: 0; height: 0; }
+        .mini-switch span {
+          position: absolute; inset: 0;
+          background: var(--color-bg-tertiary);
+          border-radius: 22px;
+          transition: background 0.2s;
+          cursor: pointer;
+        }
+        .mini-switch span::before {
+          content: '';
+          position: absolute;
+          width: 16px; height: 16px;
+          left: 3px; top: 3px;
+          background: var(--color-text-secondary);
+          border-radius: 50%;
+          transition: transform 0.2s, background 0.2s;
+        }
+        .mini-switch input:checked + span { background: var(--color-accent); }
+        .mini-switch input:checked + span::before {
+          transform: translateX(20px);
+          background: var(--color-bg-primary);
+        }
+        .btn-mini {
+          min-height: 30px;
+          padding: 4px 12px;
+          font-size: 12px;
+          letter-spacing: 1px;
+        }
+        input[type="range"] {
+          -webkit-appearance: none;
+          appearance: none;
+          height: 4px;
+          background: var(--color-bg-tertiary);
+          border-radius: 2px;
+          outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 16px; height: 16px;
+          border-radius: 50%;
+          background: var(--color-accent);
+          cursor: pointer;
+          border: none;
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 16px; height: 16px;
+          border-radius: 50%;
+          background: var(--color-accent);
+          cursor: pointer;
+          border: none;
         }
       </style>
       <style id="chat-user-css"></style>
@@ -1255,6 +1499,9 @@ export async function render(root, params = {}) {
     return;
   }
 
+  // 预加载提示音配置
+  sound.loadConfig().catch(() => {});
+
   document.getElementById('chat-title').textContent = (state.character && state.character.name) || '（角色已删除）';
   const sig = state.character && state.character.signature;
   document.getElementById('chat-subtitle').textContent = sig ? sig : '';
@@ -1266,15 +1513,24 @@ export async function render(root, params = {}) {
 
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
   root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
-  root.querySelector('[data-act=trigger]').addEventListener('click', () => { haptic(10); manualTrigger(); });
+  root.querySelector('[data-act=trigger]').addEventListener('click', () => {
+    sound.unlock();
+    haptic(10);
+    manualTrigger();
+  });
   const sendBtn = document.getElementById('send-btn');
-  sendBtn.addEventListener('click', () => { haptic(6); sendUserMessage(); });
+  sendBtn.addEventListener('click', () => {
+    sound.unlock();
+    haptic(6);
+    sendUserMessage();
+  });
 
   const input = document.getElementById('chat-input');
   input.addEventListener('input', () => { autoGrow(input); updateSendBtn(); });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
+      sound.unlock();
       sendUserMessage();
     }
   });

@@ -72,7 +72,8 @@ function attachTilt(el) {
   });
 }
 
-const IMPLEMENTED = ['/home', '/cards', '/settings'];
+// 已实装页面：这里补上 /divination
+const IMPLEMENTED = ['/home', '/cards', '/divination', '/settings'];
 
 export function render(root) {
   const phase = getMoonPhase();

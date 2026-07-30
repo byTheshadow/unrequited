@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unrequited-shell-v13';
+const CACHE_NAME = 'unrequited-shell-v14';
 const CORE = [
   './',
   './index.html',
@@ -25,7 +25,11 @@ const CORE = [
   './js/pages/decks.js',
   './js/pages/settings/index.js',
   './js/pages/divination/index.js',
-  './data/healingQuotes.json'
+  './data/healingQuotes.json',
+  './data/tarot.json',
+  './data/lenormand.json',
+  './data/astroDice.json',
+  './data/spreads.json'
 ];
 
 self.addEventListener('install', (e) => {

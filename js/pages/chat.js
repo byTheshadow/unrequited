@@ -9,6 +9,8 @@ import {
   generateForCharacter,
   DEFAULT_THINKING_HINTS,
   DEFAULT_SKIP_HINTS,
+  DEFAULT_SYNC_HINTS,
+  DEFAULT_SYNC_CHANCE,
 } from '../cardEngine.js';
 import * as keepAlive from '../lib/keepAlive.js';
 
@@ -37,8 +39,11 @@ function bubbleHTML(msg, character, user, showTimeSep) {
     ? `<div class="msg-time-sep">${formatDateSep(msg.timestamp)}　${formatTime(msg.timestamp)}</div>`
     : '';
 
-  if (msg.sender === 'system' || msg.type === 'system') {
-    return `${timeSep}<div class="msg-system" data-id="${msg.id}">${escapeHtml(msg.content)}</div>`;
+  if (msg.sender === 'system' || msg.type === 'system' || msg.type === 'sync') {
+    const isSync = msg.type === 'sync';
+    return `${timeSep}<div class="msg-system ${isSync ? 'msg-sync' : ''}" data-id="${msg.id}">
+      ${isSync ? '<span class="sync-mark">◈</span>' : ''}${escapeHtml(msg.content)}
+    </div>`;
   }
 
   const isUser = msg.sender === 'user';
@@ -70,6 +75,22 @@ function typingHTML(character) {
         <div class="msg-bubble typing-bubble">
           <span class="dot"></span><span class="dot"></span><span class="dot"></span>
         </div>
+      </div>
+    </div>
+  `;
+}
+
+function shuffleHTML(character) {
+  const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
+  return `
+    <div class="msg-row msg-char msg-shuffling" id="shuffle-fx">
+      <div class="msg-avatar">${av}</div>
+      <div class="shuffle-stage">
+        <span class="frag"></span>
+        <span class="frag"></span>
+        <span class="frag"></span>
+        <span class="frag"></span>
+        <span class="frag"></span>
       </div>
     </div>
   `;
@@ -112,9 +133,9 @@ function appendMessage(msg) {
   const prev = state.messages[state.messages.length - 1] || null;
   const sep = shouldShowTimeSep(prev, msg);
   state.messages.push(msg);
-  const t = document.getElementById('typing-indicator');
+  const anchor = document.getElementById('typing-indicator') || document.getElementById('shuffle-fx');
   const html = bubbleHTML(msg, state.character, state.user, sep);
-  if (t) t.insertAdjacentHTML('beforebegin', html);
+  if (anchor) anchor.insertAdjacentHTML('beforebegin', html);
   else box.insertAdjacentHTML('beforeend', html);
   scrollToBottom(true);
   bindBubbleEvents();
@@ -135,6 +156,9 @@ async function sendUserMessage() {
   const text = input.value.trim();
   if (!text) return;
 
+  const dock = document.querySelector('.chat-input-dock');
+  if (dock) { dock.classList.remove('sent-pulse'); void dock.offsetWidth; dock.classList.add('sent-pulse'); }
+
   const msg = {
     conversationId: state.convId,
     sender: 'user', content: text,
@@ -151,6 +175,18 @@ async function sendUserMessage() {
   updateSendBtn();
 
   await schedulePendingReply();
+}
+
+function showShuffling() {
+  const box = document.getElementById('msg-scroll');
+  if (!box) return;
+  if (document.getElementById('shuffle-fx')) return;
+  box.insertAdjacentHTML('beforeend', shuffleHTML(state.character));
+  scrollToBottom(true);
+}
+function hideShuffling() {
+  const el = document.getElementById('shuffle-fx');
+  if (el) el.remove();
 }
 
 function showTyping() {
@@ -217,6 +253,7 @@ function cancelTimers({ keepSubtitle } = {}) {
   state.thinkingRotate = null;
   if (!keepSubtitle) stopThinkingUI();
   hideTyping();
+  hideShuffling();
 }
 
 function startThinkingUI(hints) {
@@ -243,6 +280,29 @@ function stopThinkingUI() {
   state.thinkingRotate = null;
 }
 
+async function maybeInsertSyncMessage() {
+  const cfg = (state.character && state.character.replyConfig) || {};
+  const chance = typeof cfg.syncChance === 'number' ? cfg.syncChance : DEFAULT_SYNC_CHANCE;
+  if (chance <= 0 || Math.random() >= chance) return false;
+
+  const list = (cfg.syncHints && cfg.syncHints.length) ? cfg.syncHints : DEFAULT_SYNC_HINTS;
+  const syncMsg = {
+    conversationId: state.convId,
+    sender: 'system',
+    content: pick(list),
+    type: 'sync',
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: true,
+  };
+  const id = await db.messages.add(syncMsg);
+  syncMsg.id = id;
+  appendMessage(syncMsg);
+  haptic(20);
+  return true;
+}
+
 async function executeReply() {
   cancelTimers();
   if (state.destroyed) return;
@@ -253,6 +313,10 @@ async function executeReply() {
 
   const cfg = state.character.replyConfig || {};
 
+  await maybeInsertSyncMessage();
+  if (state.destroyed) return;
+
+  // 已读不回
   const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
   if (skipChance > 0 && Math.random() < skipChance) {
     const skipList = (cfg.skipHints && cfg.skipHints.length) ? cfg.skipHints : DEFAULT_SKIP_HINTS;
@@ -276,6 +340,12 @@ async function executeReply() {
     await persistConvSummary();
     return;
   }
+
+  // 洗牌 → 打字 → 生成
+  showShuffling();
+  await sleep(700);
+  if (state.destroyed) return;
+  hideShuffling();
 
   showTyping();
   await sleep(randInt(400, 900));
@@ -321,7 +391,10 @@ async function executeReply() {
 
 async function manualTrigger() {
   const btn = document.querySelector('[data-act=trigger]');
-  if (btn) btn.disabled = true;
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin');
+  }
   try { await executeReply(); }
   finally { if (btn) btn.disabled = false; }
 }
@@ -330,7 +403,9 @@ function updateSendBtn() {
   const input = document.getElementById('chat-input');
   const btn = document.getElementById('send-btn');
   if (!input || !btn) return;
-  btn.disabled = !input.value.trim();
+  const hasContent = !!input.value.trim();
+  btn.disabled = !hasContent;
+  btn.classList.toggle('active', hasContent);
 }
 
 function autoGrow(el) {
@@ -338,12 +413,9 @@ function autoGrow(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-// 输入框跟随键盘：iOS Safari visualViewport
 function bindViewportFollow() {
   if (!window.visualViewport) return;
   const vv = window.visualViewport;
-  const dock = document.querySelector('.chat-input-dock');
-  if (!dock) return;
   const update = () => {
     const d = document.querySelector('.chat-input-dock');
     if (!d) return;
@@ -479,19 +551,22 @@ export async function render(root, params = {}) {
 
   root.innerHTML = `
     <div class="page chat-page">
-      <div class="top-bar">
-        <button class="top-bar-btn" data-act="back" aria-label="返回">${ICON.back}</button>
-        <div class="chat-title-wrap">
-          <div class="chat-title" id="chat-title">加载中</div>
-          <div class="chat-subtitle" id="chat-subtitle"></div>
+      <header class="chat-header">
+        <button class="chat-nav-btn" data-act="back" aria-label="返回">${ICON.back}</button>
+        <div class="chat-header-center">
+          <div class="chat-header-avatar" id="chat-header-avatar"></div>
+          <div class="chat-header-text">
+            <div class="chat-title" id="chat-title">加载中</div>
+            <div class="chat-subtitle" id="chat-subtitle"></div>
+          </div>
         </div>
-        <button class="top-bar-btn" data-act="menu" aria-label="更多">${ICON.more}</button>
-      </div>
+        <button class="chat-nav-btn" data-act="menu" aria-label="更多">${ICON.more}</button>
+      </header>
 
       <div class="msg-scroll" id="msg-scroll"></div>
 
       <div class="chat-input-dock">
-        <button class="dock-btn" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
+        <button class="dock-btn spark" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
         <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
         <button class="dock-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
       </div>
@@ -503,11 +578,69 @@ export async function render(root, params = {}) {
           overflow: hidden;
           position: relative;
         }
-        .chat-title-wrap { flex: 1; text-align: center; overflow: hidden; }
-        .chat-title { font-size: 14px; letter-spacing: 2px; color: var(--color-text-primary); }
+
+        /* ============ 精简浮动顶栏 ============ */
+        .chat-header {
+          position: relative;
+          z-index: 10;
+          display: flex; align-items: center;
+          padding: 12px 8px 8px;
+          padding-top: calc(env(safe-area-inset-top) + 10px);
+          gap: 4px;
+          background: transparent;
+        }
+        .chat-header::after {
+          content: '';
+          position: absolute; left: 20%; right: 20%; bottom: 0;
+          height: 1px;
+          background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+          opacity: 0.5;
+        }
+        .chat-nav-btn {
+          width: 36px; height: 36px;
+          border-radius: 50%;
+          display: inline-flex; align-items: center; justify-content: center;
+          color: var(--color-text-secondary);
+          background: transparent;
+          transition: transform 0.15s, background 0.2s, color 0.2s;
+        }
+        .chat-nav-btn:active {
+          transform: scale(0.88);
+          background: var(--color-bg-secondary);
+          color: var(--color-text-primary);
+        }
+        .chat-header-center {
+          flex: 1;
+          display: flex; align-items: center; justify-content: center;
+          gap: 10px;
+          min-width: 0;
+        }
+        .chat-header-avatar .avatar {
+          width: 34px; height: 34px; font-size: 13px;
+        }
+        .chat-header-text {
+          display: flex; flex-direction: column;
+          align-items: flex-start;
+          min-width: 0;
+          max-width: 62%;
+        }
+        .chat-title {
+          font-size: 14px;
+          letter-spacing: 2px;
+          color: var(--color-text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
         .chat-subtitle {
-          font-size: 10px; color: var(--color-text-tertiary);
-          letter-spacing: 1px; margin-top: 2px;
+          font-size: 10px;
+          color: var(--color-text-tertiary);
+          letter-spacing: 1px;
+          margin-top: 2px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 100%;
           transition: color 0.4s;
         }
         .chat-subtitle.thinking {
@@ -515,10 +648,11 @@ export async function render(root, params = {}) {
           animation: breath 2.4s ease-in-out infinite;
         }
 
+        /* ============ 消息区 ============ */
         .msg-scroll {
           flex: 1;
           overflow-y: auto; overflow-x: hidden;
-          padding: 12px 14px 96px;
+          padding: 8px 14px 108px;
           -webkit-overflow-scrolling: touch;
           scroll-behavior: smooth;
         }
@@ -569,7 +703,31 @@ export async function render(root, params = {}) {
           margin: 4px 0;
           animation: fadeIn 0.45s ease;
         }
+        .msg-sync {
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          letter-spacing: 3px;
+          padding: 16px 24px;
+          margin: 10px 0;
+          animation: syncGlow 2.4s ease-out;
+        }
+        .sync-mark {
+          display: inline-block;
+          margin-right: 8px;
+          color: var(--color-accent);
+          animation: syncSpin 6s linear infinite;
+        }
+        @keyframes syncGlow {
+          0% { opacity: 0; transform: scale(0.92); letter-spacing: 8px; }
+          40% { opacity: 1; letter-spacing: 3px; }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes syncSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
 
+        /* ============ 打字指示器 ============ */
         .typing-bubble { display: inline-flex; gap: 4px; padding: 12px 14px; }
         .typing-bubble .dot {
           width: 6px; height: 6px; border-radius: 50%;
@@ -583,12 +741,65 @@ export async function render(root, params = {}) {
           30% { transform: translateY(-4px); opacity: 1; }
         }
 
-        /* 悬浮胶囊输入框 */
+        /* ============ 洗牌动画 ============ */
+        .msg-shuffling { align-items: center; }
+        .shuffle-stage {
+          position: relative;
+          width: 90px; height: 44px;
+          margin-left: 4px;
+        }
+        .shuffle-stage .frag {
+          position: absolute;
+          left: 30px; top: 12px;
+          width: 24px; height: 32px;
+          background: var(--color-bg-tertiary);
+          border: 1px solid var(--color-border);
+          border-radius: 5px;
+          opacity: 0;
+          box-shadow: 0 2px 6px var(--color-shadow);
+          animation: shuffleFrag 0.75s ease-out forwards;
+        }
+        .shuffle-stage .frag:nth-child(1) {
+          animation-delay: 0s;
+          --tx: -22px; --ty: -18px; --rot: -14deg;
+        }
+        .shuffle-stage .frag:nth-child(2) {
+          animation-delay: 0.06s;
+          --tx: 6px; --ty: -22px; --rot: 4deg;
+        }
+        .shuffle-stage .frag:nth-child(3) {
+          animation-delay: 0.12s;
+          --tx: 26px; --ty: -14px; --rot: 12deg;
+        }
+        .shuffle-stage .frag:nth-child(4) {
+          animation-delay: 0.18s;
+          --tx: -8px; --ty: -6px; --rot: -6deg;
+        }
+        .shuffle-stage .frag:nth-child(5) {
+          animation-delay: 0.24s;
+          --tx: 14px; --ty: 4px; --rot: 8deg;
+        }
+        @keyframes shuffleFrag {
+          0% {
+            opacity: 0;
+            transform: translate(0, 10px) rotate(0deg) scale(0.7);
+          }
+          45% {
+            opacity: 0.95;
+            transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(calc(var(--tx) * 1.2), calc(var(--ty) - 12px)) rotate(var(--rot)) scale(0.85);
+          }
+        }
+
+        /* ============ 悬浮胶囊输入框 ============ */
         .chat-input-dock {
           position: fixed;
           left: 12px;
           right: 12px;
-          bottom: calc(env(safe-area-inset-bottom) + 10px);
+          bottom: calc(env(safe-area-inset-bottom) + 12px);
           max-width: 456px;
           margin: 0 auto;
           display: flex;
@@ -604,8 +815,61 @@ export async function render(root, params = {}) {
           backdrop-filter: blur(20px) saturate(1.2);
           -webkit-backdrop-filter: blur(20px) saturate(1.2);
           z-index: 40;
-          transition: transform 0.18s ease;
+          animation: dockRise 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+          transition:
+            transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+            box-shadow 0.3s ease,
+            border-color 0.3s ease;
         }
+        .chat-input-dock:focus-within {
+          border-color: var(--color-accent);
+          box-shadow:
+            0 6px 16px var(--color-shadow),
+            0 18px 50px var(--color-shadow),
+            0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
+        }
+        @keyframes dockRise {
+          from { opacity: 0; transform: translateY(24px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .chat-input-dock.sent-pulse {
+          animation: dockPulse 0.42s ease-out;
+        }
+        @keyframes dockPulse {
+          0% { transform: scale(1); }
+          40% { transform: scale(1.015); }
+          100% { transform: scale(1); }
+        }
+        .chat-input-dock::before {
+          content: '';
+          position: absolute;
+          inset: -1px;
+          border-radius: inherit;
+          padding: 1px;
+          background: linear-gradient(
+            135deg,
+            transparent 30%,
+            color-mix(in srgb, var(--color-accent) 30%, transparent) 50%,
+            transparent 70%
+          );
+          -webkit-mask:
+            linear-gradient(#000 0 0) content-box,
+            linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          opacity: 0;
+          transition: opacity 0.4s ease;
+          pointer-events: none;
+        }
+        .chat-input-dock:focus-within::before {
+          opacity: 1;
+          animation: dockShimmer 3s linear infinite;
+        }
+        @keyframes dockShimmer {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+
         .dock-input {
           flex: 1;
           min-height: 40px;
@@ -622,6 +886,7 @@ export async function render(root, params = {}) {
           overflow-y: auto;
         }
         .dock-input::placeholder { color: var(--color-text-tertiary); }
+
         .dock-btn {
           width: 40px; height: 40px;
           flex-shrink: 0;
@@ -629,14 +894,30 @@ export async function render(root, params = {}) {
           display: inline-flex; align-items: center; justify-content: center;
           color: var(--color-text-secondary);
           background: transparent;
-          transition: transform 0.15s, background 0.2s, color 0.2s;
+          transition:
+            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+            background 0.25s ease,
+            color 0.25s ease,
+            opacity 0.25s ease;
         }
-        .dock-btn:active { transform: scale(0.88); }
-        .dock-btn.send {
+        .dock-btn:active { transform: scale(0.86); }
+        .dock-btn:disabled { opacity: 0.32; }
+        .dock-btn.send.active {
           background: var(--color-accent);
           color: var(--color-bg-primary);
+          transform: scale(1);
         }
-        .dock-btn:disabled { opacity: 0.32; }
+        .dock-btn.send.active:active {
+          transform: scale(0.9) rotate(-10deg);
+        }
+        .dock-btn.spark.spin {
+          animation: sparkSpin 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes sparkSpin {
+          0% { transform: rotate(0deg) scale(1); }
+          50% { transform: rotate(180deg) scale(1.18); color: var(--color-accent); }
+          100% { transform: rotate(360deg) scale(1); }
+        }
 
         .ka-toggle {
           font-size: 12px; letter-spacing: 2px;
@@ -665,6 +946,8 @@ export async function render(root, params = {}) {
   document.getElementById('chat-title').textContent = (state.character && state.character.name) || '（角色已删除）';
   const sig = state.character && state.character.signature;
   document.getElementById('chat-subtitle').textContent = sig ? sig : '';
+  document.getElementById('chat-header-avatar').innerHTML =
+    avatarHTML(state.character && state.character.avatar, (state.character && state.character.name) || '?', 34);
 
   renderMessages();
 
@@ -711,3 +994,4 @@ export function destroy() {
   }
   if (state.onViewport) { state.onViewport(); state.onViewport = null; }
 }
+

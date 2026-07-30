@@ -1,7 +1,6 @@
 import { db } from './db.js';
 import { randInt, pick } from './utils.js';
 
-// 汇总某角色可用的所有字卡碎片
 export async function getFragmentsForCharacter(characterId) {
   const char = await db.characters.get(characterId);
   if (!char) return [];
@@ -12,7 +11,6 @@ export async function getFragmentsForCharacter(characterId) {
   if (linkedIds.length) {
     decks = await db.decks.where('id').anyOf(linkedIds).toArray();
   }
-  // 未绑定任何字卡库时，回退到通用库（bindCharacterId 为空）
   if (!decks.length) {
     decks = await db.decks.filter((d) => !d.bindCharacterId).toArray();
   }
@@ -27,8 +25,6 @@ export async function getFragmentsForCharacter(characterId) {
   return bag;
 }
 
-// 从碎片池中生成一批消息
-// config.pureRandom = true 时，comboChance 每条消息现场随机（0~1），完全交给运气
 export function generateMessages(fragments, config = {}) {
   if (!fragments || !fragments.length) return [];
 
@@ -63,7 +59,6 @@ export async function generateForCharacter(characterId) {
   return { messages, reason: 'ok' };
 }
 
-// 思考期默认文案（顶栏副标题轮换）
 export const DEFAULT_THINKING_HINTS = [
   '正在深思熟虑…',
   '正在挑选字卡…',
@@ -71,10 +66,22 @@ export const DEFAULT_THINKING_HINTS = [
   '正在斟酌措辞…',
 ];
 
-// 已读不回默认文案
 export const DEFAULT_SKIP_HINTS = [
   '对方无视了这条消息',
   '对方跳过了这条消息',
   '对方看了看，没说话',
   '似乎没有回应的心情',
 ];
+
+// 共时提示（罕见事件，2% 概率触发）
+export const DEFAULT_SYNC_HINTS = [
+  '这一刻，你们同时想起了对方',
+  '宇宙悄悄记下了这条消息',
+  '有什么东西正穿过时间靠近',
+  '两颗心在此刻共振',
+  '同频的信号被听见了',
+  '一阵微风路过，好像带来了回音',
+];
+
+// 共时触发概率（可在角色 replyConfig.syncChance 里覆盖）
+export const DEFAULT_SYNC_CHANCE = 0.02;

@@ -128,15 +128,15 @@ async function openEditor(charId) {
       </div>
 
       <div class="field">
-        <label class="field-label">回复参数</label>
+        <label class="field-label">生成参数</label>
         <div class="row-2col">
           <div>
             <div class="field-hint">最少消息条数</div>
-            <input class="input" type="number" id="f-min-msgs" min="1" max="10" value="${cfg.minMsgs ?? 1}">
+            <input class="input" type="number" id="f-min-msgs" min="1" max="50" value="${cfg.minMsgs ?? 1}">
           </div>
           <div>
             <div class="field-hint">最多消息条数</div>
-            <input class="input" type="number" id="f-max-msgs" min="1" max="10" value="${cfg.maxMsgs ?? 3}">
+            <input class="input" type="number" id="f-max-msgs" min="1" max="50" value="${cfg.maxMsgs ?? 3}">
           </div>
         </div>
         <div class="row-2col" style="margin-top:12px;">
@@ -146,9 +146,44 @@ async function openEditor(charId) {
           </div>
           <div>
             <div class="field-hint">最多拼接卡数</div>
-            <input class="input" type="number" id="f-max-combo" min="1" max="6" value="${cfg.maxCombo ?? 3}">
+            <input class="input" type="number" id="f-max-combo" min="1" max="50" value="${cfg.maxCombo ?? 3}">
           </div>
         </div>
+        <label class="toggle-row">
+          <input type="checkbox" id="f-pure-random" ${cfg.pureRandom ? 'checked' : ''}>
+          <span>纯随机模式</span>
+        </label>
+        <div class="field-hint">开启后拼接概率现场随机，忽略上面设定，一切听天由命</div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">回复行为</label>
+        <div class="row-2col">
+          <div>
+            <div class="field-hint">最小回复时长（秒）</div>
+            <input class="input" type="number" id="f-min-delay" min="0" max="1200" value="${cfg.minReplyDelaySec ?? 0}">
+          </div>
+          <div>
+            <div class="field-hint">最大回复时长（秒）</div>
+            <input class="input" type="number" id="f-max-delay" min="0" max="1200" value="${cfg.maxReplyDelaySec ?? 0}">
+          </div>
+        </div>
+        <div class="field-hint" style="margin-top:8px;">0-1200 秒（约 20 分钟）。全设 0 则需手动触发。发消息后角色会在此区间内随机时刻回复。</div>
+
+        <div class="row-2col" style="margin-top:12px;">
+          <div>
+            <div class="field-hint">已读不回概率 0-1</div>
+            <input class="input" type="number" id="f-skip-chance" min="0" max="1" step="0.05" value="${cfg.skipReplyChance ?? 0}">
+          </div>
+          <div></div>
+        </div>
+        <div class="field-hint" style="margin-top:8px;">到点时按此概率跳过回复，改为一条系统提示</div>
+
+        <div class="field-hint" style="margin-top:14px;">思考期文案（每行一句，空则用默认）</div>
+        <textarea class="input textarea" id="f-thinking-hints" rows="3" placeholder="正在深思熟虑…&#10;正在挑选字卡…">${escapeHtml((cfg.thinkingHints || []).join('\n'))}</textarea>
+
+        <div class="field-hint" style="margin-top:12px;">已读不回文案（每行一句，空则用默认）</div>
+        <textarea class="input textarea" id="f-skip-hints" rows="3" placeholder="对方无视了这条消息&#10;对方跳过了这条消息">${escapeHtml((cfg.skipHints || []).join('\n'))}</textarea>
       </div>
     </div>
   `;
@@ -206,16 +241,36 @@ async function openEditor(charId) {
     const signature = sheetRoot.querySelector('#f-signature').value.trim();
     const selected = [...sheetRoot.querySelectorAll('.deck-chip input:checked')].map((el) => Number(el.value));
 
-    const minMsgs = Math.max(1, Math.min(10, Number(sheetRoot.querySelector('#f-min-msgs').value) || 1));
-    let maxMsgs = Math.max(1, Math.min(10, Number(sheetRoot.querySelector('#f-max-msgs').value) || 3));
+    const minMsgs = Math.max(1, Math.min(50, Number(sheetRoot.querySelector('#f-min-msgs').value) || 1));
+    let maxMsgs = Math.max(1, Math.min(50, Number(sheetRoot.querySelector('#f-max-msgs').value) || 3));
     if (maxMsgs < minMsgs) maxMsgs = minMsgs;
     const comboChance = Math.max(0, Math.min(1, Number(sheetRoot.querySelector('#f-combo-chance').value) || 0));
-    const maxCombo = Math.max(1, Math.min(6, Number(sheetRoot.querySelector('#f-max-combo').value) || 3));
+    const maxCombo = Math.max(1, Math.min(50, Number(sheetRoot.querySelector('#f-max-combo').value) || 3));
+    const pureRandom = !!sheetRoot.querySelector('#f-pure-random').checked;
+
+    const minDelay = Math.max(0, Math.min(1200, Number(sheetRoot.querySelector('#f-min-delay').value) || 0));
+    let maxDelay = Math.max(0, Math.min(1200, Number(sheetRoot.querySelector('#f-max-delay').value) || 0));
+    if (maxDelay < minDelay) maxDelay = minDelay;
+    const skipChance = Math.max(0, Math.min(1, Number(sheetRoot.querySelector('#f-skip-chance').value) || 0));
+
+    const thinkingHints = sheetRoot.querySelector('#f-thinking-hints').value
+      .split('\n').map((s) => s.trim()).filter(Boolean);
+    const skipHints = sheetRoot.querySelector('#f-skip-hints').value
+      .split('\n').map((s) => s.trim()).filter(Boolean);
 
     const payload = {
       name, avatar, signature,
       linkedDeckIds: selected,
-      replyConfig: { minMsgs, maxMsgs, comboChance, minCombo: 2, maxCombo },
+      replyConfig: {
+        minMsgs, maxMsgs,
+        comboChance, minCombo: 2, maxCombo,
+        pureRandom,
+        minReplyDelaySec: minDelay,
+        maxReplyDelaySec: maxDelay,
+        skipReplyChance: skipChance,
+        thinkingHints,
+        skipHints,
+      },
     };
 
     if (isNew) {
@@ -284,6 +339,32 @@ export async function render(root, params = {}) {
           background: var(--color-bg-primary);
           color: var(--color-text-tertiary);
         }
+
+        .toggle-row {
+          display: flex; align-items: center; gap: 10px;
+          margin-top: 14px;
+          font-size: 13px; color: var(--color-text-secondary);
+          cursor: pointer;
+          letter-spacing: 1px;
+        }
+        .toggle-row input[type=checkbox] {
+          width: 18px; height: 18px;
+          accent-color: var(--color-accent);
+          cursor: pointer;
+        }
+        .textarea {
+          width: 100%;
+          min-height: 76px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid var(--color-border);
+          background: var(--color-bg-secondary);
+          color: var(--color-text-primary);
+          font-size: 13px; line-height: 1.55;
+          font-family: inherit;
+          resize: vertical;
+        }
+        .textarea:focus { border-color: var(--color-accent); outline: none; }
       </style>
     </div>
   `;
@@ -295,7 +376,6 @@ export async function render(root, params = {}) {
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
   root.querySelector('[data-act=new]').addEventListener('click', () => { haptic(8); openEditor(null); });
 
-  // 从其他页面带参数进入
   if (params.new === '1') openEditor(null);
   else if (params.edit) openEditor(Number(params.edit));
 }

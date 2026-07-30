@@ -17,6 +17,7 @@ import * as sound from '../lib/sound.js';
 
 const DEFAULT_QUOTE_CHANCE = 0.4;
 const QUOTE_PREVIEW_MAX = 40;
+const DEFAULT_MUSIC = { signature: '一支未命名的曲子', distance: '相距 1024 光年' };
 
 let state = {
   convId: null,
@@ -32,6 +33,9 @@ let state = {
   onVisibility: null,
   onViewport: null,
   pendingQuoteId: null,
+  panelExpanded: false,
+  panelTab: 'status',        // 'status' | 'music'
+  statusCardIndex: 0,        // 0 = 角色卡, 1 = user 卡
 };
 
 const PRESET_LABELS = {
@@ -42,9 +46,7 @@ const PRESET_LABELS = {
   'preset-5': '长信笺',
   'custom': '自定义 CSS',
 };
-function bubblePresetLabel(k) {
-  return PRESET_LABELS[k] || '极简圆角（默认）';
-}
+function bubblePresetLabel(k) { return PRESET_LABELS[k] || '极简圆角（默认）'; }
 
 const SOUND_LABELS = {
   inherit: '跟随全局',
@@ -54,24 +56,29 @@ const SOUND_LABELS = {
   custom: '自定义',
 };
 
+/* ---------- 小图标（SVG 内联） ---------- */
+const SVG_CHEV = `<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+const SVG_PALETTE = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="1"/><circle cx="17.5" cy="10.5" r="1"/><circle cx="8.5" cy="7.5" r="1"/><circle cx="6.5" cy="12.5" r="1"/><path d="M12 2a10 10 0 0 0 0 20 3 3 0 0 0 3-3 2 2 0 0 1 2-2h2a3 3 0 0 0 3-3 10 10 0 0 0-10-12Z"/></svg>`;
+const SVG_MUSIC = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
+const SVG_NOTE = `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3z"/></svg>`;
+const SVG_PLAY = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+
+/* ---------- 工具 ---------- */
 function shouldShowTimeSep(prev, curr) {
   if (!prev) return true;
   return (curr.timestamp - prev.timestamp) > 5 * 60 * 1000;
 }
-
 function summarize(text, max = QUOTE_PREVIEW_MAX) {
   const single = String(text || '').replace(/\s+/g, ' ').trim();
   if (single.length <= max) return single;
   return single.slice(0, max) + '…';
 }
-
 function authorNameOf(msg) {
   if (!msg) return '';
   if (msg.sender === 'user') return (state.user && state.user.name) || '我';
   if (msg.sender === 'character') return (state.character && state.character.name) || '?';
   return '';
 }
-
 function isQuotableMsg(msg) {
   if (!msg) return false;
   if (msg.sender !== 'user' && msg.sender !== 'character') return false;
@@ -79,12 +86,11 @@ function isQuotableMsg(msg) {
   return true;
 }
 
+/* ---------- 引用相关 HTML ---------- */
 function quoteCardHTML(quotedId) {
   if (!quotedId) return '';
   const q = state.messages.find((m) => m.id === quotedId);
-  if (!q) {
-    return `<div class="quote-card missing">[原消息已删除]</div>`;
-  }
+  if (!q) return `<div class="quote-card missing">[原消息已删除]</div>`;
   const author = authorNameOf(q);
   const preview = summarize(q.content);
   return `
@@ -94,7 +100,6 @@ function quoteCardHTML(quotedId) {
     </div>
   `;
 }
-
 function quoteBarHTML(quoted) {
   if (!quoted) return '';
   const author = authorNameOf(quoted);
@@ -113,6 +118,7 @@ function quoteBarHTML(quoted) {
   `;
 }
 
+/* ---------- 消息气泡 HTML ---------- */
 function bubbleHTML(msg, character, user, showTimeSep) {
   const timeSep = showTimeSep
     ? `<div class="msg-time-sep">${formatDateSep(msg.timestamp)}　${formatTime(msg.timestamp)}</div>`
@@ -177,15 +183,21 @@ function shuffleHTML(character) {
   `;
 }
 
+/* ---------- 数据加载 ---------- */
 async function loadAll(convId) {
   const conv = await db.conversations.get(convId);
   if (!conv) throw new Error('对话不存在');
   const character = await db.characters.get(conv.characterId);
-  const user = (await db.user.toArray())[0] || { name: '我', avatar: '' };
+  let user = (await db.user.toArray())[0];
+  if (!user) {
+    const uid = await db.user.add({ name: '我', avatar: '', status: '', signature: '' });
+    user = await db.user.get(uid);
+  }
   const messages = await db.messages.where('conversationId').equals(convId).sortBy('timestamp');
   return { conv, character, user, messages };
 }
 
+/* ---------- 消息渲染 ---------- */
 function renderMessages() {
   const box = document.getElementById('msg-scroll');
   if (!box) return;
@@ -198,6 +210,7 @@ function renderMessages() {
   box.innerHTML = html;
   scrollToBottom(false);
   bindBubbleEvents();
+  updateMessageCount();
 }
 
 function scrollToBottom(smooth = true) {
@@ -207,7 +220,6 @@ function scrollToBottom(smooth = true) {
     box.scrollTo({ top: box.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
   });
 }
-
 function scrollToMessage(id) {
   const row = document.querySelector(`.msg-scroll .msg-row[data-id="${id}"]`);
   if (!row) { toast('原消息不在当前列表'); return; }
@@ -230,6 +242,7 @@ function appendMessage(msg) {
   else box.insertAdjacentHTML('beforeend', html);
   scrollToBottom(true);
   bindBubbleEvents();
+  updateMessageCount();
 }
 
 async function persistConvSummary() {
@@ -285,7 +298,6 @@ function playUserSound() {
 }
 
 /* ---------- 引用管理 ---------- */
-
 async function setPendingQuote(msgId) {
   const q = state.messages.find((m) => m.id === msgId);
   if (!q || !isQuotableMsg(q)) { toast('该消息无法引用'); return; }
@@ -296,14 +308,12 @@ async function setPendingQuote(msgId) {
   const input = document.getElementById('chat-input');
   if (input) input.focus();
 }
-
 async function clearPendingQuote() {
   state.pendingQuoteId = null;
   await db.conversations.update(state.convId, { pendingQuoteId: null });
   if (state.conv) state.conv.pendingQuoteId = null;
   renderQuoteBar();
 }
-
 function renderQuoteBar() {
   const dock = document.querySelector('.chat-input-dock');
   if (!dock) return;
@@ -319,17 +329,13 @@ function renderQuoteBar() {
   }
   dock.insertAdjacentHTML('afterbegin', quoteBarHTML(q));
 }
-
 function pickAutoQuoteTarget() {
-  const pool = state.messages
-    .slice(-20)
-    .filter(isQuotableMsg);
+  const pool = state.messages.slice(-20).filter(isQuotableMsg);
   if (!pool.length) return null;
   return pool[Math.floor(Math.random() * pool.length)].id;
 }
 
-/* ---------- 发送 ---------- */
-
+/* ---------- 发送 & 回复 ---------- */
 async function sendUserMessage() {
   const input = document.getElementById('chat-input');
   if (!input) return;
@@ -351,9 +357,7 @@ async function sendUserMessage() {
   const id = await db.messages.add(msg);
   msg.id = id;
 
-  if (quotedId) {
-    await clearPendingQuote();
-  }
+  if (quotedId) await clearPendingQuote();
 
   appendMessage(msg);
   playUserSound();
@@ -376,7 +380,6 @@ function hideShuffling() {
   const el = document.getElementById('shuffle-fx');
   if (el) el.remove();
 }
-
 function showTyping() {
   if (state.typing) return;
   state.typing = true;
@@ -457,13 +460,12 @@ function startThinkingUI(hints) {
     sub.textContent = hints[idx];
   }, 2800);
 }
-
 function stopThinkingUI() {
   const sub = document.getElementById('chat-subtitle');
   if (sub) {
     sub.classList.remove('thinking');
-    const sig = state.character && state.character.signature;
-    sub.textContent = sig || '';
+    const s = (state.character && (state.character.status || state.character.signature)) || '';
+    sub.textContent = s;
   }
   clearInterval(state.thinkingRotate);
   state.thinkingRotate = null;
@@ -601,7 +603,6 @@ function updateSendBtn() {
   btn.disabled = !hasContent;
   btn.classList.toggle('active', hasContent);
 }
-
 function autoGrow(el) {
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
@@ -679,9 +680,7 @@ async function openMsgActions(id) {
       if (ok) {
         await db.messages.delete(id);
         state.messages = state.messages.filter((m) => m.id !== id);
-        if (state.pendingQuoteId === id) {
-          await clearPendingQuote();
-        }
+        if (state.pendingQuoteId === id) await clearPendingQuote();
         renderMessages();
         renderQuoteBar();
         await persistConvSummary();
@@ -690,6 +689,410 @@ async function openMsgActions(id) {
   });
 }
 
+/* ---------- 面板：状态卡 + 音乐共听 ---------- */
+function panelHTML() {
+  return `
+    <div class="chat-panel" id="chat-panel" data-expanded="false" data-tab="status">
+      <div class="chat-panel-inner">
+        <div class="chat-panel-tabs">
+          <button class="panel-tab active" data-tab="status">状态</button>
+          <button class="panel-tab" data-tab="music">共鸣</button>
+          <span class="panel-tab-indicator"></span>
+        </div>
+        <div class="panel-view panel-view-status active" data-view="status">
+          <div class="status-track-wrap">
+            <div class="status-track" id="status-track">
+              <div class="status-card status-card-slot" id="status-card-char"></div>
+              <div class="status-card status-card-slot" id="status-card-user"></div>
+            </div>
+          </div>
+          <div class="status-dots">
+            <button class="status-dot active" data-dot="0" aria-label="角色卡"></button>
+            <button class="status-dot" data-dot="1" aria-label="user 卡"></button>
+          </div>
+        </div>
+        <div class="panel-view panel-view-music" data-view="music">
+          <div class="music-card" id="music-card"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function cardBgClass(bg) {
+  if (bg === 'transparent') return 'card-glass';
+  if (bg && typeof bg === 'string') return 'card-image';
+  return 'card-default';
+}
+function cardBgStyle(bg) {
+  if (bg && bg !== 'transparent') {
+    const safe = String(bg).replace(/"/g, '\\"');
+    return `background-image:url("${safe}");`;
+  }
+  return '';
+}
+
+function renderCharCard() {
+  const el = document.getElementById('status-card-char');
+  if (!el) return;
+  const c = state.character;
+  if (!c) { el.innerHTML = '<div class="card-empty">未绑定角色</div>'; return; }
+  const bg = state.conv && state.conv.charCardBg;
+  el.className = 'status-card status-card-slot ' + cardBgClass(bg);
+  el.setAttribute('style', cardBgStyle(bg));
+  const idText = String(c.id || 0).padStart(4, '0');
+  el.innerHTML = `
+    <button class="card-bg-btn" data-card-bg="char" aria-label="切换背景">${SVG_PALETTE}</button>
+    <div class="card-header">
+      <div class="card-avatar-lg">${avatarHTML(c.avatar, c.name, 60)}</div>
+      <div class="card-header-info">
+        <div class="card-name">${escapeHtml(c.name || '')}</div>
+        <div class="card-role">CHARACTER</div>
+      </div>
+    </div>
+    <div class="card-divider"></div>
+    <div class="card-row">
+      <div class="card-row-label">签名</div>
+      <div class="card-row-val">${escapeHtml(c.signature || '—')}</div>
+    </div>
+    <div class="card-row">
+      <div class="card-row-label">状态</div>
+      <div class="card-row-val">${escapeHtml(c.status || '—')}</div>
+    </div>
+    <div class="card-serial">NO. ${idText}</div>
+  `;
+}
+
+function renderUserCard() {
+  const el = document.getElementById('status-card-user');
+  if (!el) return;
+  const u = state.user;
+  if (!u) return;
+  const bg = state.conv && state.conv.userCardBg;
+  el.className = 'status-card status-card-slot ' + cardBgClass(bg);
+  el.setAttribute('style', cardBgStyle(bg));
+  const idText = String(u.id || 1).padStart(4, '0');
+  el.innerHTML = `
+    <button class="card-bg-btn" data-card-bg="user" aria-label="切换背景">${SVG_PALETTE}</button>
+    <div class="card-header">
+      <div class="card-avatar-lg">${avatarHTML(u.avatar, u.name, 60)}</div>
+      <div class="card-header-info">
+        <input class="ghost-input card-name" data-target="user" data-field="name" value="${escapeAttr(u.name || '')}" placeholder="未命名" maxlength="30">
+        <div class="card-role">USER · 本尊</div>
+      </div>
+    </div>
+    <div class="card-divider"></div>
+    <div class="card-row">
+      <div class="card-row-label">签名</div>
+      <input class="ghost-input card-row-val" data-target="user" data-field="signature" value="${escapeAttr(u.signature || '')}" placeholder="—" maxlength="60">
+    </div>
+    <div class="card-row">
+      <div class="card-row-label">状态</div>
+      <input class="ghost-input card-row-val" data-target="user" data-field="status" value="${escapeAttr(u.status || '')}" placeholder="—" maxlength="30">
+    </div>
+    <div class="card-serial">NO. ${idText}</div>
+  `;
+}
+
+function renderMusicCard() {
+  const el = document.getElementById('music-card');
+  if (!el) return;
+  const c = state.character;
+  const u = state.user;
+  const music = (state.conv && state.conv.musicBar) || DEFAULT_MUSIC;
+  const distance = music.distance != null ? music.distance : DEFAULT_MUSIC.distance;
+  const signature = music.signature != null ? music.signature : DEFAULT_MUSIC.signature;
+  const count = state.messages.filter(m => m.type !== 'system' && m.type !== 'sync').length;
+
+  el.innerHTML = `
+    <div class="music-header">
+      <div class="music-icon">${SVG_MUSIC}</div>
+      <div class="music-title">共听 · 一起听</div>
+    </div>
+    <div class="music-avatars">
+      <div class="music-avatar music-avatar-left">${avatarHTML(u && u.avatar, u && u.name, 44)}</div>
+      <div class="music-link">
+        <span class="music-link-line"></span>
+        <span class="music-link-note">${SVG_NOTE}</span>
+      </div>
+      <div class="music-avatar music-avatar-right">${avatarHTML(c && c.avatar, c && c.name, 44)}</div>
+    </div>
+    <input class="ghost-input music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="相距 ..." maxlength="30">
+    <input class="ghost-input music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="一支未命名的曲子" maxlength="60">
+    <div class="mp3-bar">
+      <span class="mp3-play">${SVG_PLAY}</span>
+      <div class="mp3-track"><div class="mp3-fill"></div></div>
+      <span class="mp3-time" id="mp3-time">${count} 条</span>
+    </div>
+    <div class="music-count">已共鸣 <b>${count}</b> 条消息</div>
+  `;
+}
+
+function renderPill() {
+  const titleEl = document.getElementById('chat-title');
+  const subEl = document.getElementById('chat-subtitle');
+  const avEl = document.getElementById('chat-header-avatar');
+  const c = state.character;
+  if (titleEl) titleEl.textContent = (c && c.name) || '（角色已删除）';
+  if (subEl && !subEl.classList.contains('thinking')) {
+    const s = c && (c.status || c.signature);
+    subEl.textContent = s || '';
+  }
+  if (avEl) avEl.innerHTML = avatarHTML(c && c.avatar, c && c.name, 30);
+}
+
+function updateMessageCount() {
+  const countEl = document.querySelector('.music-count b');
+  const timeEl = document.getElementById('mp3-time');
+  if (!countEl && !timeEl) return;
+  const count = state.messages.filter(m => m.type !== 'system' && m.type !== 'sync').length;
+  if (countEl) countEl.textContent = String(count);
+  if (timeEl) timeEl.textContent = `${count} 条`;
+}
+
+function togglePanel(force) {
+  const willOpen = typeof force === 'boolean' ? force : !state.panelExpanded;
+  state.panelExpanded = willOpen;
+  const panel = document.getElementById('chat-panel');
+  const pill = document.querySelector('.chat-pill');
+  if (panel) panel.dataset.expanded = String(willOpen);
+  if (pill) pill.classList.toggle('open', willOpen);
+  haptic(willOpen ? 12 : 6);
+}
+
+function switchTab(tab) {
+  if (tab !== 'status' && tab !== 'music') return;
+  state.panelTab = tab;
+  const panel = document.getElementById('chat-panel');
+  if (!panel) return;
+  panel.dataset.tab = tab;
+  panel.querySelectorAll('.panel-tab').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  panel.querySelectorAll('.panel-view').forEach(v => {
+    v.classList.toggle('active', v.dataset.view === tab);
+  });
+  haptic(6);
+}
+
+function updateStatusSwipe() {
+  const track = document.getElementById('status-track');
+  if (!track) return;
+  track.style.transform = `translateX(-${state.statusCardIndex * 50}%)`;
+  document.querySelectorAll('.status-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === state.statusCardIndex);
+  });
+}
+
+function bindStatusSwipe() {
+  const track = document.getElementById('status-track');
+  if (!track) return;
+  let startX = 0, startY = 0, dx = 0, dragging = false, decided = false, ignoring = false;
+
+  const onStart = (e) => {
+    if (e.target.closest('input, textarea, button, [contenteditable]')) { ignoring = true; return; }
+    ignoring = false;
+    const p = e.touches ? e.touches[0] : e;
+    startX = p.clientX; startY = p.clientY; dx = 0;
+    dragging = true; decided = false;
+    track.style.transition = 'none';
+  };
+  const onMove = (e) => {
+    if (ignoring || !dragging) return;
+    const p = e.touches ? e.touches[0] : e;
+    const cx = p.clientX - startX;
+    const cy = p.clientY - startY;
+    if (!decided) {
+      if (Math.abs(cx) < 6 && Math.abs(cy) < 6) return;
+      if (Math.abs(cy) > Math.abs(cx)) { dragging = false; track.style.transition = ''; return; }
+      decided = true;
+    }
+    dx = cx;
+    const base = -state.statusCardIndex * 50;
+    track.style.transform = `translateX(calc(${base}% + ${dx}px))`;
+  };
+  const onEnd = () => {
+    if (!dragging) { ignoring = false; return; }
+    dragging = false;
+    track.style.transition = '';
+    if (decided) {
+      const w = track.offsetWidth / 2;
+      const threshold = w * 0.22;
+      if (dx < -threshold && state.statusCardIndex === 0) state.statusCardIndex = 1;
+      else if (dx > threshold && state.statusCardIndex === 1) state.statusCardIndex = 0;
+    }
+    updateStatusSwipe();
+  };
+  track.addEventListener('touchstart', onStart, { passive: true });
+  track.addEventListener('touchmove', onMove, { passive: true });
+  track.addEventListener('touchend', onEnd);
+  track.addEventListener('touchcancel', onEnd);
+}
+
+async function saveUserField(field, value) {
+  if (!state.user || !state.user.id) return;
+  const val = (value || '').trim();
+  const patch = { [field]: val };
+  await db.user.update(state.user.id, patch);
+  Object.assign(state.user, patch);
+  // 若改了名，pill 里的标题也没变（那是角色名），不用刷。
+  // 消息气泡里 user 头像 alt 可能引用 name，但仅回退字符，不刷新已渲染的旧气泡。
+}
+
+async function saveMusicField(field, value) {
+  const val = (value || '').trim();
+  const current = (state.conv && state.conv.musicBar) || { ...DEFAULT_MUSIC };
+  const next = { ...current, [field]: val };
+  await db.conversations.update(state.convId, { musicBar: next });
+  if (state.conv) state.conv.musicBar = next;
+}
+
+function bindPanelEvents() {
+  const panel = document.getElementById('chat-panel');
+  if (!panel) return;
+
+  // ghost input：change 时提交
+  panel.addEventListener('change', async (e) => {
+    const input = e.target.closest('.ghost-input');
+    if (!input) return;
+    const target = input.dataset.target;
+    const field = input.dataset.field;
+    if (target === 'user') await saveUserField(field, input.value);
+    else if (target === 'music') await saveMusicField(field, input.value);
+  });
+  panel.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const input = e.target.closest('.ghost-input');
+      if (input) { e.preventDefault(); input.blur(); }
+    }
+  });
+
+  // tab 切换
+  panel.querySelectorAll('.panel-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // dots 切换
+  panel.querySelectorAll('.status-dot').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.statusCardIndex = Number(btn.dataset.dot) || 0;
+      updateStatusSwipe();
+      haptic(6);
+    });
+  });
+
+  // 卡片背景按钮
+  panel.addEventListener('click', (e) => {
+    const bgBtn = e.target.closest('[data-card-bg]');
+    if (bgBtn) {
+      e.stopPropagation();
+      openCardBgSheet(bgBtn.getAttribute('data-card-bg'));
+    }
+  });
+
+  bindStatusSwipe();
+}
+
+function fileToCardBgDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read fail'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('img fail'));
+      img.onload = () => {
+        const maxW = 900;
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        try { resolve(canvas.toDataURL('image/jpeg', 0.82)); }
+        catch (err) { reject(err); }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function openCardBgSheet(which) {
+  const key = which === 'char' ? 'charCardBg' : 'userCardBg';
+  const cur = state.conv && state.conv[key];
+  const isImg = cur && cur !== 'transparent';
+  const currentURL = isImg && !String(cur).startsWith('data:') ? cur : '';
+
+  const { close } = openSheet({
+    title: `${which === 'char' ? '角色卡' : 'User 卡'} 背景`,
+    body: `
+      <div class="sheet-list">
+        <div class="sheet-list-item ${!cur ? 'selected' : ''}" data-bg-opt="default">
+          <div class="sheet-list-body"><div class="sheet-list-title">默认（主题色）</div></div>
+          <div class="sheet-list-check">${!cur ? '<span style="font-size:11px;">已选</span>' : ''}</div>
+        </div>
+        <div class="sheet-list-item ${cur === 'transparent' ? 'selected' : ''}" data-bg-opt="transparent">
+          <div class="sheet-list-body">
+            <div class="sheet-list-title">透明玻璃</div>
+            <div class="sheet-list-sub">透出聊天壁纸</div>
+          </div>
+          <div class="sheet-list-check">${cur === 'transparent' ? '<span style="font-size:11px;">已选</span>' : ''}</div>
+        </div>
+      </div>
+      <div class="field" style="margin-top:16px;">
+        <div class="field-label">图片 URL</div>
+        <input id="card-bg-url" class="input" type="text" placeholder="https://..." value="${escapeAttr(currentURL)}">
+      </div>
+      <div class="field">
+        <div class="field-label">或上传本地图片</div>
+        <input id="card-bg-file" type="file" accept="image/*" style="font-size:13px; color: var(--color-text-secondary);">
+        <div class="field-hint">会自动压缩到最大宽 900</div>
+      </div>
+      <div class="sheet-actions">
+        <button class="btn btn-secondary" data-act="cancel">取消</button>
+        <button class="btn btn-primary" data-act="save-img">应用图片</button>
+      </div>
+    `,
+  });
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  root.addEventListener('click', async (e) => {
+    const opt = e.target.closest('[data-bg-opt]');
+    if (opt) {
+      const v = opt.getAttribute('data-bg-opt');
+      const nextVal = v === 'default' ? null : v;
+      await updateConv({ [key]: nextVal });
+      if (which === 'char') renderCharCard(); else renderUserCard();
+      close();
+      toast('已应用');
+      return;
+    }
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    const act = btn.getAttribute('data-act');
+    if (act === 'cancel') { close(); return; }
+    if (act === 'save-img') {
+      const url = root.querySelector('#card-bg-url').value.trim();
+      const fileInput = root.querySelector('#card-bg-file');
+      const file = fileInput && fileInput.files && fileInput.files[0];
+      let val = null;
+      btn.disabled = true;
+      if (file) {
+        try { val = await fileToCardBgDataURL(file); }
+        catch (err) { toast('图片读取失败'); btn.disabled = false; return; }
+      } else if (url) {
+        val = url;
+      }
+      if (!val) { toast('请输入 URL 或选择文件'); btn.disabled = false; return; }
+      await updateConv({ [key]: val });
+      if (which === 'char') renderCharCard(); else renderUserCard();
+      close();
+      toast('已应用');
+    }
+  });
+}
+
+/* ---------- 更多菜单 & 其他 sheet ---------- */
 async function openChatMenu() {
   const kaOn = await keepAlive.loadEnabled();
   const kaLive = keepAlive.isRunning();
@@ -752,15 +1155,11 @@ async function openChatMenu() {
       close();
       if (state.character) navigate(`/characters?edit=${state.character.id}`);
       else toast('未绑定角色');
-    } else if (act === 'bubble-style') {
-      close(); await sleep(280); openBubbleStyleSheet();
-    } else if (act === 'wallpaper') {
-      close(); await sleep(280); openWallpaperSheet();
-    } else if (act === 'typing-hint') {
-      close(); await sleep(280); openTypingHintSheet();
-    } else if (act === 'sound') {
-      close(); await sleep(280); openSoundSheet();
-    } else if (act === 'clear') {
+    } else if (act === 'bubble-style') { close(); await sleep(280); openBubbleStyleSheet(); }
+    else if (act === 'wallpaper') { close(); await sleep(280); openWallpaperSheet(); }
+    else if (act === 'typing-hint') { close(); await sleep(280); openTypingHintSheet(); }
+    else if (act === 'sound') { close(); await sleep(280); openSoundSheet(); }
+    else if (act === 'clear') {
       close();
       const ok = await confirmSheet('清空所有消息？', { danger: true, okText: '清空' });
       if (ok) {
@@ -769,6 +1168,7 @@ async function openChatMenu() {
         if (state.pendingQuoteId) await clearPendingQuote();
         renderMessages();
         renderQuoteBar();
+        renderMusicCard();
         await db.conversations.update(state.convId, { lastMessage: '', lastMessageTime: Date.now() });
         toast('已清空');
       }
@@ -818,13 +1218,8 @@ async function openBubbleStyleSheet() {
     const item = e.target.closest('.sheet-list-item');
     if (!item) return;
     const preset = item.getAttribute('data-preset');
-    if (preset === 'custom') {
-      close(); await sleep(280); openCustomCSSSheet();
-    } else {
-      await updateConv({ bubbleStyle: preset });
-      close();
-      toast('已应用');
-    }
+    if (preset === 'custom') { close(); await sleep(280); openCustomCSSSheet(); }
+    else { await updateConv({ bubbleStyle: preset }); close(); toast('已应用'); }
   });
 }
 
@@ -838,7 +1233,7 @@ function openCustomCSSSheet() {
         <code>.msg-bubble</code> 所有气泡<br>
         <code>.msg-row.msg-user .msg-bubble</code> 用户气泡<br>
         <code>.msg-row.msg-char .msg-bubble</code> 角色气泡<br>
-        <code>.msg-body</code> 气泡正文（换行文本）<br>
+        <code>.msg-body</code> 气泡正文<br>
         <code>.quote-card</code> 气泡内引用卡<br>
         <code>.msg-time-sep</code> 时间分隔
       </div>
@@ -872,7 +1267,6 @@ function fileToDataURL(file) {
     reader.readAsDataURL(file);
   });
 }
-
 function fileToWallpaperDataURL(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -930,11 +1324,8 @@ function openWallpaperSheet() {
     if (!btn) return;
     const act = btn.getAttribute('data-act');
     if (act === 'cancel') close();
-    else if (act === 'remove') {
-      await updateConv({ wallpaper: null });
-      close();
-      toast('已移除壁纸');
-    } else if (act === 'save') {
+    else if (act === 'remove') { await updateConv({ wallpaper: null }); close(); toast('已移除壁纸'); }
+    else if (act === 'save') {
       const url = document.getElementById('wp-url').value.trim();
       const fileInput = document.getElementById('wp-file');
       const file = fileInput && fileInput.files && fileInput.files[0];
@@ -943,9 +1334,7 @@ function openWallpaperSheet() {
       if (file) {
         try { val = await fileToWallpaperDataURL(file); }
         catch (err) { toast('图片读取失败'); btn.disabled = false; return; }
-      } else if (url) {
-        val = url;
-      }
+      } else if (url) { val = url; }
       if (!val) { toast('请输入 URL 或选择文件'); btn.disabled = false; return; }
       await updateConv({ wallpaper: val });
       close();
@@ -995,7 +1384,6 @@ async function openSoundSheet() {
         ? '当前已保存本地音频'
         : '当前 URL: ' + escapeHtml(gCfg.customUrl.slice(0, 40)) + (gCfg.customUrl.length > 40 ? '...' : ''))
     : '未设置';
-
   const convOpts = ['inherit', 'silent', 'bell', 'chime', 'custom'];
 
   const { close } = openSheet({
@@ -1063,18 +1451,12 @@ async function openSoundSheet() {
   });
 
   const root = document.querySelector('.sheet-backdrop:last-of-type');
-
   const mutedInput = root.querySelector('#snd-muted');
-  mutedInput.addEventListener('change', async () => {
-    await sound.saveConfig({ muted: mutedInput.checked });
-  });
-
+  mutedInput.addEventListener('change', async () => { await sound.saveConfig({ muted: mutedInput.checked }); });
   const volInput = root.querySelector('#snd-volume');
   const volVal = root.querySelector('#snd-vol-val');
   volInput.addEventListener('input', () => { volVal.textContent = volInput.value; });
-  volInput.addEventListener('change', async () => {
-    await sound.saveConfig({ volume: Number(volInput.value) / 100 });
-  });
+  volInput.addEventListener('change', async () => { await sound.saveConfig({ volume: Number(volInput.value) / 100 }); });
 
   root.addEventListener('click', async (e) => {
     const prevBtn = e.target.closest('[data-preview]');
@@ -1092,7 +1474,6 @@ async function openSoundSheet() {
       }
       return;
     }
-
     const saveCustomBtn = e.target.closest('[data-act=save-custom]');
     if (saveCustomBtn) {
       const url = root.querySelector('#snd-url').value.trim();
@@ -1103,17 +1484,13 @@ async function openSoundSheet() {
       if (file) {
         try { val = await fileToDataURL(file); }
         catch (err) { toast('读取失败'); saveCustomBtn.disabled = false; return; }
-      } else if (url) {
-        val = url;
-      } else {
-        toast('请填 URL 或选择文件'); saveCustomBtn.disabled = false; return;
-      }
+      } else if (url) { val = url; }
+      else { toast('请填 URL 或选择文件'); saveCustomBtn.disabled = false; return; }
       await sound.saveConfig({ customUrl: val });
       toast('已保存');
       close(); await sleep(280); openSoundSheet();
       return;
     }
-
     const clearBtn = e.target.closest('[data-act=clear-custom]');
     if (clearBtn) {
       await sound.saveConfig({ customUrl: null });
@@ -1121,7 +1498,6 @@ async function openSoundSheet() {
       close(); await sleep(280); openSoundSheet();
       return;
     }
-
     const saveConvUrlBtn = e.target.closest('[data-act=save-conv-url]');
     if (saveConvUrlBtn) {
       const url = root.querySelector('#snd-conv-url').value.trim();
@@ -1129,7 +1505,6 @@ async function openSoundSheet() {
       toast('已保存');
       return;
     }
-
     if (e.target.closest('button')) return;
 
     const builtinItem = e.target.closest('[data-builtin]');
@@ -1139,7 +1514,6 @@ async function openSoundSheet() {
       close(); await sleep(280); openSoundSheet();
       return;
     }
-
     const convOptItem = e.target.closest('[data-conv-opt]');
     if (convOptItem) {
       const k = convOptItem.getAttribute('data-conv-opt');
@@ -1150,6 +1524,10 @@ async function openSoundSheet() {
   });
 }
 
+/* ============================================================
+   render / destroy
+   ============================================================ */
+
 export async function render(root, params = {}) {
   state = {
     convId: Number(params.id),
@@ -1158,6 +1536,7 @@ export async function render(root, params = {}) {
     replyTimer: null, thinkingTimer: null, thinkingRotate: null,
     onVisibility: null, onViewport: null,
     pendingQuoteId: null,
+    panelExpanded: false, panelTab: 'status', statusCardIndex: 0,
   };
   if (!state.convId) { navigate('/cards'); return; }
 
@@ -1165,17 +1544,20 @@ export async function render(root, params = {}) {
     <div class="page chat-page" data-bubble-preset="preset-1">
       <div class="chat-wallpaper"></div>
 
-      <header class="chat-header">
+      <div class="chat-topbar">
         <button class="chat-nav-btn" data-act="back" aria-label="返回">${ICON.back}</button>
-        <div class="chat-header-center">
-          <div class="chat-header-avatar" id="chat-header-avatar"></div>
-          <div class="chat-header-text">
-            <div class="chat-title" id="chat-title">加载中</div>
-            <div class="chat-subtitle" id="chat-subtitle"></div>
-          </div>
-        </div>
+        <button class="chat-pill" data-act="toggle-panel" type="button">
+          <span class="pill-avatar" id="chat-header-avatar"></span>
+          <span class="pill-text">
+            <span class="chat-title" id="chat-title">加载中</span>
+            <span class="chat-subtitle" id="chat-subtitle"></span>
+          </span>
+          <span class="pill-chev">${SVG_CHEV}</span>
+        </button>
         <button class="chat-nav-btn" data-act="menu" aria-label="更多">${ICON.more}</button>
-      </header>
+      </div>
+
+      ${panelHTML()}
 
       <div class="msg-scroll" id="msg-scroll"></div>
 
@@ -1206,65 +1588,479 @@ export async function render(root, params = {}) {
           background: var(--color-bg-primary);
           opacity: 0.5;
         }
-        .chat-header {
+
+        /* ---------- 浮动顶栏 ---------- */
+        .chat-topbar {
           position: relative;
-          z-index: 10;
-          display: flex; align-items: center;
-          padding: 12px 8px 8px;
-          padding-top: calc(env(safe-area-inset-top) + 10px);
-          gap: 4px;
+          z-index: 11;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: calc(env(safe-area-inset-top) + 10px) 10px 8px;
           background: transparent;
         }
-        .chat-header::after {
-          content: '';
-          position: absolute; left: 20%; right: 20%; bottom: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, var(--color-border), transparent);
-          opacity: 0.5;
-        }
         .chat-nav-btn {
-          width: 36px; height: 36px;
+          width: 40px; height: 40px;
           border-radius: 50%;
           display: inline-flex; align-items: center; justify-content: center;
           color: var(--color-text-secondary);
-          background: transparent;
+          background: color-mix(in srgb, var(--color-bg-secondary) 55%, transparent);
+          border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+          backdrop-filter: blur(14px) saturate(1.15);
+          -webkit-backdrop-filter: blur(14px) saturate(1.15);
+          flex-shrink: 0;
           transition: transform 0.15s, background 0.2s, color 0.2s;
         }
         .chat-nav-btn:active {
-          transform: scale(0.88);
-          background: var(--color-bg-secondary);
+          transform: scale(0.9);
+          background: var(--color-bg-tertiary);
           color: var(--color-text-primary);
         }
-        .chat-header-center {
+        .chat-pill {
           flex: 1;
-          display: flex; align-items: center; justify-content: center;
-          gap: 10px; min-width: 0;
-        }
-        .chat-header-avatar .avatar { width: 34px; height: 34px; font-size: 13px; }
-        .chat-header-text {
-          display: flex; flex-direction: column;
-          align-items: flex-start;
-          min-width: 0; max-width: 62%;
-        }
-        .chat-title {
-          font-size: 14px;
-          letter-spacing: 2px;
+          min-width: 0;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 5px 14px 5px 5px;
+          border-radius: 999px;
+          background: color-mix(in srgb, var(--color-bg-secondary) 55%, transparent);
+          border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+          backdrop-filter: blur(14px) saturate(1.15);
+          -webkit-backdrop-filter: blur(14px) saturate(1.15);
           color: var(--color-text-primary);
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          transition: transform 0.15s, background 0.2s;
         }
-        .chat-subtitle {
+        .chat-pill:active { transform: scale(0.98); }
+        .chat-pill .pill-avatar { flex-shrink: 0; display: inline-flex; }
+        .chat-pill .pill-avatar .avatar {
+          width: 30px; height: 30px; font-size: 12px;
+        }
+        .chat-pill .pill-text {
+          flex: 1; min-width: 0;
+          display: flex; flex-direction: column;
+          align-items: flex-start; gap: 1px;
+        }
+        .chat-pill .chat-title {
+          font-size: 13px;
+          letter-spacing: 2px;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          max-width: 100%;
+        }
+        .chat-pill .chat-subtitle {
           font-size: 10px;
           color: var(--color-text-tertiary);
           letter-spacing: 1px;
-          margin-top: 2px;
           white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
           max-width: 100%;
           transition: color 0.4s;
         }
-        .chat-subtitle.thinking {
-          color: var(--color-text-secondary);
+        .chat-pill .chat-subtitle:empty { display: none; }
+        .chat-pill .chat-subtitle.thinking {
+          color: var(--color-accent);
           animation: breath 2.4s ease-in-out infinite;
         }
+        .chat-pill .pill-chev {
+          display: inline-flex;
+          color: var(--color-text-tertiary);
+          transition: transform 0.32s cubic-bezier(.2,.7,.2,1), color 0.2s;
+          flex-shrink: 0;
+        }
+        .chat-pill.open .pill-chev {
+          transform: rotate(180deg);
+          color: var(--color-accent);
+        }
+
+        /* ---------- 折叠面板 ---------- */
+        .chat-panel {
+          position: relative;
+          z-index: 9;
+          max-height: 0;
+          overflow: hidden;
+          padding: 0 12px;
+          transition: max-height 0.4s cubic-bezier(.2,.7,.2,1);
+        }
+        .chat-panel[data-expanded="true"] {
+          max-height: 520px;
+        }
+        .chat-panel-inner {
+          padding-top: 6px;
+        }
+        .chat-panel-tabs {
+          position: relative;
+          display: flex;
+          margin: 4px 0 12px;
+          border-bottom: 1px solid var(--color-border);
+        }
+        .panel-tab {
+          flex: 1;
+          padding: 8px 0;
+          background: transparent;
+          color: var(--color-text-tertiary);
+          font-size: 12px;
+          letter-spacing: 4px;
+          transition: color 0.2s;
+        }
+        .panel-tab.active { color: var(--color-text-primary); }
+        .panel-tab-indicator {
+          position: absolute;
+          bottom: -1px;
+          left: 0;
+          width: 50%;
+          height: 2px;
+          background: var(--color-accent);
+          transition: transform 0.32s cubic-bezier(.2,.7,.2,1);
+        }
+        .chat-panel[data-tab="music"] .panel-tab-indicator { transform: translateX(100%); }
+        .panel-view { display: none; }
+        .panel-view.active { display: block; animation: fadeIn 0.32s ease; }
+
+        /* ---------- 状态卡片 ---------- */
+        .status-track-wrap {
+          overflow: hidden;
+          border-radius: 16px;
+        }
+        .status-track {
+          display: flex;
+          width: 200%;
+          transition: transform 0.34s cubic-bezier(.2,.7,.2,1);
+          touch-action: pan-y;
+          will-change: transform;
+        }
+        .status-card-slot {
+          width: 50%;
+          flex-shrink: 0;
+          box-sizing: border-box;
+        }
+        .status-card {
+          padding: 16px 18px 26px;
+          margin: 0 4px;
+          border-radius: 16px;
+          background: var(--color-bg-secondary);
+          border: 1px solid var(--color-border);
+          position: relative;
+          overflow: hidden;
+          background-size: cover;
+          background-position: center;
+          min-height: 200px;
+          box-shadow: 0 4px 14px var(--color-shadow);
+        }
+        .status-card.card-image::before {
+          content: '';
+          position: absolute; inset: 0;
+          background: color-mix(in srgb, var(--color-bg-primary) 62%, transparent);
+          z-index: 0;
+        }
+        .status-card.card-glass {
+          background: color-mix(in srgb, var(--color-bg-secondary) 35%, transparent) !important;
+          backdrop-filter: blur(24px) saturate(1.3);
+          -webkit-backdrop-filter: blur(24px) saturate(1.3);
+          border-color: color-mix(in srgb, var(--color-border) 55%, transparent);
+        }
+        .status-card > * { position: relative; z-index: 1; }
+        .card-empty {
+          padding: 30px 10px;
+          text-align: center;
+          font-size: 12px;
+          letter-spacing: 3px;
+          color: var(--color-text-tertiary);
+        }
+        .card-bg-btn {
+          position: absolute;
+          top: 10px; right: 10px;
+          z-index: 3;
+          width: 28px; height: 28px;
+          border-radius: 50%;
+          display: inline-flex; align-items: center; justify-content: center;
+          background: color-mix(in srgb, var(--color-bg-primary) 45%, transparent);
+          color: var(--color-text-secondary);
+          border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+          transition: background 0.2s, color 0.2s, transform 0.15s;
+        }
+        .card-bg-btn:active {
+          transform: scale(0.9);
+          background: var(--color-bg-tertiary);
+          color: var(--color-text-primary);
+        }
+        .card-header {
+          display: flex; align-items: center; gap: 14px;
+          margin-bottom: 10px;
+        }
+        .card-avatar-lg .avatar {
+          width: 58px; height: 58px; font-size: 20px;
+          border-radius: 12px;
+          box-shadow: 0 2px 6px var(--color-shadow);
+        }
+        .card-header-info { flex: 1; min-width: 0; }
+        .card-name {
+          font-size: 16px;
+          letter-spacing: 2px;
+          color: var(--color-text-primary);
+          margin-bottom: 4px;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        input.ghost-input.card-name {
+          font-size: 16px;
+          letter-spacing: 2px;
+          margin-bottom: 4px;
+          padding: 2px 6px;
+        }
+        .card-role {
+          font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+          font-size: 10px;
+          letter-spacing: 3px;
+          color: var(--color-text-tertiary);
+          text-transform: uppercase;
+        }
+        .card-divider {
+          height: 1px;
+          background: linear-gradient(90deg, transparent, var(--color-border), transparent);
+          margin: 6px 0 10px;
+        }
+        .card-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 4px;
+          min-height: 28px;
+        }
+        .card-row-label {
+          font-size: 11px;
+          letter-spacing: 3px;
+          color: var(--color-text-tertiary);
+          min-width: 34px;
+          flex-shrink: 0;
+        }
+        .card-row-val {
+          font-size: 13px;
+          color: var(--color-text-primary);
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        input.ghost-input.card-row-val {
+          font-size: 13px;
+        }
+        .card-serial {
+          position: absolute;
+          bottom: 8px; right: 14px;
+          font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+          font-size: 10px;
+          letter-spacing: 2px;
+          color: var(--color-text-tertiary);
+          opacity: 0.55;
+          z-index: 2;
+        }
+
+        /* ghost-input 通用 */
+        .ghost-input {
+          background: transparent;
+          border: 1px solid transparent;
+          outline: none;
+          color: inherit;
+          font: inherit;
+          padding: 2px 6px;
+          border-radius: 6px;
+          width: 100%;
+          transition: background 0.15s, border-color 0.15s;
+          box-sizing: border-box;
+        }
+        .ghost-input:hover {
+          background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+        }
+        .ghost-input:focus {
+          background: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+          border-color: color-mix(in srgb, var(--color-accent) 40%, transparent);
+        }
+        .ghost-input::placeholder {
+          color: var(--color-text-tertiary);
+          opacity: 0.6;
+        }
+
+        .status-dots {
+          display: flex;
+          justify-content: center;
+          gap: 6px;
+          margin: 12px 0 4px;
+        }
+        .status-dot {
+          width: 6px; height: 6px;
+          border-radius: 3px;
+          background: var(--color-text-tertiary);
+          opacity: 0.35;
+          padding: 0;
+          transition: opacity 0.25s, background 0.25s, width 0.25s;
+        }
+        .status-dot.active {
+          background: var(--color-accent);
+          opacity: 1;
+          width: 18px;
+        }
+
+        /* ---------- 音乐共听 ---------- */
+        .music-card {
+          padding: 18px 16px 16px;
+          border-radius: 16px;
+          background: var(--color-bg-secondary);
+          border: 1px solid var(--color-border);
+          margin: 0 4px 6px;
+          position: relative;
+          overflow: hidden;
+          box-shadow: 0 4px 14px var(--color-shadow);
+        }
+        .music-card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--color-accent) 9%, transparent), transparent 55%),
+            radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--color-accent) 7%, transparent), transparent 55%);
+          z-index: 0;
+          animation: musicAura 7s ease-in-out infinite;
+          pointer-events: none;
+        }
+        @keyframes musicAura {
+          0%, 100% { opacity: 0.75; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        .music-card > * { position: relative; z-index: 1; }
+        .music-header {
+          display: flex; align-items: center; gap: 8px;
+          margin-bottom: 14px;
+        }
+        .music-icon {
+          width: 22px; height: 22px;
+          display: inline-flex; align-items: center; justify-content: center;
+          color: var(--color-accent);
+        }
+        .music-title {
+          font-size: 12px;
+          letter-spacing: 4px;
+          color: var(--color-text-secondary);
+        }
+        .music-avatars {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          justify-content: center;
+          margin-bottom: 14px;
+        }
+        .music-avatar { display: inline-flex; flex-shrink: 0; }
+        .music-avatar .avatar {
+          width: 44px; height: 44px;
+          box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
+          animation: musicPulse 2.6s ease-in-out infinite;
+        }
+        .music-avatar-right .avatar { animation-delay: 1.3s; }
+        @keyframes musicPulse {
+          0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent); }
+          50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 10%, transparent); }
+        }
+        .music-link {
+          position: relative;
+          flex: 1;
+          height: 26px;
+          display: flex; align-items: center;
+          max-width: 140px;
+          overflow: hidden;
+        }
+        .music-link-line {
+          flex: 1;
+          height: 1px;
+          background: linear-gradient(90deg,
+            transparent,
+            color-mix(in srgb, var(--color-accent) 65%, transparent),
+            transparent);
+          opacity: 0.75;
+        }
+        .music-link-note {
+          position: absolute;
+          top: 50%;
+          left: 0;
+          color: var(--color-accent);
+          animation: noteFly 3.8s cubic-bezier(.5,.05,.5,.95) infinite;
+          display: inline-flex;
+        }
+        @keyframes noteFly {
+          0% { left: 0%; transform: translate(-50%, -50%) rotate(-8deg) scale(0.85); opacity: 0; }
+          15% { opacity: 1; }
+          50% { transform: translate(-50%, -140%) rotate(4deg) scale(1.05); }
+          85% { opacity: 1; }
+          100% { left: 100%; transform: translate(-50%, -50%) rotate(8deg) scale(0.85); opacity: 0; }
+        }
+        input.ghost-input.music-distance {
+          font-size: 13px;
+          letter-spacing: 3px;
+          color: var(--color-text-primary);
+          text-align: center;
+          margin-bottom: 4px;
+        }
+        input.ghost-input.music-signature {
+          font-size: 12px;
+          color: var(--color-text-secondary);
+          font-style: italic;
+          text-align: center;
+          letter-spacing: 1px;
+          margin-bottom: 4px;
+        }
+        .mp3-bar {
+          display: flex; align-items: center; gap: 10px;
+          margin-top: 14px;
+          padding: 8px 14px;
+          background: color-mix(in srgb, var(--color-bg-primary) 60%, transparent);
+          border-radius: 999px;
+          border: 1px solid var(--color-border);
+        }
+        .mp3-play {
+          color: var(--color-accent);
+          display: inline-flex; align-items: center;
+        }
+        .mp3-track {
+          flex: 1;
+          height: 3px;
+          background: var(--color-bg-tertiary);
+          border-radius: 2px;
+          overflow: hidden;
+          position: relative;
+        }
+        .mp3-fill {
+          position: absolute;
+          top: 0; left: 0; bottom: 0;
+          width: 30%;
+          background: linear-gradient(90deg,
+            var(--color-accent),
+            color-mix(in srgb, var(--color-accent) 40%, transparent));
+          border-radius: 2px;
+          animation: mp3Progress 14s linear infinite;
+        }
+        @keyframes mp3Progress {
+          0% { width: 5%; }
+          100% { width: 100%; }
+        }
+        .mp3-time {
+          font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+          font-size: 11px;
+          color: var(--color-text-tertiary);
+          min-width: 40px;
+          text-align: right;
+          letter-spacing: 0.5px;
+        }
+        .music-count {
+          text-align: center;
+          font-size: 11px;
+          letter-spacing: 3px;
+          color: var(--color-text-tertiary);
+          margin-top: 10px;
+        }
+        .music-count b {
+          color: var(--color-accent);
+          font-weight: 500;
+          margin: 0 4px;
+        }
+
+        /* ---------- 消息滚动区（补上顶部余白，避免第一条被顶栏挡） ---------- */
         .msg-scroll {
           position: relative;
           z-index: 1;
@@ -1305,10 +2101,7 @@ export async function render(root, params = {}) {
           border-top-left-radius: 18px;
           border-top-right-radius: 6px;
         }
-        .msg-body {
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
+        .msg-body { white-space: pre-wrap; word-break: break-word; }
         .msg-meta {
           font-size: 10px;
           color: var(--color-text-tertiary);
@@ -1348,7 +2141,6 @@ export async function render(root, params = {}) {
           to { transform: rotate(360deg); }
         }
 
-        /* 引用卡（气泡内） */
         .quote-card {
           padding: 6px 10px;
           margin-bottom: 6px;
@@ -1362,31 +2154,18 @@ export async function render(root, params = {}) {
           max-width: 100%;
           overflow: hidden;
         }
-        .quote-card:active {
-          background: color-mix(in srgb, currentColor 14%, transparent);
-        }
-        .quote-card.missing {
-          opacity: 0.55;
-          cursor: default;
-          font-style: italic;
-        }
+        .quote-card:active { background: color-mix(in srgb, currentColor 14%, transparent); }
+        .quote-card.missing { opacity: 0.55; cursor: default; font-style: italic; }
         .quote-card-author {
-          font-size: 10.5px;
-          opacity: 0.75;
-          letter-spacing: 0.5px;
+          font-size: 10.5px; opacity: 0.75; letter-spacing: 0.5px;
           margin-bottom: 2px;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .quote-card-content {
           opacity: 0.9;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
 
-        /* 引用条（输入框上方） */
         .quote-bar {
           position: absolute;
           left: 0; right: 0;
@@ -1405,51 +2184,27 @@ export async function render(root, params = {}) {
           from { opacity: 0; transform: translateY(6px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        .quote-bar-line {
-          width: 3px;
-          border-radius: 2px;
-          background: var(--color-accent);
-          flex-shrink: 0;
-        }
+        .quote-bar-line { width: 3px; border-radius: 2px; background: var(--color-accent); flex-shrink: 0; }
         .quote-bar-body {
-          flex: 1;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 3px;
-          justify-content: center;
+          flex: 1; min-width: 0;
+          display: flex; flex-direction: column; gap: 3px; justify-content: center;
         }
-        .quote-bar-author {
-          font-size: 11px;
-          color: var(--color-accent);
-          letter-spacing: 1px;
-        }
+        .quote-bar-author { font-size: 11px; color: var(--color-accent); letter-spacing: 1px; }
         .quote-bar-content {
-          font-size: 12px;
-          color: var(--color-text-secondary);
-          line-height: 1.4;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          font-size: 12px; color: var(--color-text-secondary); line-height: 1.4;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
         }
         .quote-bar-close {
-          width: 28px;
-          height: 28px;
+          width: 28px; height: 28px;
           align-self: center;
           border-radius: 50%;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
+          display: inline-flex; align-items: center; justify-content: center;
           color: var(--color-text-tertiary);
           flex-shrink: 0;
           transition: color 0.15s, background 0.15s;
         }
-        .quote-bar-close:active {
-          color: var(--color-text-primary);
-          background: var(--color-bg-tertiary);
-        }
+        .quote-bar-close:active { color: var(--color-text-primary); background: var(--color-bg-tertiary); }
 
-        /* 引用跳转高亮 */
         @keyframes msgHighlightPulse {
           0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 55%, transparent); }
           100% { box-shadow: 0 0 0 3px transparent; }
@@ -1459,12 +2214,7 @@ export async function render(root, params = {}) {
           border-radius: 18px;
         }
 
-        .typing-bubble {
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          padding: 12px 14px;
-        }
+        .typing-bubble { display: inline-flex; align-items: center; gap: 4px; padding: 12px 14px; }
         .typing-bubble .dot {
           width: 6px; height: 6px; border-radius: 50%;
           background: var(--color-text-tertiary);
@@ -1473,16 +2223,15 @@ export async function render(root, params = {}) {
         .typing-bubble .dot:nth-child(2) { animation-delay: 0.15s; }
         .typing-bubble .dot:nth-child(3) { animation-delay: 0.3s; }
         .typing-hint {
-          margin-left: 8px;
-          font-size: 12px;
+          margin-left: 8px; font-size: 12px;
           color: var(--color-text-secondary);
-          letter-spacing: 1px;
-          opacity: 0.85;
+          letter-spacing: 1px; opacity: 0.85;
         }
         @keyframes typingBounce {
           0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
           30% { transform: translateY(-4px); opacity: 1; }
         }
+
         .msg-shuffling { align-items: center; }
         .shuffle-stage {
           position: relative;
@@ -1510,6 +2259,7 @@ export async function render(root, params = {}) {
           45% { opacity: 0.95; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1); }
           100% { opacity: 0; transform: translate(calc(var(--tx) * 1.2), calc(var(--ty) - 12px)) rotate(var(--rot)) scale(0.85); }
         }
+
         .chat-input-dock {
           position: fixed;
           left: 12px; right: 12px;
@@ -1523,24 +2273,19 @@ export async function render(root, params = {}) {
           background: var(--color-bg-secondary);
           border: 1px solid var(--color-border);
           border-radius: 28px;
-          box-shadow:
-            0 4px 12px var(--color-shadow),
-            0 12px 40px var(--color-shadow);
+          box-shadow: 0 4px 12px var(--color-shadow), 0 12px 40px var(--color-shadow);
           backdrop-filter: blur(20px) saturate(1.2);
           -webkit-backdrop-filter: blur(20px) saturate(1.2);
           z-index: 40;
           animation: dockRise 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-          transition:
-            transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-            box-shadow 0.3s ease,
-            border-color 0.3s ease;
+          transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+                      box-shadow 0.3s ease, border-color 0.3s ease;
         }
         .chat-input-dock:focus-within {
           border-color: var(--color-accent);
-          box-shadow:
-            0 6px 16px var(--color-shadow),
-            0 18px 50px var(--color-shadow),
-            0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
+          box-shadow: 0 6px 16px var(--color-shadow),
+                      0 18px 50px var(--color-shadow),
+                      0 0 0 3px color-mix(in srgb, var(--color-accent) 18%, transparent);
         }
         @keyframes dockRise {
           from { opacity: 0; transform: translateY(24px); }
@@ -1551,25 +2296,6 @@ export async function render(root, params = {}) {
           0% { transform: scale(1); }
           40% { transform: scale(1.015); }
           100% { transform: scale(1); }
-        }
-        .chat-input-dock::before {
-          content: '';
-          position: absolute;
-          inset: -1px;
-          border-radius: inherit;
-          padding: 1px;
-          background: linear-gradient(135deg, transparent 30%, color-mix(in srgb, var(--color-accent) 30%, transparent) 50%, transparent 70%);
-          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-          -webkit-mask-composite: xor;
-          mask-composite: exclude;
-          opacity: 0;
-          transition: opacity 0.4s ease;
-          pointer-events: none;
-        }
-        .chat-input-dock:focus-within::before { opacity: 1; animation: dockShimmer 3s linear infinite; }
-        @keyframes dockShimmer {
-          0% { background-position: 0% 50%; }
-          100% { background-position: 200% 50%; }
         }
         .dock-input {
           flex: 1;
@@ -1590,9 +2316,8 @@ export async function render(root, params = {}) {
           display: inline-flex; align-items: center; justify-content: center;
           color: var(--color-text-secondary);
           background: transparent;
-          transition:
-            transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
-            background 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+          transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+                      background 0.25s ease, color 0.25s ease, opacity 0.25s ease;
         }
         .dock-btn:active { transform: scale(0.86); }
         .dock-btn:disabled { opacity: 0.32; }
@@ -1608,18 +2333,16 @@ export async function render(root, params = {}) {
           50% { transform: rotate(180deg) scale(1.18); color: var(--color-accent); }
           100% { transform: rotate(360deg) scale(1); }
         }
+
         .ka-toggle {
           font-size: 12px; letter-spacing: 2px;
           padding: 3px 10px; border-radius: 999px;
           background: var(--color-bg-tertiary);
           color: var(--color-text-tertiary);
         }
-        .ka-toggle.on {
-          background: var(--color-accent);
-          color: var(--color-bg-primary);
-        }
+        .ka-toggle.on { background: var(--color-accent); color: var(--color-bg-primary); }
 
-        /* 气泡样式预设 */
+        /* 气泡样式预设（沿用） */
         .chat-page[data-bubble-preset="preset-2"] .msg-bubble {
           border-radius: 4px;
           padding: 9px 13px;
@@ -1664,86 +2387,37 @@ export async function render(root, params = {}) {
           border-top-right-radius: 4px;
         }
 
-        /* 提示音 sheet 内元素 */
-        .sound-row {
-          display: flex; align-items: center; gap: 12px;
-          padding: 10px 4px;
-        }
-        .sound-label {
-          font-size: 13px;
-          color: var(--color-text-primary);
-          letter-spacing: 1px;
-          min-width: 40px;
-        }
-        .sound-val {
-          font-size: 12px;
-          color: var(--color-text-tertiary);
-          min-width: 30px;
-          text-align: right;
-        }
-        .sound-section-title {
-          font-size: 11px;
-          letter-spacing: 3px;
-          color: var(--color-text-secondary);
-          margin: 18px 4px 8px;
-        }
-        .mini-switch {
-          position: relative;
-          width: 42px; height: 22px;
-          display: inline-block;
-          margin-left: auto;
-        }
+        /* sound sheet 元素（沿用） */
+        .sound-row { display: flex; align-items: center; gap: 12px; padding: 10px 4px; }
+        .sound-label { font-size: 13px; color: var(--color-text-primary); letter-spacing: 1px; min-width: 40px; }
+        .sound-val { font-size: 12px; color: var(--color-text-tertiary); min-width: 30px; text-align: right; }
+        .sound-section-title { font-size: 11px; letter-spacing: 3px; color: var(--color-text-secondary); margin: 18px 4px 8px; }
+        .mini-switch { position: relative; width: 42px; height: 22px; display: inline-block; margin-left: auto; }
         .mini-switch input { opacity: 0; width: 0; height: 0; }
-        .mini-switch span {
-          position: absolute; inset: 0;
-          background: var(--color-bg-tertiary);
-          border-radius: 22px;
-          transition: background 0.2s;
-          cursor: pointer;
-        }
+        .mini-switch span { position: absolute; inset: 0; background: var(--color-bg-tertiary); border-radius: 22px; transition: background 0.2s; cursor: pointer; }
         .mini-switch span::before {
-          content: '';
-          position: absolute;
-          width: 16px; height: 16px;
+          content: ''; position: absolute; width: 16px; height: 16px;
           left: 3px; top: 3px;
-          background: var(--color-text-secondary);
-          border-radius: 50%;
+          background: var(--color-text-secondary); border-radius: 50%;
           transition: transform 0.2s, background 0.2s;
         }
         .mini-switch input:checked + span { background: var(--color-accent); }
-        .mini-switch input:checked + span::before {
-          transform: translateX(20px);
-          background: var(--color-bg-primary);
-        }
-        .btn-mini {
-          min-height: 30px;
-          padding: 4px 12px;
-          font-size: 12px;
-          letter-spacing: 1px;
-        }
+        .mini-switch input:checked + span::before { transform: translateX(20px); background: var(--color-bg-primary); }
+        .btn-mini { min-height: 30px; padding: 4px 12px; font-size: 12px; letter-spacing: 1px; }
         input[type="range"] {
-          -webkit-appearance: none;
-          appearance: none;
+          -webkit-appearance: none; appearance: none;
           height: 4px;
           background: var(--color-bg-tertiary);
-          border-radius: 2px;
-          outline: none;
+          border-radius: 2px; outline: none;
         }
         input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
+          -webkit-appearance: none; appearance: none;
           width: 16px; height: 16px;
-          border-radius: 50%;
-          background: var(--color-accent);
-          cursor: pointer;
-          border: none;
+          border-radius: 50%; background: var(--color-accent); cursor: pointer; border: none;
         }
         input[type="range"]::-moz-range-thumb {
           width: 16px; height: 16px;
-          border-radius: 50%;
-          background: var(--color-accent);
-          cursor: pointer;
-          border: none;
+          border-radius: 50%; background: var(--color-accent); cursor: pointer; border: none;
         }
       </style>
       <style id="chat-user-css"></style>
@@ -1765,18 +2439,24 @@ export async function render(root, params = {}) {
 
   sound.loadConfig().catch(() => {});
 
-  document.getElementById('chat-title').textContent = (state.character && state.character.name) || '（角色已删除）';
-  const sig = state.character && state.character.signature;
-  document.getElementById('chat-subtitle').textContent = sig ? sig : '';
-  document.getElementById('chat-header-avatar').innerHTML =
-    avatarHTML(state.character && state.character.avatar, (state.character && state.character.name) || '?', 34);
-
+  renderPill();
   applyChatStyles();
+
+  // 面板内容
+  renderCharCard();
+  renderUserCard();
+  renderMusicCard();
+  updateStatusSwipe();
+  bindPanelEvents();
+
+  // 消息
   renderMessages();
   renderQuoteBar();
 
+  // 事件
   root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
   root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
+  root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
   root.querySelector('[data-act=trigger]').addEventListener('click', () => {
     sound.unlock();
     haptic(10);
@@ -1799,14 +2479,10 @@ export async function render(root, params = {}) {
     }
   });
 
-  // 引用条关闭 + 引用卡片跳转（事件委托）
   const dock = root.querySelector('.chat-input-dock');
   dock.addEventListener('click', (e) => {
     const closeBtn = e.target.closest('[data-act=clear-quote]');
-    if (closeBtn) {
-      haptic(6);
-      clearPendingQuote();
-    }
+    if (closeBtn) { haptic(6); clearPendingQuote(); }
   });
 
   const scrollBox = document.getElementById('msg-scroll');
@@ -1814,38 +2490,4 @@ export async function render(root, params = {}) {
     const jump = e.target.closest('[data-quote-jump]');
     if (!jump) return;
     if (jump.classList.contains('missing')) return;
-    const id = Number(jump.getAttribute('data-quote-jump'));
-    if (!id) return;
-    haptic(6);
-    scrollToMessage(id);
-  });
-
-  bindViewportFollow();
-
-  if (state.conv && state.conv.pendingReplyAt) scheduleTimers();
-
-  state.onVisibility = async () => {
-    if (state.destroyed) return;
-    if (document.visibilityState !== 'visible') return;
-    const fresh = await db.conversations.get(state.convId);
-    if (fresh) {
-      state.conv = fresh;
-      applyChatStyles();
-      if (fresh.pendingReplyAt) scheduleTimers();
-    }
-  };
-  document.addEventListener('visibilitychange', state.onVisibility);
-
-  if (await keepAlive.loadEnabled()) keepAlive.start();
-}
-
-export function destroy() {
-  state.destroyed = true;
-  cancelTimers();
-  clearTimeout(longPressTimer);
-  if (state.onVisibility) {
-    document.removeEventListener('visibilitychange', state.onVisibility);
-    state.onVisibility = null;
-  }
-  if (state.onViewport) { state.onViewport(); state.onViewport = null; }
-}
+    const id = Number

@@ -5,6 +5,7 @@ const routes = {
   '/chat': () => import('./pages/chat.js'),
   '/characters': () => import('./pages/characters.js'),
   '/decks': () => import('./pages/decks.js'),
+  '/settings': () => import('./pages/settings/index.js'),
 };
 
 let currentPage = null;

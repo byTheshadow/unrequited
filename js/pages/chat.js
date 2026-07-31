@@ -761,13 +761,15 @@ function bindDraftEvents(root, renderDraftList) {
 }
 
 function renderDraftListHTML() {
-  if (!state.draftMessages.length) {
+  const drafts = Array.isArray(state.draftMessages) ? state.draftMessages : [];
+
+  if (!drafts.length) {
     return `<div class="draft-empty">暂无草稿内容，在下方输入后点击添加</div>`;
   }
 
   return `
     <div class="draft-items-list" data-draft-list>
-      ${state.draftMessages.map((msg, index) => `
+      ${drafts.map((msg, index) => `
         <div class="draft-item">
           <span class="draft-item-text">${escapeHtml(msg)}</span>
           <button class="draft-item-delete" data-idx="${index}" aria-label="删除草稿">${ICON.trash}</button>
@@ -776,6 +778,7 @@ function renderDraftListHTML() {
     </div>
   `;
 }
+
 
 function openDraftSheet() {
   const body = `
@@ -2230,31 +2233,34 @@ async function checkPendingReplyOnVisible() {
 
 export async function render(root, params = {}) {
   state = {
-    convId: Number(params.id),
-    conv: null,
-    character: null,
-    user: null,
-    messages: [],
-    typing: false,
-    destroyed: false,
-    replyTimer: null,
-    thinkingTimer: null,
-    thinkingRotate: null,
-    onVisibility: null,
-    onViewport: null,
-    pendingQuoteId: null,
-    panelExpanded: false,
-    panelTab: 'status',
-    statusCardIndex: 0,
+  convId: Number(params.id),
+  conv: null,
+  character: null,
+  user: null,
+  messages: [],
+  typing: false,
+  destroyed: false,
+  replyTimer: null,
+  thinkingTimer: null,
+  thinkingRotate: null,
+  onVisibility: null,
+  onViewport: null,
+  pendingQuoteId: null,
+  panelExpanded: false,
+  panelTab: 'status',
+  statusCardIndex: 0,
 
-    call: null,
-    callTimer: null,
-    callRingTimer: null,
-    callEndTimer: null,
-    callStartedAt: null,
-    callDurationSec: 0,
-    callExpanded: false,
-  };
+  draftMessages: [],
+
+  call: null,
+  callTimer: null,
+  callRingTimer: null,
+  callEndTimer: null,
+  callStartedAt: null,
+  callDurationSec: 0,
+  callExpanded: false,
+};
+
   if (!state.convId) { navigate('/cards'); return; }
 
   root.innerHTML = `

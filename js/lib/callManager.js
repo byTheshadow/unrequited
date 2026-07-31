@@ -7,24 +7,37 @@ let soundOsc = null;
 let soundGain = null;
 
 function getAudioContext() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContextClass) {
+    console.warn('Web Audio API is not supported in this browser.');
+    return null;
+  }
+
   if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx = new AudioContextClass();
   }
+
   if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+    audioCtx.resume().catch(() => {});
   }
+
   return audioCtx;
 }
 
 // 模拟 Web Audio 来电铃声（微电子风双音高环形合成声）
 function playIncomingRing() {
   stopSound();
+
   const ctx = getAudioContext();
+  if (!ctx) return;
+
   soundGain = ctx.createGain();
   soundGain.gain.setValueAtTime(0, ctx.currentTime);
   soundGain.connect(ctx.destination);
 
   let step = 0;
+
   soundInterval = setInterval(() => {
     try {
       const now = ctx.currentTime;
@@ -34,7 +47,7 @@ function playIncomingRing() {
 
       osc1.type = 'sine';
       osc2.type = 'triangle';
-      
+
       // 交替频率制造空灵感
       if (step % 2 === 0) {
         osc1.frequency.setValueAtTime(440, now);
@@ -58,7 +71,9 @@ function playIncomingRing() {
       osc2.stop(now + 0.8);
 
       step++;
-    } catch (err) {}
+    } catch (err) {
+      console.warn('playIncomingRing error:', err);
+    }
   }, 1000);
 
   soundGain.gain.setValueAtTime(0, ctx.currentTime);
@@ -68,19 +83,31 @@ function playIncomingRing() {
 // 模拟 Web Audio 等待音（450Hz 嘟... 嘟...）
 function playDialingTone() {
   stopSound();
+
   const ctx = getAudioContext();
+  if (!ctx) return;
+
   soundGain = ctx.createGain();
-  soundGain.gain.connect(ctx.destination);
+
+  // 修复点：
+  // soundGain 是 GainNode，可以 connect；
+  // soundGain.gain 是 AudioParam，不能 connect。
+  soundGain.connect(ctx.destination);
+
+  soundGain.gain.setValueAtTime(0, ctx.currentTime);
 
   let isBeeping = false;
+
   soundInterval = setInterval(() => {
     try {
       const now = ctx.currentTime;
+
       if (!isBeeping) {
         soundOsc = ctx.createOscillator();
         soundOsc.type = 'sine';
         soundOsc.frequency.setValueAtTime(450, now);
-        
+
+        soundGain.gain.cancelScheduledValues(now);
         soundGain.gain.setValueAtTime(0, now);
         soundGain.gain.linearRampToValueAtTime(0.1, now + 0.05);
         soundGain.gain.setValueAtTime(0.1, now + 0.8);
@@ -89,11 +116,21 @@ function playDialingTone() {
         soundOsc.connect(soundGain);
         soundOsc.start(now);
         soundOsc.stop(now + 0.9);
+
+        soundOsc.onended = () => {
+          try {
+            soundOsc.disconnect();
+          } catch (e) {}
+          soundOsc = null;
+        };
+
         isBeeping = true;
       } else {
         isBeeping = false;
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn('playDialingTone error:', err);
+    }
   }, 1000);
 }
 
@@ -102,12 +139,28 @@ function stopSound() {
     clearInterval(soundInterval);
     soundInterval = null;
   }
+
   if (soundOsc) {
-    try { soundOsc.stop(); } catch (e) {}
+    try {
+      soundOsc.stop();
+    } catch (e) {}
+
+    try {
+      soundOsc.disconnect();
+    } catch (e) {}
+
     soundOsc = null;
   }
+
   if (soundGain) {
-    try { soundGain.disconnect(); } catch (e) {}
+    try {
+      soundGain.gain.cancelScheduledValues(audioCtx ? audioCtx.currentTime : 0);
+    } catch (e) {}
+
+    try {
+      soundGain.disconnect();
+    } catch (e) {}
+
     soundGain = null;
   }
 }
@@ -122,14 +175,17 @@ export const CallManager = {
   startTime: null,
   timerInterval: null,
   autoAnswerTimeout: null,
+  overlay: null,
 
   init() {
     this.overlay = document.getElementById('global-call-overlay');
+
     if (!this.overlay) {
       this.overlay = document.createElement('div');
       this.overlay.id = 'global-call-overlay';
       document.body.appendChild(this.overlay);
     }
+
     this.render();
   },
 
@@ -158,11 +214,13 @@ export const CallManager = {
   // 模拟角色接听或挂断
   simulateCharacterAnswer() {
     const delay = Math.floor(Math.random() * 5000) + 3000; // 3-8秒
+
     this.autoAnswerTimeout = setTimeout(async () => {
       if (this.state !== 'dialing') return;
 
       // 概率：80%接听，15%对方拒接(忙)，5%无人接听
       const rand = Math.random();
+
       if (rand < 0.8) {
         this.acceptCall();
       } else if (rand < 0.95) {
@@ -176,11 +234,16 @@ export const CallManager = {
   // 接听
   acceptCall() {
     if (this.state !== 'dialing' && this.state !== 'incoming') return;
+
     stopSound();
-    
+
     this.state = 'connected';
     this.startTime = Date.now();
     this.render();
+
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+    }
 
     this.timerInterval = setInterval(() => {
       this.updateTimer();
@@ -190,22 +253,26 @@ export const CallManager = {
   // 主动拒接（当角色呼叫时）
   async declineCall() {
     if (this.state !== 'incoming') return;
+
     await this.endCall('declined');
   },
 
   // 结束/挂断通话
   async endCall(statusReason = 'finished') {
     stopSound();
+
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
     }
+
     if (this.autoAnswerTimeout) {
       clearTimeout(this.autoAnswerTimeout);
       this.autoAnswerTimeout = null;
     }
 
     let duration = 0;
+
     if (this.startTime && this.state === 'connected') {
       duration = Math.floor((Date.now() - this.startTime) / 1000);
     }
@@ -222,13 +289,15 @@ export const CallManager = {
           type: 'call',
           content: JSON.stringify({
             status: finalStatus,
-            duration: duration
-          })
+            duration: duration,
+          }),
         });
-        
+
         // 触发自定义事件，使聊天室能感知更新
         window.dispatchEvent(new CustomEvent('call-history-updated', {
-          detail: { conversationId: this.conversationId }
+          detail: {
+            conversationId: this.conversationId,
+          },
         }));
       } catch (err) {
         console.error('Failed to log call history', err);
@@ -248,16 +317,22 @@ export const CallManager = {
   },
 
   updateTimer() {
+    if (!this.overlay) return;
+
     const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
     const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
     const ss = String(elapsed % 60).padStart(2, '0');
+
     const timerEl = this.overlay.querySelector('.global-call-time');
+
     if (timerEl) {
       timerEl.textContent = `${mm}:${ss}`;
     }
   },
 
   render() {
+    if (!this.overlay) return;
+
     if (this.state === 'idle') {
       this.overlay.className = '';
       this.overlay.innerHTML = '';
@@ -265,14 +340,21 @@ export const CallManager = {
     }
 
     this.overlay.className = 'global-call-active';
-    
+
     let statusText = '正在呼叫...';
-    if (this.state === 'incoming') statusText = '向你发起通话邀请';
-    if (this.state === 'connected') statusText = '通话中';
+
+    if (this.state === 'incoming') {
+      statusText = '向你发起通话邀请';
+    }
+
+    if (this.state === 'connected') {
+      statusText = '通话中';
+    }
 
     const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 100);
 
     let actionButtons = '';
+
     if (this.state === 'incoming') {
       actionButtons = `
         <button class="call-btn btn-decline" id="call-btn-decline">
@@ -294,17 +376,17 @@ export const CallManager = {
       <div class="global-call-container">
         <div class="global-call-bg" style="background-image: url('${this.characterAvatar || ''}')"></div>
         <div class="global-call-mask"></div>
-        
+
         <div class="global-call-content">
           <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
             ${avatarHtmlStr}
           </div>
-          
+
           <h2 class="global-call-name">${this.characterName}</h2>
           <p class="global-call-status">${statusText}</p>
-          
+
           ${this.state === 'connected' ? '<div class="global-call-time">00:00</div>' : ''}
-          
+
           <div class="global-call-actions">
             ${actionButtons}
           </div>
@@ -317,8 +399,16 @@ export const CallManager = {
     const declineBtn = this.overlay.querySelector('#call-btn-decline');
     const hangupBtn = this.overlay.querySelector('#call-btn-hangup');
 
-    if (acceptBtn) acceptBtn.onclick = () => this.acceptCall();
-    if (declineBtn) declineBtn.onclick = () => this.declineCall();
-    if (hangupBtn) hangupBtn.onclick = () => this.endCall();
-  }
+    if (acceptBtn) {
+      acceptBtn.onclick = () => this.acceptCall();
+    }
+
+    if (declineBtn) {
+      declineBtn.onclick = () => this.declineCall();
+    }
+
+    if (hangupBtn) {
+      hangupBtn.onclick = () => this.endCall();
+    }
+  },
 };

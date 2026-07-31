@@ -18,11 +18,13 @@ import {
 import * as keepAlive from '../lib/keepAlive.js';
 import * as sound from '../lib/sound.js';
 import { CallManager } from '../lib/callManager.js';
+import { renderMusicCardHTML } from '../lib/musicBarRenderer.js';
+
 
 
 const DEFAULT_QUOTE_CHANCE = 0.4;
 const QUOTE_PREVIEW_MAX = 40;
-const DEFAULT_MUSIC = { signature: '一支未命名的曲子', distance: '相距 1024 光年' };
+const DEFAULT_MUSIC = { signature: '一支未命名的曲子', distance: '相距 1024 光年', style: 'orbit', playing: false };
 const DEFAULT_CALL_MIN_SEC = 45;
 const DEFAULT_CALL_MAX_SEC = 180;
 const CALL_RING_TIMEOUT = 15000;
@@ -1893,56 +1895,19 @@ function renderMusicCard() {
   if (!el) return;
   const c = state.character;
   const u = state.user;
-  const music = (state.conv && state.conv.musicBar) || DEFAULT_MUSIC;
-  const distance = music.distance != null ? music.distance : DEFAULT_MUSIC.distance;
-  const signature = music.signature != null ? music.signature : DEFAULT_MUSIC.signature;
-  const count = state.messages.filter(m => m.type !== 'system' && m.type !== 'sync').length;
-
-  el.innerHTML = `
-    <div class="music-header">
-      <div class="music-icon">${SVG_MUSIC}</div>
-      <div class="music-title">共听 · 一起听</div>
-    </div>
-    <div class="music-avatars">
-      <div class="music-avatar music-avatar-left">${avatarHTML(u && u.avatar, u && u.name, 44)}</div>
-      <div class="music-link">
-        <span class="music-link-line"></span>
-        <span class="music-link-note">${SVG_NOTE}</span>
-      </div>
-      <div class="music-avatar music-avatar-right">${avatarHTML(c && c.avatar, c && c.name, 44)}</div>
-    </div>
-    <input class="ghost-input music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="相距 ..." maxlength="30">
-    <input class="ghost-input music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="一支未命名的曲子" maxlength="60">
-    <div class="mp3-bar">
-      <span class="mp3-play">${SVG_PLAY}</span>
-      <div class="mp3-track"><div class="mp3-fill"></div></div>
-      <span class="mp3-time" id="mp3-time">${count} 条</span>
-    </div>
-    <div class="music-count">已共鸣 <b>${count}</b> 条消息</div>
-  `;
-}
-
-function renderPill() {
-  const titleEl = document.getElementById('chat-title');
-  const subEl = document.getElementById('chat-subtitle');
-  const avEl = document.getElementById('chat-header-avatar');
-  const c = state.character;
-  if (titleEl) titleEl.textContent = (c && c.name) || '（角色已删除）';
- if (subEl && !subEl.classList.contains('thinking')) {
-  const s = c && (c.status || c.signature);
-  subEl.textContent = s || '';
-}
-
-  if (avEl) avEl.innerHTML = avatarHTML(c && c.avatar, c && c.name, 30);
+  const music = (state.conv && state.conv.musicBar) || { ...DEFAULT_MUSIC };
+  
+  // 计算今天零点以后的共鸣消息数
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayCount = state.messages.filter(m => m.timestamp >= todayStart.getTime() && m.type !== 'system' && m.type !== 'sync').length;
+  
+  // 注入新模块的渲染结果
+  el.innerHTML = renderMusicCardHTML(u, c, music, todayCount);
 }
 
 function updateMessageCount() {
-  const countEl = document.querySelector('.music-count b');
-  const timeEl = document.getElementById('mp3-time');
-  if (!countEl && !timeEl) return;
-  const count = state.messages.filter(m => m.type !== 'system' && m.type !== 'sync').length;
-  if (countEl) countEl.textContent = String(count);
-  if (timeEl) timeEl.textContent = `${count} 条`;
+  renderMusicCard();
 }
 
 function togglePanel(force) {
@@ -2044,7 +2009,19 @@ function bindPanelEvents() {
   const panel = document.getElementById('chat-panel');
   if (!panel) return;
 
-  panel.addEventListener('change', async (e) => {
+   panel.addEventListener('change', async (e) => {
+    // 监听音乐舱的外观切换
+    if (e.target && e.target.id === 'music-style-select') {
+      const style = e.target.value;
+      const current = (state.conv && state.conv.musicBar) || { ...DEFAULT_MUSIC };
+      const next = { ...current, style };
+      await db.conversations.update(state.convId, { musicBar: next });
+      if (state.conv) state.conv.musicBar = next;
+      renderMusicCard();
+      haptic(10);
+      return;
+    }
+
     const input = e.target.closest('.ghost-input');
     if (!input) return;
     const target = input.dataset.target;
@@ -2052,6 +2029,7 @@ function bindPanelEvents() {
     if (target === 'user') await saveUserField(field, input.value);
     else if (target === 'music') await saveMusicField(field, input.value);
   });
+
   panel.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       const input = e.target.closest('.ghost-input');
@@ -2071,7 +2049,21 @@ function bindPanelEvents() {
     });
   });
 
-  panel.addEventListener('click', (e) => {
+   panel.addEventListener('click', async (e) => {
+    // 监听虚拟播放的开启与关闭
+    const playToggle = e.target.closest('#music-play-toggle');
+    if (playToggle) {
+      e.stopPropagation();
+      const current = (state.conv && state.conv.musicBar) || { ...DEFAULT_MUSIC };
+      const playing = !current.playing;
+      const next = { ...current, playing };
+      await db.conversations.update(state.convId, { musicBar: next });
+      if (state.conv) state.conv.musicBar = next;
+      renderMusicCard();
+      haptic(playing ? 12 : 8);
+      return;
+    }
+
     const bgBtn = e.target.closest('[data-card-bg]');
     if (bgBtn) {
       e.stopPropagation();
@@ -2079,8 +2071,6 @@ function bindPanelEvents() {
     }
   });
 
-  bindStatusSwipe();
-}
 
 function fileToCardBgDataURL(file) {
   return new Promise((resolve, reject) => {
@@ -3111,180 +3101,6 @@ export async function render(root, params = {}) {
           opacity: 1;
           width: 18px;
         }
-
-        /* ---------- 音乐共听 ---------- */
-        .music-card {
-          padding: 18px 16px 16px;
-          border-radius: 16px;
-          background: var(--color-bg-secondary);
-          border: 1px solid var(--color-border);
-          margin: 0 4px 6px;
-          position: relative;
-          overflow: hidden;
-          box-shadow: 0 4px 14px var(--color-shadow);
-        }
-        .music-card::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background:
-            radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--color-accent) 9%, transparent), transparent 55%),
-            radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--color-accent) 7%, transparent), transparent 55%);
-          z-index: 0;
-          animation: musicAura 7s ease-in-out infinite;
-          pointer-events: none;
-        }
-        @keyframes musicAura {
-          0%, 100% { opacity: 0.75; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.05); }
-        }
-        .music-card > * { position: relative; z-index: 1; }
-        .music-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 14px;
-        }
-        .music-icon {
-          width: 22px;
-          height: 22px;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--color-accent);
-        }
-        .music-title {
-          font-size: 12px;
-          letter-spacing: 4px;
-          color: var(--color-text-secondary);
-        }
-        .music-avatars {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          justify-content: center;
-          margin-bottom: 14px;
-        }
-        .music-avatar { display: inline-flex; flex-shrink: 0; }
-        .music-avatar .avatar {
-          width: 44px;
-          height: 44px;
-          box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 35%, transparent);
-          animation: musicPulse 2.6s ease-in-out infinite;
-        }
-        .music-avatar-right .avatar { animation-delay: 1.3s; }
-        @keyframes musicPulse {
-          0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 25%, transparent); }
-          50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-accent) 10%, transparent); }
-        }
-        .music-link {
-          position: relative;
-          flex: 1;
-          height: 26px;
-          display: flex;
-          align-items: center;
-          max-width: 140px;
-          overflow: hidden;
-        }
-        .music-link-line {
-          flex: 1;
-          height: 1px;
-          background: linear-gradient(90deg,
-            transparent,
-            color-mix(in srgb, var(--color-accent) 65%, transparent),
-            transparent);
-          opacity: 0.75;
-        }
-        .music-link-note {
-          position: absolute;
-          top: 50%;
-          left: 0;
-          color: var(--color-accent);
-          animation: noteFly 3.8s cubic-bezier(.5,.05,.5,.95) infinite;
-          display: inline-flex;
-        }
-        @keyframes noteFly {
-          0% { left: 0%; transform: translate(-50%, -50%) rotate(-8deg) scale(0.85); opacity: 0; }
-          15% { opacity: 1; }
-          50% { transform: translate(-50%, -140%) rotate(4deg) scale(1.05); }
-          85% { opacity: 1; }
-          100% { left: 100%; transform: translate(-50%, -50%) rotate(8deg) scale(0.85); opacity: 0; }
-        }
-        input.ghost-input.music-distance {
-          font-size: 13px;
-          letter-spacing: 3px;
-          color: var(--color-text-primary);
-          text-align: center;
-          margin-bottom: 4px;
-        }
-        input.ghost-input.music-signature {
-          font-size: 12px;
-          color: var(--color-text-secondary);
-          font-style: italic;
-          text-align: center;
-          letter-spacing: 1px;
-          margin-bottom: 4px;
-        }
-        .mp3-bar {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin-top: 14px;
-          padding: 8px 14px;
-          background: color-mix(in srgb, var(--color-bg-primary) 60%, transparent);
-          border-radius: 999px;
-          border: 1px solid var(--color-border);
-        }
-        .mp3-play {
-          color: var(--color-accent);
-          display: inline-flex;
-          align-items: center;
-        }
-        .mp3-track {
-          flex: 1;
-          height: 3px;
-          background: var(--color-bg-tertiary);
-          border-radius: 2px;
-          overflow: hidden;
-          position: relative;
-        }
-        .mp3-fill {
-          position: absolute;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          width: 30%;
-          background: linear-gradient(90deg,
-            var(--color-accent),
-            color-mix(in srgb, var(--color-accent) 40%, transparent));
-          border-radius: 2px;
-          animation: mp3Progress 14s linear infinite;
-        }
-        @keyframes mp3Progress {
-          0% { width: 5%; }
-          100% { width: 100%; }
-        }
-        .mp3-time {
-          font-family: ui-monospace, 'SF Mono', Consolas, monospace;
-          font-size: 11px;
-          color: var(--color-text-tertiary);
-          min-width: 40px;
-          text-align: right;
-          letter-spacing: 0.5px;
-        }
-        .music-count {
-          text-align: center;
-          font-size: 11px;
-          letter-spacing: 3px;
-          color: var(--color-text-tertiary);
-          margin-top: 10px;
-        }
-        .music-count b {
-          color: var(--color-accent);
-          font-weight: 500;
-          margin: 0 4px;
-        }
-
         /* ---------- 消息滚动区 ---------- */
         .msg-scroll {
           position: relative;

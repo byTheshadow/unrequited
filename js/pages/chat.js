@@ -996,6 +996,67 @@ async function markLatestUserUnreadAsRead() {
     if (el) el.textContent = '已读';
   }
 }
+
+// 递增字卡碎片的共鸣频次统计
+async function incrementFragmentResonance(characterId, text) {
+  if (!text) return;
+
+  const cleanText = String(text).trim();
+  if (!cleanText) return;
+
+  try {
+    // 1. 优先获取当前角色绑定的字卡库
+    let decks = [];
+
+    const linkedDeckIds = state.character && Array.isArray(state.character.linkedDeckIds)
+      ? state.character.linkedDeckIds
+      : [];
+
+    if (linkedDeckIds.length) {
+      decks = await db.decks.where('id').anyOf(linkedDeckIds).toArray();
+    }
+
+    // 2. 在绑定库中查找包含该碎片的字卡库
+    let targetDeck = decks.find((d) => {
+      const fragments = Array.isArray(d.fragments) ? d.fragments : [];
+      return fragments.includes(cleanText);
+    });
+
+    // 3. 如果绑定库中没找到，再查找通用字卡库
+    if (!targetDeck) {
+      const commonDecks = await db.decks
+        .filter((d) => !d.bindCharacterId)
+        .toArray();
+
+      targetDeck = commonDecks.find((d) => {
+        const fragments = Array.isArray(d.fragments) ? d.fragments : [];
+        return fragments.includes(cleanText);
+      });
+    }
+
+    // 4. 更新统计数据
+    if (targetDeck) {
+      const stats = targetDeck.fragmentStats || {};
+
+      if (!stats[cleanText]) {
+        stats[cleanText] = {
+          usageCount: 0,
+          createdAt: Date.now(),
+        };
+      }
+
+      stats[cleanText].usageCount = (stats[cleanText].usageCount || 0) + 1;
+      stats[cleanText].updatedAt = Date.now();
+
+      await db.decks.update(targetDeck.id, {
+        fragmentStats: stats,
+      });
+    }
+  } catch (err) {
+    console.warn('Failed to update fragment resonance count:', err);
+  }
+}
+
 async function executeReply() {
   cancelTimers();
 
@@ -1081,18 +1142,22 @@ async function executeReply() {
     const generatedMessages = generated && generated.messages ? generated.messages : [];
 
     let extraText = '';
-    if (generatedMessages.length) {
-      const pickedMsg = generatedMessages[0];
-      const pickedContent = typeof pickedMsg === 'string'
-        ? pickedMsg
-        : pickedMsg && pickedMsg.content
-          ? pickedMsg.content
-          : '';
+if (generatedMessages.length) {
+  const pickedMsg = generatedMessages[0];
+  const pickedContent = typeof pickedMsg === 'string'
+    ? pickedMsg
+    : pickedMsg && pickedMsg.content
+      ? pickedMsg.content
+      : '';
 
-      if (pickedContent) {
-        extraText = `。${pickedContent}`;
-      }
-    }
+  if (pickedContent) {
+    extraText = `。${pickedContent}`;
+
+    // 新增：统计被融合抽取的那条字卡碎片的共鸣频次
+    await incrementFragmentResonance(state.character.id, pickedContent);
+  }
+}
+
 
     const finalAnswer = `◈ 选择了「${answer}」${extraText}`;
 
@@ -1170,11 +1235,15 @@ async function executeReply() {
     };
 
     const id = await db.messages.add(msg);
-    msg.id = id;
+msg.id = id;
 
-    hideTyping();
-    appendMessage(msg);
-    playCharSound();
+// 新增：增加字卡共鸣频次统计
+await incrementFragmentResonance(state.character.id, messages[i]);
+
+hideTyping();
+appendMessage(msg);
+playCharSound();
+
   }
 
   /**
@@ -1220,6 +1289,7 @@ async function executeReply() {
 
   await persistConvSummary();
 }
+
 
 
 async function manualTrigger() {

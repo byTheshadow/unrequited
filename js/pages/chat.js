@@ -2652,7 +2652,7 @@ async function checkPendingReplyOnVisible() {
    render / destroy
    ============================================================ */
 
-async function render(root, params = {}) {
+export async function render(root, params = {}) {
   state = {
   convId: Number(params.id),
   conv: null,
@@ -4228,7 +4228,7 @@ dock.addEventListener('click', (e) => {
   scheduleTimers();
 }
 
-function destroy() {
+export function destroy() {
   state.destroyed = true;
   cancelTimers();
   if (state.onViewport) state.onViewport();

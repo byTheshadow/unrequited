@@ -2071,6 +2071,7 @@ function bindPanelEvents() {
     }
   });
 
+}
 
 function fileToCardBgDataURL(file) {
   return new Promise((resolve, reject) => {

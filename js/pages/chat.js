@@ -1582,19 +1582,206 @@ function getCallChance() {
 
 async function maybeStartCallByChance() {
   if (CallManager && CallManager.state && CallManager.state !== 'idle') return false;
+
   const chance = getCallChance();
   if (chance <= 0 || Math.random() >= chance) return false;
 
+  return await startVirtualCall(false);
+}
+
+
+function formatCallDuration(sec) {
+  const n = Math.max(0, Math.floor(Number(sec) || 0));
+  const m = Math.floor(n / 60);
+  const s = n % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function syncCallStateFromManager() {
+  const managerBusy = CallManager && CallManager.state && CallManager.state !== 'idle';
+
+  if (!managerBusy && !state.call) return;
+
+  if (managerBusy && !state.call) {
+    const c = state.character || {};
+    state.call = {
+      id: Date.now(),
+      conversationId: state.convId,
+      characterId: c.id,
+      characterName: c.name,
+      characterAvatar: c.avatar,
+      startedAt: Date.now(),
+      manual: true,
+    };
+    state.callStartedAt = Date.now();
+    state.callDurationSec = 0;
+  }
+
+  if (!managerBusy && state.call) {
+    state.call = null;
+    state.callStartedAt = null;
+    state.callDurationSec = 0;
+  }
+}
+
+async function startVirtualCall(manual = true) {
+  if (CallManager && CallManager.state && CallManager.state !== 'idle') {
+    syncCallStateFromManager();
+    return false;
+  }
+
   const c = state.character || {};
-  await CallManager.startCall(
-    state.convId,
-    c.id,
-    c.name,
-    c.avatar,
-    false
-  );
+
+  state.call = {
+    id: Date.now(),
+    conversationId: state.convId,
+    characterId: c.id,
+    characterName: c.name,
+    characterAvatar: c.avatar,
+    startedAt: Date.now(),
+    manual,
+  };
+
+  state.callStartedAt = Date.now();
+  state.callDurationSec = 0;
+
+  try {
+    await CallManager.startCall(
+      state.convId,
+      c.id,
+      c.name,
+      c.avatar,
+      manual
+    );
+  } catch (err) {
+    console.error('startVirtualCall failed:', err);
+    state.call = null;
+    state.callStartedAt = null;
+    state.callDurationSec = 0;
+    toast('通话启动失败');
+    return false;
+  }
+
   return true;
 }
+
+async function endVirtualCall() {
+  try {
+    if (CallManager) {
+      if (typeof CallManager.endCall === 'function') {
+        await CallManager.endCall();
+      } else if (typeof CallManager.hangup === 'function') {
+        await CallManager.hangup();
+      } else if (typeof CallManager.stopCall === 'function') {
+        await CallManager.stopCall();
+      } else if (typeof CallManager.close === 'function') {
+        await CallManager.close();
+      }
+    }
+  } catch (err) {
+    console.warn('endVirtualCall failed:', err);
+  }
+
+  if (state.callTimer) {
+    clearInterval(state.callTimer);
+    state.callTimer = null;
+  }
+
+  if (state.callRingTimer) {
+    clearTimeout(state.callRingTimer);
+    state.callRingTimer = null;
+  }
+
+  if (state.callEndTimer) {
+    clearTimeout(state.callEndTimer);
+    state.callEndTimer = null;
+  }
+
+  state.call = null;
+  state.callStartedAt = null;
+  state.callDurationSec = 0;
+  state.callExpanded = false;
+
+  const oldFull = document.getElementById('virtual-call-full');
+  if (oldFull) oldFull.remove();
+
+  toast('通话已结束');
+}
+
+function openCallFull() {
+  syncCallStateFromManager();
+
+  if (!state.call && (!CallManager || CallManager.state === 'idle')) {
+    toast('当前没有正在进行的通话');
+    return;
+  }
+
+  const old = document.getElementById('virtual-call-full');
+  if (old) old.remove();
+
+  state.callExpanded = true;
+
+  const c = state.character || {};
+  const startedAt = state.callStartedAt || (state.call && state.call.startedAt) || Date.now();
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="virtual-call-full" id="virtual-call-full">
+      <div class="virtual-call-bg"></div>
+
+      <div class="virtual-call-content">
+        <button class="virtual-call-minimize" data-act="call-minimize" aria-label="收起通话">
+          ${SVG_MINIMIZE}
+        </button>
+
+        <div class="virtual-call-avatar">
+          ${avatarHTML(c.avatar, c.name, 108)}
+        </div>
+
+        <div class="virtual-call-name">${escapeHtml(c.name || '未知角色')}</div>
+        <div class="virtual-call-status" id="virtual-call-status">通话中</div>
+        <div class="virtual-call-duration" id="virtual-call-duration">00:00</div>
+
+        <div class="virtual-call-wave">
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+
+        <button class="virtual-call-hangup" data-act="call-hangup" aria-label="挂断">
+          ${SVG_PHONE_OFF}
+        </button>
+      </div>
+    </div>
+  `);
+
+  const full = document.getElementById('virtual-call-full');
+  const durationEl = document.getElementById('virtual-call-duration');
+
+  const updateDuration = () => {
+    const sec = Math.floor((Date.now() - startedAt) / 1000);
+    state.callDurationSec = sec;
+    if (durationEl) durationEl.textContent = formatCallDuration(sec);
+  };
+
+  updateDuration();
+
+  if (state.callTimer) clearInterval(state.callTimer);
+  state.callTimer = setInterval(updateDuration, 1000);
+
+  full.querySelector('[data-act=call-minimize]').addEventListener('click', () => {
+    haptic(6);
+    state.callExpanded = false;
+    full.remove();
+  });
+
+  full.querySelector('[data-act=call-hangup]').addEventListener('click', async () => {
+    haptic(12);
+    await endVirtualCall();
+  });
+}
+
+
 
 /* ---------- 面板：状态卡 + 音乐共听 ---------- */
 function panelHTML() {
@@ -2068,14 +2255,20 @@ async function openChatMenu() {
     else if (act === 'typing-hint') { close(); await sleep(280); openTypingHintSheet(); }
     else if (act === 'sound') { close(); await sleep(280); openSoundSheet(); }
     else if (act === 'call-now') {
-      close();
-      if (state.call) {
-        openCallFull();
-      } else {
-        await startVirtualCall();
-        openCallFull();
-      }
-    }
+  close();
+
+  if (CallManager && CallManager.state && CallManager.state !== 'idle') {
+    syncCallStateFromManager();
+    openCallFull();
+    return;
+  }
+
+  const ok = await startVirtualCall(true);
+  if (ok) {
+    openCallFull();
+  }
+}
+
     else if (act === 'clear') {
       close();
       const ok = await confirmSheet('清空所有消息？', { danger: true, okText: '清空' });
@@ -4106,14 +4299,21 @@ export async function render(root, params = {}) {
 renderQuoteBar();
 
 root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
-root.querySelector('[data-act=call-phone]').addEventListener('click', () => {
-  if (CallManager.state !== 'idle') {
-    toast('通话正在进行中');
+root.querySelector('[data-act=call-phone]').addEventListener('click', async () => {
+  haptic(8);
+
+  if (CallManager && CallManager.state && CallManager.state !== 'idle') {
+    syncCallStateFromManager();
+    openCallFull();
     return;
   }
-  const c = state.character || {};
-  CallManager.startCall(state.convId, c.id, c.name, c.avatar, true);
+
+  const ok = await startVirtualCall(true);
+  if (ok) {
+    openCallFull();
+  }
 });
+
 root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
 root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
 

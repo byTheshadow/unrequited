@@ -1906,6 +1906,28 @@ function renderMusicCard() {
   el.innerHTML = renderMusicCardHTML(u, c, music, todayCount);
 }
 
+function renderPill() {
+  const titleEl = document.getElementById('chat-title');
+  const subEl = document.getElementById('chat-subtitle');
+  const avEl = document.getElementById('chat-header-avatar');
+  const c = state.character;
+
+  if (titleEl) {
+    titleEl.textContent = (c && c.name) || '（角色已删除）';
+  }
+
+  if (subEl && !subEl.classList.contains('thinking')) {
+    const s = c && (c.status || c.signature);
+    subEl.textContent = s || '';
+  }
+
+  if (avEl) {
+    avEl.innerHTML = avatarHTML(c && c.avatar, c && c.name, 30);
+  }
+}
+
+
+
 function updateMessageCount() {
   renderMusicCard();
 }
@@ -4103,12 +4125,14 @@ export async function render(root, params = {}) {
 
   sound.loadConfig().catch(() => {});
 
-  renderPill();
-  applyChatStyles();
+ if (typeof renderPill === 'function') renderPill();
+if (typeof applyChatStyles === 'function') applyChatStyles();
 
-  renderCharCard();
-  renderUserCard();
-  renderMusicCard();
+if (typeof renderCharCard === 'function') renderCharCard();
+if (typeof renderUserCard === 'function') renderUserCard();
+if (typeof renderMusicCard === 'function') renderMusicCard();
+
+
   updateStatusSwipe();
   bindPanelEvents();
 

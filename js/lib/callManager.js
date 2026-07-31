@@ -6,9 +6,28 @@ let soundInterval = null;
 let soundOsc = null;
 let soundGain = null;
 
+const SVG_MINIMIZE = `
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="4 14 10 14 10 20"/>
+    <polyline points="20 10 14 10 14 4"/>
+    <line x1="14" y1="10" x2="21" y2="3"/>
+    <line x1="3" y1="21" x2="10" y2="14"/>
+  </svg>
+`;
+
+const SVG_EXPAND = `
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 3 21 3 21 9"/>
+    <polyline points="9 21 3 21 3 15"/>
+    <line x1="21" y1="3" x2="14" y2="10"/>
+    <line x1="3" y1="21" x2="10" y2="14"/>
+  </svg>
+`;
+
 function getAudioContext() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-
   if (!AudioContextClass) {
     console.warn('Web Audio API is not supported in this browser.');
     return null;
@@ -25,7 +44,7 @@ function getAudioContext() {
   return audioCtx;
 }
 
-// 模拟 Web Audio 来电铃声（微电子风双音高环形合成声）
+// 来电铃声
 function playIncomingRing() {
   stopSound();
 
@@ -48,7 +67,6 @@ function playIncomingRing() {
       osc1.type = 'sine';
       osc2.type = 'triangle';
 
-      // 交替频率制造空灵感
       if (step % 2 === 0) {
         osc1.frequency.setValueAtTime(440, now);
         osc2.frequency.setValueAtTime(880, now);
@@ -80,7 +98,7 @@ function playIncomingRing() {
   soundGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.2);
 }
 
-// 模拟 Web Audio 等待音（450Hz 嘟... 嘟...）
+// 拨号音
 function playDialingTone() {
   stopSound();
 
@@ -88,12 +106,7 @@ function playDialingTone() {
   if (!ctx) return;
 
   soundGain = ctx.createGain();
-
-  // 修复点：
-  // soundGain 是 GainNode，可以 connect；
-  // soundGain.gain 是 AudioParam，不能 connect。
   soundGain.connect(ctx.destination);
-
   soundGain.gain.setValueAtTime(0, ctx.currentTime);
 
   let isBeeping = false;
@@ -118,9 +131,7 @@ function playDialingTone() {
         soundOsc.stop(now + 0.9);
 
         soundOsc.onended = () => {
-          try {
-            soundOsc.disconnect();
-          } catch (e) {}
+          try { soundOsc.disconnect(); } catch (e) {}
           soundOsc = null;
         };
 
@@ -141,28 +152,27 @@ function stopSound() {
   }
 
   if (soundOsc) {
-    try {
-      soundOsc.stop();
-    } catch (e) {}
-
-    try {
-      soundOsc.disconnect();
-    } catch (e) {}
-
+    try { soundOsc.stop(); } catch (e) {}
+    try { soundOsc.disconnect(); } catch (e) {}
     soundOsc = null;
   }
 
   if (soundGain) {
     try {
-      soundGain.gain.cancelScheduledValues(audioCtx ? audioCtx.currentTime : 0);
+      if (audioCtx) {
+        soundGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      }
     } catch (e) {}
 
-    try {
-      soundGain.disconnect();
-    } catch (e) {}
-
+    try { soundGain.disconnect(); } catch (e) {}
     soundGain = null;
   }
+}
+
+function formatDuration(seconds) {
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const ss = String(seconds % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
 }
 
 export const CallManager = {
@@ -176,6 +186,7 @@ export const CallManager = {
   timerInterval: null,
   autoAnswerTimeout: null,
   overlay: null,
+  minimized: false,
 
   init() {
     this.overlay = document.getElementById('global-call-overlay');
@@ -189,7 +200,6 @@ export const CallManager = {
     this.render();
   },
 
-  // 发起或收到通话
   startCall(conversationId, characterId, characterName, characterAvatar, isUserInitiator = true) {
     if (this.state !== 'idle') return;
 
@@ -198,6 +208,7 @@ export const CallManager = {
     this.characterName = characterName;
     this.characterAvatar = characterAvatar;
     this.isUserInitiator = isUserInitiator;
+    this.minimized = false;
 
     if (isUserInitiator) {
       this.state = 'dialing';
@@ -211,27 +222,44 @@ export const CallManager = {
     }
   },
 
-  // 模拟角色接听或挂断
+  minimize() {
+    if (this.state === 'idle') return;
+    this.minimized = true;
+    this.render();
+  },
+
+  expand() {
+    if (this.state === 'idle') return;
+    this.minimized = false;
+    this.render();
+  },
+
+  toggleMinimize() {
+    if (this.minimized) {
+      this.expand();
+    } else {
+      this.minimize();
+    }
+  },
+
   simulateCharacterAnswer() {
-    const delay = Math.floor(Math.random() * 5000) + 3000; // 3-8秒
+    const delay = Math.floor(Math.random() * 5000) + 3000;
 
     this.autoAnswerTimeout = setTimeout(async () => {
       if (this.state !== 'dialing') return;
 
-      // 概率：80%接听，15%对方拒接(忙)，5%无人接听
       const rand = Math.random();
 
       if (rand < 0.8) {
         this.acceptCall();
       } else if (rand < 0.95) {
-        await this.endCall('busy'); // 对方忙
+        await this.endCall('busy');
       } else {
-        await this.endCall('missed'); // 无人接听
+        await this.endCall('missed');
       }
     }, delay);
   },
 
-  // 接听
   acceptCall() {
     if (this.state !== 'dialing' && this.state !== 'incoming') return;
 
@@ -250,14 +278,11 @@ export const CallManager = {
     }, 1000);
   },
 
-  // 主动拒接（当角色呼叫时）
   async declineCall() {
     if (this.state !== 'incoming') return;
-
     await this.endCall('declined');
   },
 
-  // 结束/挂断通话
   async endCall(statusReason = 'finished') {
     stopSound();
 
@@ -272,14 +297,12 @@ export const CallManager = {
     }
 
     let duration = 0;
-
     if (this.startTime && this.state === 'connected') {
       duration = Math.floor((Date.now() - this.startTime) / 1000);
     }
 
     const finalStatus = this.state === 'connected' ? 'finished' : statusReason;
 
-    // 写入数据库
     if (this.conversationId) {
       try {
         await db.messages.add({
@@ -289,11 +312,10 @@ export const CallManager = {
           type: 'call',
           content: JSON.stringify({
             status: finalStatus,
-            duration: duration,
+            duration,
           }),
         });
 
-        // 触发自定义事件，使聊天室能感知更新
         window.dispatchEvent(new CustomEvent('call-history-updated', {
           detail: {
             conversationId: this.conversationId,
@@ -304,7 +326,6 @@ export const CallManager = {
       }
     }
 
-    // 重置状态
     this.state = 'idle';
     this.conversationId = null;
     this.characterId = null;
@@ -312,22 +333,151 @@ export const CallManager = {
     this.characterAvatar = '';
     this.isUserInitiator = false;
     this.startTime = null;
+    this.minimized = false;
 
     this.render();
+  },
+
+  getStatusText() {
+    if (this.state === 'incoming') return '向你发起通话邀请';
+    if (this.state === 'connected') return '通话中';
+    if (this.state === 'dialing') return '正在呼叫...';
+    return '';
+  },
+
+  getElapsedSeconds() {
+    if (!this.startTime || this.state !== 'connected') return 0;
+    return Math.floor((Date.now() - this.startTime) / 1000);
   },
 
   updateTimer() {
     if (!this.overlay) return;
 
-    const elapsed = Math.floor((Date.now() - this.startTime) / 1000);
-    const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-    const ss = String(elapsed % 60).padStart(2, '0');
+    const timeText = formatDuration(this.getElapsedSeconds());
 
     const timerEl = this.overlay.querySelector('.global-call-time');
-
     if (timerEl) {
-      timerEl.textContent = `${mm}:${ss}`;
+      timerEl.textContent = timeText;
     }
+
+    const miniTimeEl = this.overlay.querySelector('.global-call-mini-time');
+    if (miniTimeEl) {
+      miniTimeEl.textContent = timeText;
+    }
+  },
+
+  renderMinimized() {
+    const statusText = this.getStatusText();
+    const timeText = formatDuration(this.getElapsedSeconds());
+
+    this.overlay.className = 'global-call-active global-call-minimized';
+
+    this.overlay.innerHTML = `
+      <button class="global-call-floating" id="call-btn-expand" type="button" aria-label="展开通话">
+        <div class="global-call-floating-avatar">
+          ${avatarHTML(this.characterAvatar, this.characterName, 44)}
+        </div>
+
+        <div class="global-call-floating-info">
+          <div class="global-call-floating-name">${this.characterName || ''}</div>
+          <div class="global-call-floating-status">
+            ${
+              this.state === 'connected'
+                ? `<span class="global-call-mini-time">${timeText}</span>`
+                : statusText
+            }
+          </div>
+        </div>
+
+        <div class="global-call-floating-icon">
+          ${SVG_EXPAND}
+        </div>
+      </button>
+    `;
+
+    const expandBtn = this.overlay.querySelector('#call-btn-expand');
+    if (expandBtn) {
+      expandBtn.onclick = () => this.expand();
+    }
+  },
+
+  renderFull() {
+    this.overlay.className = 'global-call-active';
+
+    const statusText = this.getStatusText();
+    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 100);
+    const timeText = formatDuration(this.getElapsedSeconds());
+
+    let actionButtons = '';
+
+    if (this.state === 'incoming') {
+      actionButtons = `
+        <button class="call-btn btn-decline" id="call-btn-decline" type="button" aria-label="拒接">
+          <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+        </button>
+        <button class="call-btn btn-accept" id="call-btn-accept" type="button" aria-label="接听">
+          <span class="call-icon-heartbeat">${ICON.phone}</span>
+        </button>
+      `;
+    } else {
+      actionButtons = `
+        <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
+          <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+        </button>
+      `;
+    }
+
+    this.overlay.innerHTML = `
+      <div class="global-call-container">
+        <div class="global-call-bg" style="background-image: url('${this.characterAvatar || ''}')"></div>
+        <div class="global-call-mask"></div>
+
+        <button class="global-call-minimize-btn" id="call-btn-minimize" type="button" aria-label="缩小通话">
+          ${SVG_MINIMIZE}
+        </button>
+
+        <div class="global-call-visual-layer">
+          ${this.state === 'dialing' ? `
+            <div class="global-call-wave-wrap">
+              <div class="global-call-wave wave-1"></div>
+              <div class="global-call-wave wave-2"></div>
+              <div class="global-call-wave wave-3"></div>
+            </div>
+
+            <div class="global-call-ecg">
+              <svg viewBox="0 0 240 60" class="global-call-ecg-svg" aria-hidden="true">
+                <path d="M0 30 H35 L45 18 L58 44 L72 30 H96 L108 12 L120 48 L134 30 H162 L174 22 L186 38 L198 30 H240" />
+              </svg>
+            </div>
+          ` : ''}
+        </div>
+
+        <div class="global-call-content">
+          <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
+            ${avatarHtmlStr}
+          </div>
+
+          <h2 class="global-call-name">${this.characterName || ''}</h2>
+          <p class="global-call-status">${statusText}</p>
+
+          ${this.state === 'connected' ? `<div class="global-call-time">${timeText}</div>` : ''}
+
+          <div class="global-call-actions">
+            ${actionButtons}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const minimizeBtn = this.overlay.querySelector('#call-btn-minimize');
+    const acceptBtn = this.overlay.querySelector('#call-btn-accept');
+    const declineBtn = this.overlay.querySelector('#call-btn-decline');
+    const hangupBtn = this.overlay.querySelector('#call-btn-hangup');
+
+    if (minimizeBtn) minimizeBtn.onclick = () => this.minimize();
+    if (acceptBtn) acceptBtn.onclick = () => this.acceptCall();
+    if (declineBtn) declineBtn.onclick = () => this.declineCall();
+    if (hangupBtn) hangupBtn.onclick = () => this.endCall();
   },
 
   render() {
@@ -339,76 +489,10 @@ export const CallManager = {
       return;
     }
 
-    this.overlay.className = 'global-call-active';
-
-    let statusText = '正在呼叫...';
-
-    if (this.state === 'incoming') {
-      statusText = '向你发起通话邀请';
-    }
-
-    if (this.state === 'connected') {
-      statusText = '通话中';
-    }
-
-    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 100);
-
-    let actionButtons = '';
-
-    if (this.state === 'incoming') {
-      actionButtons = `
-        <button class="call-btn btn-decline" id="call-btn-decline">
-          ${ICON.phoneHangup}
-        </button>
-        <button class="call-btn btn-accept" id="call-btn-accept">
-          ${ICON.phone}
-        </button>
-      `;
+    if (this.minimized) {
+      this.renderMinimized();
     } else {
-      actionButtons = `
-        <button class="call-btn btn-hangup" id="call-btn-hangup">
-          ${ICON.phoneHangup}
-        </button>
-      `;
-    }
-
-    this.overlay.innerHTML = `
-      <div class="global-call-container">
-        <div class="global-call-bg" style="background-image: url('${this.characterAvatar || ''}')"></div>
-        <div class="global-call-mask"></div>
-
-        <div class="global-call-content">
-          <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
-            ${avatarHtmlStr}
-          </div>
-
-          <h2 class="global-call-name">${this.characterName}</h2>
-          <p class="global-call-status">${statusText}</p>
-
-          ${this.state === 'connected' ? '<div class="global-call-time">00:00</div>' : ''}
-
-          <div class="global-call-actions">
-            ${actionButtons}
-          </div>
-        </div>
-      </div>
-    `;
-
-    // 绑定事件
-    const acceptBtn = this.overlay.querySelector('#call-btn-accept');
-    const declineBtn = this.overlay.querySelector('#call-btn-decline');
-    const hangupBtn = this.overlay.querySelector('#call-btn-hangup');
-
-    if (acceptBtn) {
-      acceptBtn.onclick = () => this.acceptCall();
-    }
-
-    if (declineBtn) {
-      declineBtn.onclick = () => this.declineCall();
-    }
-
-    if (hangupBtn) {
-      hangupBtn.onclick = () => this.endCall();
+      this.renderFull();
     }
   },
 };

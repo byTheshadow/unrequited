@@ -1219,35 +1219,6 @@ async function executeReply() {
 }
 
 
-  for (let i = 0; i < messages.length; i++) {
-    if (state.destroyed) return;
-    if (i > 0) {
-      hideTyping(); showTyping();
-      await sleep(randInt(600, 1400));
-    }
-    let autoQuoteId = null;
-    if (i === 0 && quoteChance > 0 && Math.random() < quoteChance) {
-      autoQuoteId = pickAutoQuoteTarget();
-    }
-    const msg = {
-      conversationId: state.convId,
-      sender: 'character',
-      content: messages[i],
-      type: 'card',
-      status: 'sent',
-      quotedMessageId: autoQuoteId,
-      timestamp: Date.now(),
-      isRead: true,
-    };
-    const id = await db.messages.add(msg);
-    msg.id = id;
-    hideTyping();
-    appendMessage(msg);
-    playCharSound();
-  }
-  await persistConvSummary();
-}
-
 async function manualTrigger() {
   const btn = document.querySelector('[data-act=trigger]');
   if (btn) {

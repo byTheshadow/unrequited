@@ -1461,59 +1461,65 @@
 }
 
 /* ==========================================================================
-   沉浸式共鸣舱 (Immersive MusicBar) 新版样式
+   自适应主题 & 精致微缩版共鸣舱 (Immersive Mini MusicBar)
    ========================================================================== */
 
 .music-card-immersive {
   position: relative;
   width: 100%;
-  max-width: 380px;
-  height: 480px;
+  max-width: 320px;
+  height: 200px; /* 压缩为更适合挂件展示的精致高度 */
   margin: 10px auto;
-  border-radius: 20px;
+  border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05);
-  background: #111;
-  color: #fff;
-  transition: all 0.5s ease;
-  font-family: 'PingFang SC', sans-serif;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), inset 0 0 0 1px var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  transition: all 0.4s ease;
+  font-family: inherit;
 }
 
-/* 悬浮控制栏 */
+/* 悬浮控制栏 - 极简化 */
 .floating-controls {
   position: absolute;
-  top: 16px;
-  left: 16px;
-  right: 16px;
+  top: 10px;
+  left: 12px;
+  right: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 50;
 }
 .stealth-select {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #fff;
-  font-size: 13px;
-  padding: 6px 12px;
-  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 12px;
   outline: none;
   cursor: pointer;
+  max-width: 150px;
+  transition: all 0.2s;
+}
+.stealth-select:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text-primary);
 }
 .stealth-select option {
-  background: #222;
-  color: #fff;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }
 .stealth-play-btn {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2);
-  color: #fff;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1521,13 +1527,13 @@
   transition: all 0.3s;
 }
 .music-card-immersive.is-playing .stealth-play-btn {
-  background: rgba(255,100,100,0.2);
-  border-color: #ff6464;
-  color: #ff6464;
-  box-shadow: 0 0 15px rgba(255,100,100,0.4);
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 
-/* 视图切换逻辑 */
+/* 视图切换 */
 .style-view {
   display: none;
   width: 100%;
@@ -1540,7 +1546,7 @@
   animation: fadeIn 0.4s ease;
 }
 @keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
+  from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
 
@@ -1549,166 +1555,211 @@
   background: transparent;
   border: none;
   text-align: center;
-  color: rgba(255,255,255,0.9);
+  color: var(--color-text-secondary);
   width: 100%;
   outline: none;
   transition: all 0.3s;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
   z-index: 10;
 }
 .stealth-input:focus {
-  color: #fff;
-  text-shadow: 0 0 8px rgba(255,255,255,0.8);
+  color: var(--color-text-primary);
+  text-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 70%, transparent);
 }
 
 /* 底部消息统计 */
 .music-footer-count {
   position: absolute;
-  bottom: 10px;
-  right: 16px;
-  font-size: 10px;
-  color: rgba(255,255,255,0.3);
+  bottom: 8px;
+  right: 12px;
+  font-size: 9px;
+  color: var(--color-text-tertiary);
   z-index: 50;
   pointer-events: none;
+  opacity: 0.8;
 }
 
-/* ==========================================================================
-   风格 1：狂热磁带 (Dynamic Retro Tape)
+/* ================= =========================================================
+   风格 1：狂热磁带 (Dynamic Retro Tape - Mini)
    ========================================================================== */
-.view-tape { background: radial-gradient(circle at center, #2b1f31 0%, #110c14 100%); }
+.view-tape {
+  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%);
+}
 .tape-container {
-  position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-  width: 300px; height: 190px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -42%);
+  width: 230px;
+  height: 120px;
   background: linear-gradient(to bottom, #d4d4d4, #a0a0a0);
-  border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.8);
-  padding: 10px; display: flex; flex-direction: column;
+  border-radius: 8px;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.4), inset 0 1px 3px rgba(255,255,255,0.8);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
 }
 .music-card-immersive.is-playing .tape-container { animation: tapeShake 2s infinite ease-in-out; }
-@keyframes tapeShake { 0%, 100% { transform: translate(-50%, -50%) rotate(0deg); } 25% { transform: translate(-50%, -49.5%) rotate(0.2deg); } 75% { transform: translate(-50%, -50.5%) rotate(-0.2deg); } }
-
+@keyframes tapeShake {
+  0%, 100% { transform: translate(-50%, -42%) rotate(0deg); }
+  25% { transform: translate(-50%, -41.5%) rotate(0.3deg); }
+  75% { transform: translate(-50%, -42.5%) rotate(-0.3deg); }
+}
 .tape-sticker {
-  flex: 1; background: #fff; border-radius: 6px; position: relative; padding: 10px;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.1); border-top: 8px solid #ff4757; display: flex; flex-direction: column;
+  flex: 1;
+  background: #fff;
+  border-radius: 4px;
+  position: relative;
+  padding: 6px;
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.1);
+  border-top: 6px solid var(--color-accent, #ff4757);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 .tape-spindles-area {
-  display: flex; justify-content: center; gap: 35px; align-items: center;
-  background: #222; border-radius: 30px; height: 70px; margin: 10px 0;
-  box-shadow: inset 0 5px 10px rgba(0,0,0,0.8); position: relative;
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  align-items: center;
+  background: #1e1e1e;
+  border-radius: 20px;
+  height: 42px;
+  margin: 4px 0;
+  box-shadow: inset 0 3px 6px rgba(0,0,0,0.8);
+  position: relative;
 }
 .spindle {
-  width: 50px; height: 50px; background: #eee; border-radius: 50%;
-  border: 4px solid #111; display: flex; justify-content: center; align-items: center; position: relative;
+  width: 32px;
+  height: 32px;
+  background: #eee;
+  border-radius: 50%;
+  border: 3px solid #111;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
 }
 .spindle::after {
-  content: ''; position: absolute; inset: 0; border: 4px dashed #555; border-radius: 50%;
-  animation: spin 4s linear infinite; animation-play-state: paused;
+  content: ''; position: absolute; inset: 0; border: 3px dashed #555; border-radius: 50%;
+  animation: spin 6s linear infinite; animation-play-state: paused;
 }
-.music-card-immersive.is-playing .spindle::after, .music-card-immersive.is-playing .spindle .avatar { animation-play-state: running; }
-.spindle .avatar { width: 34px; height: 34px; border-radius: 50%; z-index: 2; animation: spin 4s linear infinite; animation-play-state: paused; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-
-.tape-eq { display: flex; justify-content: center; gap: 4px; height: 20px; align-items: flex-end; }
-.eq-bar { width: 6px; height: 4px; background: #ff4757; border-radius: 2px; transition: height 0.1s; }
+.music-card-immersive.is-playing .spindle::after, 
+.music-card-immersive.is-playing .spindle .avatar { 
+  animation-play-state: running; 
+}
+.spindle .avatar { 
+  width: 20px; 
+  height: 20px; 
+  border-radius: 50%; 
+  z-index: 2; 
+  animation: spin 6s linear infinite; 
+  animation-play-state: paused; 
+}
+.tape-eq { display: flex; justify-content: center; gap: 3px; height: 12px; align-items: flex-end; }
+.eq-bar { width: 4px; height: 2px; background: var(--color-accent, #ff4757); border-radius: 1px; transition: height 0.1s; }
 .music-card-immersive.is-playing .eq-bar { animation: eqJump 0.6s ease-in-out infinite alternate; }
-.eq-bar:nth-child(1) { animation-delay: 0.1s; } .eq-bar:nth-child(2) { animation-delay: 0.4s; }
-.eq-bar:nth-child(3) { animation-delay: 0.2s; } .eq-bar:nth-child(4) { animation-delay: 0.5s; }
+.eq-bar:nth-child(1) { animation-delay: 0.1s; } 
+.eq-bar:nth-child(2) { animation-delay: 0.4s; }
+.eq-bar:nth-child(3) { animation-delay: 0.2s; } 
+.eq-bar:nth-child(4) { animation-delay: 0.5s; }
 .eq-bar:nth-child(5) { animation-delay: 0.3s; }
-@keyframes eqJump { 0% { height: 4px; } 100% { height: 20px; } }
 
 .tape-input-sig {
-  font-family: 'Comic Sans MS', cursive, sans-serif; font-size: 16px; color: #111;
-  font-weight: bold; text-shadow: none; border-bottom: 1px dashed #ccc; padding-bottom: 2px;
+  font-family: inherit; font-size: 11px; color: #111;
+  font-weight: bold; text-shadow: none; border-bottom: 1px dashed #ccc; padding-bottom: 1px;
 }
 .tape-input-dist {
-  position: absolute; bottom: 30px; left: 0; width: 100%; font-family: monospace;
-  font-size: 14px; color: rgba(255,255,255,0.6); letter-spacing: 2px;
+  position: absolute; bottom: 8px; left: 0; width: 100%; font-family: monospace;
+  font-size: 10px; color: var(--color-text-tertiary); letter-spacing: 1px;
 }
 
 /* ==========================================================================
-   风格 2：网易云“一起听” (Listen Together)
+   风格 2：网易云“一起听” (Listen Together - Mini)
    ========================================================================== */
-.view-netease { background: radial-gradient(circle at top, #4a4a4a, #111); overflow: hidden; }
+.view-netease { background: radial-gradient(circle at top, var(--color-bg-secondary), var(--color-bg-primary)); overflow: hidden; }
 .netease-blur-bg {
-  position: absolute; inset: -20px; background: #222;
-  filter: blur(30px) brightness(0.4); z-index: 0;
+  position: absolute; inset: -20px; background: var(--color-bg-secondary);
+  filter: blur(25px) brightness(0.3); z-index: 0;
 }
-.vinyl-wrapper { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); width: 200px; height: 200px; z-index: 5; }
+.vinyl-wrapper { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 100px; height: 100px; z-index: 5; }
 .vinyl-record {
-  width: 100%; height: 100%; border-radius: 50%; background: #0a0a0a;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 0 4px #111, inset 0 0 20px #333;
+  width: 100%; height: 100%; border-radius: 50%; background: #0c0c0c;
+  box-shadow: 0 6px 15px rgba(0,0,0,0.5), inset 0 0 0 3px #111, inset 0 0 10px #333;
   display: flex; justify-content: center; align-items: center; position: relative;
-  animation: spin 10s linear infinite; animation-play-state: paused;
+  animation: spin 12s linear infinite; animation-play-state: paused;
 }
 .music-card-immersive.is-playing .vinyl-record { animation-play-state: running; }
 .vinyl-record::after {
   content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(transparent 40deg, rgba(255,255,255,0.1) 60deg, transparent 80deg, transparent 220deg, rgba(255,255,255,0.1) 240deg, transparent 260deg);
+  background: conic-gradient(transparent 40deg, rgba(255,255,255,0.06) 60deg, transparent 80deg, transparent 220deg, rgba(255,255,255,0.06) 240deg, transparent 260deg);
 }
-.vinyl-cover { width: 120px; height: 120px; border-radius: 50%; overflow: hidden; border: 2px solid #000; z-index: 2; background: #333; }
+.vinyl-cover { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 1px solid #000; z-index: 2; }
 .vinyl-cover .avatar { width: 100%; height: 100%; object-fit: cover; }
 .stylus-arm {
-  position: absolute; top: -10px; right: -20px; width: 80px; height: 120px;
+  position: absolute; top: -8px; right: -12px; width: 45px; height: 65px;
   background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150"><path d="M80,20 C80,40 50,60 30,120 L20,130 L10,120 L20,110 C40,50 70,30 70,20 Z" fill="%23ccc"/><circle cx="75" cy="20" r="15" fill="%23999"/></svg>') no-repeat center/contain;
-  transform-origin: 75% 15%; transform: rotate(-30deg); transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 6;
+  transform-origin: 75% 15%; transform: rotate(-30deg); transition: transform 0.5s ease; z-index: 6;
 }
-.music-card-immersive.is-playing .stylus-arm { transform: rotate(0deg); }
+.music-card-immersive.is-playing .stylus-arm { transform: rotate(-5deg); }
 
 .listen-together-area {
-  position: absolute; top: 310px; left: 0; width: 100%; padding: 0 40px;
+  position: absolute; top: 110px; left: 0; width: 100%; padding: 0 45px;
   display: flex; justify-content: space-between; align-items: center; z-index: 10;
 }
-.lt-avatar { width: 44px; height: 44px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 15px rgba(255,255,255,0.3); overflow: hidden; position: relative; }
+.lt-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--color-bg-primary); box-shadow: 0 0 8px rgba(255,255,255,0.2); overflow: hidden; }
 .lt-avatar .avatar { width: 100%; height: 100%; }
 .lt-connection {
-  flex: 1; height: 2px; margin: 0 15px; position: relative;
-  background: rgba(255,255,255,0.2); overflow: hidden; display: flex; align-items: center;
+  flex: 1; height: 1.5px; margin: 0 10px; position: relative;
+  background: rgba(255,255,255,0.1); overflow: hidden; display: flex; align-items: center;
 }
 .lt-line-glow {
-  width: 50%; height: 2px; background: linear-gradient(90deg, transparent, #fff, transparent);
+  width: 40%; height: 1.5px; background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
   animation: pulseLine 2s linear infinite; animation-play-state: paused;
 }
 .music-card-immersive.is-playing .lt-line-glow { animation-play-state: running; }
-@keyframes pulseLine { 0% { transform: translateX(-100%); } 100% { transform: translateX(200%); } }
 
-.netease-input-sig { position: absolute; top: 380px; font-size: 18px; font-weight: 500; }
-.netease-input-dist { position: absolute; top: 410px; font-size: 12px; color: rgba(255,255,255,0.5); }
+.netease-input-sig { position: absolute; top: 148px; font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+.netease-input-dist { position: absolute; top: 170px; font-size: 10px; color: var(--color-text-tertiary); }
 
 /* ==========================================================================
-   风格 3：Y2K 透明 CD 机 (Crystal CD)
+   风格 3：Y2K 透明 CD 机 (Crystal CD - Mini)
    ========================================================================== */
-.view-cd { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+.view-cd { 
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 15%, var(--color-bg-secondary)) 0%, var(--color-bg-primary) 100%); 
+}
 .cd-player-case {
-  position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-  width: 280px; height: 280px; border-radius: 30px;
-  background: rgba(255,255,255,0.2); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
-  border: 1px solid rgba(255,255,255,0.6); box-shadow: 0 20px 40px rgba(0,0,0,0.1), inset 0 10px 20px rgba(255,255,255,0.5);
+  position: absolute; top: 46%; left: 30%; transform: translate(-35%, -50%);
+  width: 120px; height: 120px; border-radius: 20px;
+  background: rgba(255,255,255,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 8px 20px rgba(0,0,0,0.15), inset 0 5px 10px rgba(255,255,255,0.1);
   display: flex; justify-content: center; align-items: center;
 }
 .cd-disc {
-  width: 240px; height: 240px; border-radius: 50%;
-  background: conic-gradient(from 0deg, #f0f0f0, #ff9a9e, #fecfef, #f0f0f0, #a1c4fd, #c2e9fb, #f0f0f0);
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.8), 0 5px 15px rgba(0,0,0,0.1);
+  width: 106px; height: 106px; border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(240,240,240,0.8), var(--color-accent), rgba(250,250,250,0.7), rgba(160,200,250,0.8), rgba(240,240,240,0.8));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5), 0 3px 8px rgba(0,0,0,0.1);
   display: flex; justify-content: center; align-items: center;
-  animation: spin 4s linear infinite; animation-play-state: paused;
+  animation: spin 5s linear infinite; animation-play-state: paused;
 }
 .music-card-immersive.is-playing .cd-disc { animation-play-state: running; }
 .cd-center-hole {
-  width: 60px; height: 60px; border-radius: 50%; background: #eee;
-  border: 8px solid rgba(255,255,255,0.5); box-shadow: inset 0 5px 10px rgba(0,0,0,0.2);
+  width: 32px; height: 32px; border-radius: 50%; background: var(--color-bg-primary);
+  border: 4px solid rgba(255,255,255,0.3); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
   display: flex; overflow: hidden; position: relative;
 }
 .cd-center-hole .avatar { width: 50%; height: 100%; object-fit: cover; }
 
 .cd-lcd-screen {
-  position: absolute; bottom: 35px; left: 50%; transform: translateX(-50%);
-  width: 240px; height: 60px; background: #9db2a3;
-  border-radius: 8px; border: 2px solid #555;
-  box-shadow: inset 0 3px 8px rgba(0,0,0,0.3); padding: 5px;
+  position: absolute; top: 50%; right: 12px; transform: translateY(-38%);
+  width: 160px; height: 100px; 
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-secondary));
+  border-radius: 10px; border: 1px solid var(--color-border);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.15); padding: 8px 4px;
   display: flex; flex-direction: column; justify-content: center; z-index: 10;
 }
 .cd-input-sig, .cd-input-dist {
   background: transparent; border: none; text-align: center; width: 100%; outline: none;
-  font-family: 'Courier New', Courier, monospace; font-weight: bold; color: #222; text-shadow: 1px 1px 0px rgba(255,255,255,0.2);
+  font-family: monospace; font-weight: bold; color: var(--color-text-primary);
 }
-.cd-input-sig { font-size: 14px; margin-bottom: 4px; }
-.cd-input-dist { font-size: 12px; opacity: 0.7; }
+.cd-input-sig { font-size: 12px; margin-bottom: 6px; border-bottom: 1px dashed var(--color-border); padding-bottom: 2px;}
+.cd-input-dist { font-size: 10px; color: var(--color-text-secondary); }

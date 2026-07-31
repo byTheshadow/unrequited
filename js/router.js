@@ -43,7 +43,7 @@ async function render() {
     const mod = await loader();
     app.innerHTML = '';
     currentPage = mod;
-    if (typeof mod.render === 'function') mod.render(app, params);
+    if (typeof mod.render === 'function') await mod.render(app, params);
   } catch (err) {
     console.error('Route load failed:', err);
     app.innerHTML = `<div style="padding:2rem;color:var(--color-text-secondary);text-align:center;">

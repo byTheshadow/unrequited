@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unrequited-shell-v14';
+const CACHE_NAME = 'unrequited-shell-v15';
 const CORE = [
   './',
   './index.html',
@@ -16,6 +16,7 @@ const CORE = [
   './js/cardEngine.js',
   './js/lib/keepAlive.js',
   './js/lib/sound.js',
+  './js/lib/callManager.js',
   './js/lib/scheduler.js',
   './js/pages/launch.js',
   './js/pages/home.js',

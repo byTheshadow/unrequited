@@ -17,6 +17,8 @@ import {
 } from '../cardEngine.js';
 import * as keepAlive from '../lib/keepAlive.js';
 import * as sound from '../lib/sound.js';
+import { CallManager } from '../lib/callManager.js';
+
 
 const DEFAULT_QUOTE_CHANCE = 0.4;
 const QUOTE_PREVIEW_MAX = 40;
@@ -24,6 +26,7 @@ const DEFAULT_MUSIC = { signature: '一支未命名的曲子', distance: '相距
 const DEFAULT_CALL_MIN_SEC = 45;
 const DEFAULT_CALL_MAX_SEC = 180;
 const CALL_RING_TIMEOUT = 15000;
+
 
 let state = {
   convId: null,
@@ -42,6 +45,8 @@ let state = {
   panelExpanded: false,
   panelTab: 'status',
   statusCardIndex: 0,
+
+  draftMessages: [],
 
   call: null,
   callTimer: null,
@@ -119,6 +124,45 @@ function msgPreviewContent(msg) {
   return msg.content;
 }
 
+function getRandomRotationInterval() {
+  return (2 + Math.random() * 4) * 60 * 60 * 1000;
+}
+
+async function checkAndRotateCharacterStatus(character) {
+  if (!character) return character;
+  if (!character.statusPool || !Array.isArray(character.statusPool) || !character.statusPool.length) return character;
+
+  const now = Date.now();
+  const nextTime = character.nextStatusRotationTime || 0;
+  if (now < nextTime) return character;
+
+  const pool = character.statusPool.filter(Boolean);
+  if (!pool.length) return character;
+
+  let nextStatus = character.status || '';
+
+  if (pool.length === 1) {
+    nextStatus = pool[0];
+  } else {
+    const candidates = pool.filter((s) => s !== character.status);
+    nextStatus = candidates.length
+      ? candidates[Math.floor(Math.random() * candidates.length)]
+      : pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const nextRotationTime = now + getRandomRotationInterval();
+
+  await db.characters.update(character.id, {
+    status: nextStatus,
+    nextStatusRotationTime: nextRotationTime,
+  });
+
+  character.status = nextStatus;
+  character.nextStatusRotationTime = nextRotationTime;
+  return character;
+}
+
+
 /* ---------- 选择题 ---------- */
 function findLatestUnansweredUserChoice() {
   for (let i = state.messages.length - 1; i >= 0; i--) {
@@ -151,21 +195,35 @@ function choiceBubbleHTML(msg) {
   if (!choice) {
     return `<div class="msg-body">${escapeHtml(msg.content)}</div>`;
   }
+
+  // 角色发的且未被回答时，User 才可以点击回答
   const canAnswer = msg.sender === 'character' && !choice.answered;
-  const opts = canAnswer ? `
-    <div class="choice-options">
-      ${choice.options.map((opt, idx) => `
-        <button class="choice-option" data-choice-msg="${msg.id}" data-choice-idx="${idx}" type="button">
-          ${escapeHtml(opt)}
-        </button>
-      `).join('')}
-    </div>
-  ` : '';
+
+  let opts = '';
+  if (choice.options && choice.options.length) {
+    opts = `
+      <div class="choice-options">
+        ${choice.options.map((opt, idx) => {
+          const isSelected = choice.answered && choice.answer === opt;
+          const btnClass = isSelected ? 'choice-option selected' : 'choice-option';
+          const disabledAttr = !canAnswer ? 'disabled' : '';
+
+          return `
+            <button class="${btnClass}" data-choice-msg="${msg.id}" data-choice-idx="${idx}" ${disabledAttr} type="button">
+              ${escapeHtml(opt)}
+            </button>
+          `;
+        }).join('')}
+      </div>
+    `;
+  }
+
   return `
     <div class="msg-body choice-prompt">${escapeHtml(choice.prompt)}</div>
     ${opts}
   `;
 }
+
 
 async function answerCharacterChoice(msgId, idx) {
   const msg = state.messages.find((m) => m.id === msgId);
@@ -232,16 +290,64 @@ function quoteBarHTML(quoted) {
 }
 
 /* ---------- 消息气泡 HTML ---------- */
+
 function bubbleHTML(msg, character, user, showTimeSep) {
   const timeSep = showTimeSep
     ? `<div class="msg-time-sep">${formatDateSep(msg.timestamp)}　${formatTime(msg.timestamp)}</div>`
     : '';
 
-  if (msg.sender === 'system' || msg.type === 'system' || msg.type === 'sync' || msg.type === 'call_start' || msg.type === 'call_end') {
-    const isSync = msg.type === 'sync' || msg.type === 'call_start' || msg.type === 'call_end';
+  // 1. 系统消息与共时同步标记（不包含通话）
+  if (msg.sender === 'system' || msg.type === 'system' || msg.type === 'sync') {
+    const isSync = msg.type === 'sync';
     return `${timeSep}<div class="msg-system ${isSync ? 'msg-sync' : ''}" data-id="${msg.id}">
       ${isSync ? '<span class="sync-mark">◈</span>' : ''}${escapeHtml(msg.content)}
     </div>`;
+  }
+
+  // 2. 新增的 type === 'call' 通话气泡渲染
+  if (msg.type === 'call') {
+    const isUser = msg.sender === 'user';
+    const av = isUser
+      ? avatarHTML(user && user.avatar, (user && user.name) || '我', 32)
+      : avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
+
+    let callData = { status: 'finished', duration: 0 };
+    try {
+      callData = JSON.parse(msg.content);
+    } catch (e) {}
+
+    // 根据不同通话状态解析展示文字
+    let callLabel = '';
+    if (callData.status === 'finished') {
+      callLabel = `语音通话 ${formatDuration(callData.duration)}`;
+    } else if (callData.status === 'declined') {
+      callLabel = isUser ? '对方已拒绝' : '已拒绝';
+    } else if (callData.status === 'busy') {
+      callLabel = isUser ? '对方忙' : '对方忙';
+    } else if (callData.status === 'missed') {
+      callLabel = isUser ? '对方无应答' : '未接听';
+    } else {
+      callLabel = '通话已结束';
+    }
+
+    // 拼装微信风格通话气泡，内含电话图标
+    const body = `
+      <div class="msg-body msg-call-body">
+        <span class="call-bubble-icon">${isUser ? SVG_PHONE_OFF : SVG_PHONE}</span>
+        <span class="call-bubble-text">${escapeHtml(callLabel)}</span>
+      </div>
+    `;
+
+    return `
+      ${timeSep}
+      <div class="msg-row ${isUser ? 'msg-user' : 'msg-char'} msg-call-row" data-id="${msg.id}">
+        ${!isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+        <div class="msg-bubble-wrap">
+          <div class="msg-bubble">${body}</div>
+        </div>
+        ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+      </div>
+    `;
   }
 
   const isUser = msg.sender === 'user';
@@ -269,42 +375,44 @@ function bubbleHTML(msg, character, user, showTimeSep) {
   `;
 }
 
+
 function typingHTML(character, hint) {
-  const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
+  const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 52);
   return `
-    <div class="msg-row msg-char msg-typing" id="typing-indicator">
-      <div class="msg-avatar">${av}</div>
-      <div class="msg-bubble-wrap">
-        <div class="msg-bubble typing-bubble">
-          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-          ${hint ? `<span class="typing-hint">${escapeHtml(hint)}</span>` : ''}
-        </div>
+    <div class="center-typing-card" id="center-typing-card">
+      <div class="center-typing-avatar">${av}</div>
+      <div class="center-typing-name">${escapeHtml((character && character.name) || '?')}</div>
+      <div class="center-typing-loading">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </div>
+      ${hint ? `<div class="center-typing-hint">${escapeHtml(hint)}</div>` : '<div class="center-typing-hint">正在输入...</div>'}
     </div>
   `;
 }
 
 function shuffleHTML(character) {
-  const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
+  const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 52);
   return `
-    <div class="msg-row msg-char msg-shuffling" id="shuffle-fx">
-      <div class="msg-avatar">${av}</div>
-      <div class="shuffle-stage">
-        <span class="frag"></span>
-        <span class="frag"></span>
-        <span class="frag"></span>
-        <span class="frag"></span>
-        <span class="frag"></span>
+    <div class="center-typing-card center-typing-shuffle" id="shuffle-fx">
+      <div class="center-typing-avatar">${av}</div>
+      <div class="center-typing-name">${escapeHtml((character && character.name) || '?')}</div>
+      <div class="center-typing-loading">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
       </div>
+      <div class="center-typing-hint">正在整理字卡...</div>
     </div>
   `;
 }
+
 
 /* ---------- 数据加载 ---------- */
 async function loadAll(convId) {
   const conv = await db.conversations.get(convId);
   if (!conv) throw new Error('对话不存在');
-  const character = await db.characters.get(conv.characterId);
+  let character = await db.characters.get(conv.characterId);
+if (character) {
+  character = await checkAndRotateCharacterStatus(character);
+}
   let user = (await db.user.toArray())[0];
   if (!user) {
     const uid = await db.user.add({ name: '我', avatar: '', status: '', signature: '' });
@@ -502,31 +610,280 @@ async function sendUserMessage() {
   await schedulePendingReply();
 }
 
-function showShuffling() {
-  const box = document.getElementById('msg-scroll');
-  if (!box) return;
-  if (document.getElementById('shuffle-fx')) return;
-  box.insertAdjacentHTML('beforeend', shuffleHTML(state.character));
-  scrollToBottom(true);
+function openChoiceCreatorSheet() {
+  let options = ['', '']; // 默认两个空选项
+
+  const renderBody = () => {
+    return `
+      <div id="choice-creator-wrap">
+        <div class="field">
+          <label class="field-label">问题 / 引导语</label>
+          <input class="input" id="c-prompt" placeholder="写下你要提问的问题..." value="">
+        </div>
+        <div class="field">
+          <label class="field-label">备选选项 (最少2个，最多5个)</label>
+          <div id="c-options-list" style="display:flex; flex-direction:column; gap:8px;">
+            ${options.map((opt, index) => `
+              <div class="c-opt-row" style="display:flex; gap:8px; align-items:center;">
+                <input class="input c-opt-input" data-idx="${index}" placeholder="选项 ${index + 1}" value="${escapeAttr(opt)}">
+                ${options.length > 2 ? `
+                  <button class="btn-opt-del" data-idx="${index}" style="color:#dc2626; border:none; background:none; cursor:pointer; padding: 4px 8px;">
+                    ${ICON.trash}
+                  </button>
+                ` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ${options.length < 5 ? `
+          <button class="btn btn-secondary btn-block" id="c-add-opt-btn" style="margin-top:8px; min-height:36px; padding:6px 12px; font-size:12px;">+ 添加选项</button>
+        ` : ''}
+      </div>
+    `;
+  };
+
+  const { close } = openSheet({
+    title: '发起选择题给角色',
+    body: renderBody(),
+    actions: `
+      <button class="btn btn-ghost" data-act="cancel-choice">取消</button>
+      <button class="btn btn-primary" data-act="send-choice">发送</button>
+    `,
+  });
+
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  if (!root) return;
+
+  const bindEvents = () => {
+    const addBtn = root.querySelector('#c-add-opt-btn');
+    if (addBtn) {
+      addBtn.onclick = () => {
+        if (options.length >= 5) return;
+        options.push('');
+        updateUI();
+      };
+    }
+
+    root.querySelectorAll('.btn-opt-del').forEach((btn) => {
+      btn.onclick = () => {
+        const idx = Number(btn.getAttribute('data-idx'));
+        options.splice(idx, 1);
+        if (options.length < 2) options = ['', ''];
+        updateUI();
+      };
+    });
+  };
+
+  const updateUI = () => {
+    const promptInput = root.querySelector('#c-prompt');
+    const savedPrompt = promptInput ? promptInput.value : '';
+
+    root.querySelectorAll('.c-opt-input').forEach((inp) => {
+      const idx = Number(inp.getAttribute('data-idx'));
+      options[idx] = inp.value;
+    });
+
+    const bodyEl = root.querySelector('.sheet-body');
+    if (!bodyEl) return;
+    bodyEl.innerHTML = renderBody();
+
+    const newPrompt = root.querySelector('#c-prompt');
+    if (newPrompt) newPrompt.value = savedPrompt;
+
+    bindEvents();
+  };
+
+  root.querySelector('[data-act=cancel-choice]').addEventListener('click', () => close());
+
+  root.querySelector('[data-act=send-choice]').addEventListener('click', async () => {
+    const prompt = root.querySelector('#c-prompt').value.trim();
+    if (!prompt) {
+      toast('请输入问题内容');
+      return;
+    }
+
+    const finalOptions = [];
+    root.querySelectorAll('.c-opt-input').forEach((inp) => {
+      const val = inp.value.trim();
+      if (val) finalOptions.push(val);
+    });
+
+    if (finalOptions.length < 2) {
+      toast('请至少填写两个有效选项');
+      return;
+    }
+
+    const formattedContent = `??${prompt}|${finalOptions.join('|')}`;
+    close();
+
+    const userMsg = {
+      conversationId: state.convId,
+      sender: 'user',
+      content: formattedContent,
+      type: 'choice',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: false,
+    };
+
+    const id = await db.messages.add(userMsg);
+    userMsg.id = id;
+
+    await db.conversations.update(state.convId, {
+      lastMessage: `[选择题] ${prompt}`,
+      lastMessageTime: Date.now(),
+    });
+
+    state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
+    renderMessages();
+
+    await schedulePendingReply();
+  });
+
+  bindEvents();
 }
+
+
+function bindDraftEvents(root, renderDraftList) {
+  const list = root.querySelector('[data-draft-list]');
+  if (!list) return;
+
+  list.querySelectorAll('.draft-item-delete').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.getAttribute('data-idx'));
+      if (!Number.isFinite(idx)) return;
+      state.draftMessages.splice(idx, 1);
+      list.outerHTML = renderDraftList();
+      bindDraftEvents(root, renderDraftList);
+    });
+  });
+}
+
+function renderDraftListHTML() {
+  if (!state.draftMessages.length) {
+    return `<div class="draft-empty">暂无草稿内容，在下方输入后点击添加</div>`;
+  }
+
+  return `
+    <div class="draft-items-list" data-draft-list>
+      ${state.draftMessages.map((msg, index) => `
+        <div class="draft-item">
+          <span class="draft-item-text">${escapeHtml(msg)}</span>
+          <button class="draft-item-delete" data-idx="${index}" aria-label="删除草稿">${ICON.trash}</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function openDraftSheet() {
+  const body = `
+    <div id="draft-container">
+      ${renderDraftListHTML()}
+      <div class="field" style="margin-top:10px;">
+        <textarea class="textarea" id="draft-input" placeholder="输入你想暂存的消息..." rows="2" style="min-height:70px;"></textarea>
+      </div>
+    </div>
+  `;
+
+  const { close } = openSheet({
+    title: `多消息暂存箱 (${state.draftMessages.length})`,
+    body,
+    actions: `
+      <button class="btn btn-ghost" data-act="add-draft">添加</button>
+      <button class="btn btn-primary" data-act="send-all-draft">一次性发送</button>
+    `,
+  });
+
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  if (!root) return;
+
+  const input = root.querySelector('#draft-input');
+  const renderDraftList = () => renderDraftListHTML();
+
+  root.querySelector('[data-act=add-draft]').addEventListener('click', () => {
+    const val = input.value.trim();
+    if (!val) return;
+    state.draftMessages.push(val);
+    input.value = '';
+    const container = root.querySelector('#draft-container');
+    if (container) container.innerHTML = `
+      ${renderDraftList()}
+      <div class="field" style="margin-top:10px;">
+        <textarea class="textarea" id="draft-input" placeholder="输入你想暂存的消息..." rows="2" style="min-height:70px;"></textarea>
+      </div>
+    `;
+    bindDraftEvents(root, renderDraftList);
+    const newInput = root.querySelector('#draft-input');
+    if (newInput) newInput.focus();
+  });
+
+  root.querySelector('[data-act=send-all-draft]').addEventListener('click', async () => {
+    if (!state.draftMessages.length) {
+      toast('暂存箱是空的');
+      return;
+    }
+
+    const msgs = [...state.draftMessages];
+    state.draftMessages = [];
+    close();
+
+    for (const content of msgs) {
+      const msg = {
+        conversationId: state.convId,
+        sender: 'user',
+        content,
+        type: 'text',
+        status: 'sent',
+        quotedMessageId: null,
+        timestamp: Date.now(),
+        isRead: false,
+      };
+      const id = await db.messages.add(msg);
+      msg.id = id;
+      appendMessage(msg);
+      playUserSound();
+      await sleep(50);
+    }
+
+    await persistConvSummary();
+    updateSendBtn();
+    await schedulePendingReply();
+  });
+
+  bindDraftEvents(root, renderDraftList);
+}
+
+
+
+function showShuffling() {
+  const page = document.querySelector('.chat-page');
+  if (!page) return;
+  if (document.getElementById('shuffle-fx')) return;
+  page.insertAdjacentHTML('beforeend', shuffleHTML(state.character));
+}
+
 function hideShuffling() {
   const el = document.getElementById('shuffle-fx');
   if (el) el.remove();
 }
+
 function showTyping() {
   if (state.typing) return;
   state.typing = true;
-  const box = document.getElementById('msg-scroll');
-  if (!box) return;
+  const page = document.querySelector('.chat-page');
+  if (!page) return;
   const hint = state.conv && state.conv.typingHint;
-  box.insertAdjacentHTML('beforeend', typingHTML(state.character, hint));
-  scrollToBottom(true);
+  page.insertAdjacentHTML('beforeend', typingHTML(state.character, hint));
 }
+
 function hideTyping() {
   state.typing = false;
-  const t = document.getElementById('typing-indicator');
+  const t = document.getElementById('center-typing-card');
   if (t) t.remove();
 }
+
 
 async function schedulePendingReply() {
   const cfg = (state.character && state.character.replyConfig) || {};
@@ -727,22 +1084,54 @@ async function executeReply() {
     return;
   }
 
-  if (choices && choices.length) {
-    const choice = choices[0];
+    if (userChoice) {
+    const answer = pick(userChoice.choice.options);
+    await markChoiceAnswered(userChoice.msg.id, answer, 'character');
+
     let autoQuoteId = null;
     if (quoteChance > 0 && Math.random() < quoteChance) {
-      autoQuoteId = pickAutoQuoteTarget();
+      autoQuoteId = userChoice.msg.id;
     }
+
+    // B 方案：生成该角色的随机字卡消息进行融合
+    const generated = await generateForCharacter(state.character.id);
+    const generatedMessages = generated && generated.messages ? generated.messages : [];
+    let extraText = '';
+    if (generatedMessages.length) {
+      const pickedMsg = generatedMessages[0];
+      const pickedContent = typeof pickedMsg === 'string'
+        ? pickedMsg
+        : (pickedMsg && pickedMsg.content) ? pickedMsg.content : '';
+      if (pickedContent) {
+        extraText = `。${pickedContent}`;
+      }
+    }
+
+    const finalAnswer = `◈ 选择了「${answer}」${extraText}`;
+
     const msg = {
       conversationId: state.convId,
       sender: 'character',
-      content: choiceToContent(choice),
-      type: 'choice',
+      content: finalAnswer,
+      type: 'card',
       status: 'sent',
       quotedMessageId: autoQuoteId,
       timestamp: Date.now(),
       isRead: true,
     };
+    const id = await db.messages.add(msg);
+    msg.id = id;
+    hideTyping();
+
+    // 重新获取并渲染消息流
+    state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
+    renderMessages();
+
+    playCharSound();
+    await persistConvSummary();
+    return;
+  }
+
     const id = await db.messages.add(msg);
     msg.id = id;
     hideTyping();
@@ -886,6 +1275,7 @@ async function openMsgActions(id) {
     }
   });
 }
+
 /* ---------- 虚拟通话 ---------- */
 function getCallRangeSec() {
   const cfg = (state.character && state.character.replyConfig) || {};
@@ -902,194 +1292,19 @@ function getCallChance() {
 }
 
 async function maybeStartCallByChance() {
-  if (state.call) return false;
+  if (CallManager && CallManager.state && CallManager.state !== 'idle') return false;
   const chance = getCallChance();
   if (chance <= 0 || Math.random() >= chance) return false;
-  await startVirtualCall();
-  return true;
-}
 
-function callStatusText() {
-  if (!state.call) return '';
-  if (state.call.status === 'ringing') return '正在呼叫';
-  if (state.call.status === 'connected') return '通话中';
-  if (state.call.status === 'missed') return '未接听';
-  if (state.call.status === 'ended') return '已结束';
-  return '';
-}
-
-function callMiniHTML() {
-  if (!state.call) return '';
-  return `
-    <button class="call-heart ${state.call.status}" id="call-heart" data-act="open-call" type="button" aria-label="打开通话">
-      <span class="call-heart-ring"></span>
-      <span class="call-heart-core">
-        ${SVG_PHONE}
-      </span>
-    </button>
-  `;
-}
-
-function callFullHTML() {
-  if (!state.call || !state.callExpanded) return '';
   const c = state.character || {};
-  const status = callStatusText();
-  const duration = state.call.status === 'ringing'
-    ? '00:00'
-    : formatDuration(state.callDurationSec);
-  return `
-    <div class="call-full" id="call-full">
-      <div class="call-full-bg"></div>
-      <div class="call-full-shade"></div>
-      <div class="call-full-inner">
-        <button class="call-min-btn" data-act="min-call" type="button" aria-label="最小化">${SVG_MINIMIZE}</button>
-        <div class="call-orbit">
-          <div class="call-avatar-lg">${avatarHTML(c.avatar, c.name || '?', 104)}</div>
-        </div>
-        <div class="call-name">${escapeHtml(c.name || '未知来电')}</div>
-        <div class="call-status">${escapeHtml(status)}</div>
-        <div class="call-duration" id="call-duration">${duration}</div>
-        <div class="call-actions">
-          ${state.call.status === 'ringing' ? `
-            <button class="call-action call-accept" data-act="accept-call" type="button">
-              ${SVG_PHONE}<span>接听</span>
-            </button>
-            <button class="call-action call-hang" data-act="hang-call" type="button">
-              ${SVG_PHONE_OFF}<span>挂断</span>
-            </button>
-          ` : `
-            <button class="call-action call-hang" data-act="hang-call" type="button">
-              ${SVG_PHONE_OFF}<span>挂断</span>
-            </button>
-          `}
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderCallLayer() {
-  const host = document.getElementById('call-layer');
-  if (!host) return;
-  host.innerHTML = `${callMiniHTML()}${callFullHTML()}`;
-  applyChatStyles();
-}
-
-function updateCallDurationUI() {
-  const el = document.getElementById('call-duration');
-  if (el) el.textContent = formatDuration(state.callDurationSec);
-}
-
-function clearCallTimers() {
-  clearInterval(state.callTimer);
-  clearTimeout(state.callRingTimer);
-  clearTimeout(state.callEndTimer);
-  state.callTimer = null;
-  state.callRingTimer = null;
-  state.callEndTimer = null;
-}
-
-async function insertCallMessage(type, content) {
-  const msg = {
-    conversationId: state.convId,
-    sender: 'system',
-    content,
-    type,
-    status: 'sent',
-    quotedMessageId: null,
-    timestamp: Date.now(),
-    isRead: true,
-  };
-  const id = await db.messages.add(msg);
-  msg.id = id;
-  appendMessage(msg);
-  await persistConvSummary();
-}
-
-async function startVirtualCall() {
-  if (state.call || !state.character) return;
-  const range = getCallRangeSec();
-  const planned = randInt(range.min, range.max);
-  state.call = {
-    status: 'ringing',
-    plannedDurationSec: planned,
-    startedAt: Date.now(),
-  };
-  state.callExpanded = false;
-  state.callStartedAt = null;
-  state.callDurationSec = 0;
-  renderCallLayer();
-  haptic(20);
-  playCharSound();
-  await insertCallMessage('call_start', '通话请求');
-
-  clearTimeout(state.callRingTimer);
-  state.callRingTimer = setTimeout(() => {
-    if (!state.call || state.call.status !== 'ringing') return;
-    endVirtualCall('missed');
-  }, CALL_RING_TIMEOUT);
-}
-
-function acceptVirtualCall() {
-  if (!state.call || state.call.status !== 'ringing') return;
-  clearTimeout(state.callRingTimer);
-  state.call.status = 'connected';
-  state.callStartedAt = Date.now();
-  state.callDurationSec = 0;
-  haptic(12);
-  renderCallLayer();
-
-  clearInterval(state.callTimer);
-  state.callTimer = setInterval(() => {
-    if (!state.call || state.call.status !== 'connected') return;
-    state.callDurationSec = Math.floor((Date.now() - state.callStartedAt) / 1000);
-    updateCallDurationUI();
-  }, 1000);
-
-  clearTimeout(state.callEndTimer);
-  state.callEndTimer = setTimeout(() => {
-    if (!state.call || state.call.status !== 'connected') return;
-    endVirtualCall('ended');
-  }, state.call.plannedDurationSec * 1000);
-}
-
-async function endVirtualCall(reason = 'ended') {
-  if (!state.call) return;
-  const wasConnected = state.call.status === 'connected';
-  const duration = wasConnected ? state.callDurationSec : 0;
-  state.call.status = reason === 'missed' ? 'missed' : 'ended';
-  clearCallTimers();
-  renderCallLayer();
-
-  const text = reason === 'missed'
-    ? '未接听'
-    : `通话结束 ${formatDuration(duration)}`;
-  await insertCallMessage('call_end', text);
-  haptic(10);
-
-  setTimeout(() => {
-    if (state.destroyed) return;
-    if (!state.call) return;
-    state.call = null;
-    state.callExpanded = false;
-    state.callStartedAt = null;
-    state.callDurationSec = 0;
-    renderCallLayer();
-  }, 650);
-}
-
-function openCallFull() {
-  if (!state.call) return;
-  state.callExpanded = true;
-  renderCallLayer();
-  haptic(8);
-}
-
-function minimizeCallFull() {
-  if (!state.call) return;
-  state.callExpanded = false;
-  renderCallLayer();
-  haptic(6);
+  await CallManager.startCall(
+    state.convId,
+    c.id,
+    c.name,
+    c.avatar,
+    false
+  );
+  return true;
 }
 
 /* ---------- 面板：状态卡 + 音乐共听 ---------- */
@@ -1237,10 +1452,11 @@ function renderPill() {
   const avEl = document.getElementById('chat-header-avatar');
   const c = state.character;
   if (titleEl) titleEl.textContent = (c && c.name) || '（角色已删除）';
-  if (subEl && !subEl.classList.contains('thinking')) {
-    const s = c && (c.status || c.signature);
-    subEl.textContent = s || '';
-  }
+ if (subEl && !subEl.classList.contains('thinking')) {
+  const s = c && (c.status || c.signature);
+  subEl.textContent = s || '';
+}
+
   if (avEl) avEl.innerHTML = avatarHTML(c && c.avatar, c && c.name, 30);
 }
 
@@ -1997,29 +2213,47 @@ export async function render(root, params = {}) {
       <div class="chat-wallpaper"></div>
 
       <div class="chat-topbar">
-        <button class="chat-nav-btn" data-act="back" aria-label="返回">${ICON.back}</button>
-        <button class="chat-pill" data-act="toggle-panel" type="button">
-          <span class="pill-avatar" id="chat-header-avatar"></span>
-          <span class="pill-text">
-            <span class="chat-title" id="chat-title">加载中</span>
-            <span class="chat-subtitle" id="chat-subtitle"></span>
-          </span>
-          <span class="pill-chev">${SVG_CHEV}</span>
-        </button>
-        <button class="chat-nav-btn" data-act="menu" aria-label="更多">${ICON.more}</button>
-      </div>
+  <button class="chat-nav-btn" data-act="back" aria-label="返回">${ICON.back}</button>
+  <button class="chat-pill" data-act="toggle-panel" type="button">
+    <span class="pill-avatar" id="chat-header-avatar"></span>
+    <span class="pill-text">
+      <span class="chat-title" id="chat-title">加载中</span>
+      <span class="chat-subtitle" id="chat-subtitle"></span>
+    </span>
+    <span class="pill-chev">${SVG_CHEV}</span>
+  </button>
+  <button class="chat-nav-btn" data-act="call-phone" aria-label="拨打电话">${SVG_PHONE}</button>
+  <button class="chat-nav-btn" data-act="menu" aria-label="更多">${ICON.more}</button>
+</div>
+
 
       ${panelHTML()}
 
       <div class="msg-scroll" id="msg-scroll"></div>
 
-      <div class="call-layer" id="call-layer"></div>
+     
+     <div class="chat-input-dock">
+  <button class="dock-btn draft" data-act="open-draft" title="草稿箱" aria-label="草稿箱">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+    </svg>
+  </button>
 
-      <div class="chat-input-dock">
-        <button class="dock-btn spark" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
-        <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
-        <button class="dock-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
-      </div>
+  <button class="dock-btn choice-trigger" data-act="open-choice-creator" title="发起选择题" aria-label="发起选择题">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+      <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  </button>
+
+  <button class="dock-btn spark" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
+  <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
+  <button class="dock-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
+</div>
+
+
 
       <style>
         .chat-page {
@@ -3221,6 +3455,120 @@ export async function render(root, params = {}) {
           cursor: pointer;
           border: none;
         }
+          /* ============ 屏幕中央悬浮思考/打字卡片 ============ */
+.center-typing-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 999;
+  width: 220px;
+  padding: 24px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: centerFadeIn 0.3s ease-out;
+}
+.center-typing-avatar {
+  margin-bottom: 12px;
+}
+.center-typing-avatar .avatar {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.center-typing-name {
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 2px;
+  color: var(--color-text-primary);
+  margin-bottom: 6px;
+}
+.center-typing-hint {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  letter-spacing: 1px;
+  text-align: center;
+  margin-top: 10px;
+  max-width: 90%;
+  line-height: 1.4;
+}
+.center-typing-loading {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  height: 12px;
+}
+.center-typing-loading .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: centerTypingBounce 1.4s infinite ease-in-out both;
+}
+.center-typing-loading .dot:nth-child(1) { animation-delay: -0.32s; }
+.center-typing-loading .dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes centerFadeIn {
+  from { opacity: 0; transform: translate(-50%, -45%) scale(0.95); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes centerTypingBounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* 草稿箱按钮 */
+.dock-btn.draft {
+  color: var(--color-text-secondary);
+}
+.dock-btn.draft:active {
+  color: var(--color-accent);
+}
+
+/* 草稿箱列表 */
+.draft-empty {
+  text-align: center;
+  color: var(--color-text-tertiary);
+  padding: 20px;
+  font-size: 12px;
+}
+.draft-items-list {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+.draft-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-bg-secondary);
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  gap: 8px;
+}
+.draft-item-text {
+  word-break: break-all;
+  flex: 1;
+}
+.draft-item-delete {
+  color: #dc2626;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
       </style>
       <style id="chat-user-css"></style>
     </div>
@@ -3251,12 +3599,21 @@ export async function render(root, params = {}) {
   bindPanelEvents();
 
   renderMessages();
-  renderQuoteBar();
-  renderCallLayer();
+renderQuoteBar();
 
-  root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
-  root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
-  root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
+root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
+root.querySelector('[data-act=call-phone]').addEventListener('click', () => {
+  if (CallManager.state !== 'idle') {
+    toast('通话正在进行中');
+    return;
+  }
+  const c = state.character || {};
+  CallManager.startCall(state.convId, c.id, c.name, c.avatar, true);
+});
+root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
+root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
+
+
   root.querySelector('[data-act=trigger]').addEventListener('click', () => {
     sound.unlock();
     haptic(10);
@@ -3280,11 +3637,26 @@ export async function render(root, params = {}) {
     }
   });
 
-  const dock = root.querySelector('.chat-input-dock');
-  dock.addEventListener('click', (e) => {
-    const closeBtn = e.target.closest('[data-act=clear-quote]');
-    if (closeBtn) { haptic(6); clearPendingQuote(); }
-  });
+ const dock = root.querySelector('.chat-input-dock');
+dock.addEventListener('click', (e) => {
+  const closeBtn = e.target.closest('[data-act=clear-quote]');
+  if (closeBtn) { haptic(6); clearPendingQuote(); return; }
+
+  const draftBtn = e.target.closest('[data-act=open-draft]');
+  if (draftBtn) {
+    haptic(6);
+    openDraftSheet();
+    return;
+  }
+
+  const choiceBtn = e.target.closest('[data-act=open-choice-creator]');
+  if (choiceBtn) {
+    haptic(6);
+    openChoiceCreatorSheet();
+  }
+});
+
+
 
   const scrollBox = document.getElementById('msg-scroll');
   scrollBox.addEventListener('click', async (e) => {
@@ -3302,24 +3674,6 @@ export async function render(root, params = {}) {
     if (id) scrollToMessage(id);
   });
 
-  const callHost = document.getElementById('call-layer');
-  callHost.addEventListener('click', async (e) => {
-    const actBtn = e.target.closest('button[data-act]');
-    if (!actBtn) return;
-    const act = actBtn.getAttribute('data-act');
-    if (act === 'open-call') {
-      openCallFull();
-    } else if (act === 'min-call') {
-      minimizeCallFull();
-    } else if (act === 'accept-call') {
-      acceptVirtualCall();
-    } else if (act === 'hang-call') {
-      await endVirtualCall('ended');
-      state.call = null;
-      renderCallLayer();
-    }
-  });
-
   bindViewportFollow();
 
   state.onVisibility = () => {
@@ -3328,6 +3682,14 @@ export async function render(root, params = {}) {
     }
   };
   document.addEventListener('visibilitychange', state.onVisibility);
+    state.onCallHistoryUpdated = async (e) => {
+    if (e.detail.conversationId === state.convId) {
+      state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
+      renderMessages();
+    }
+  };
+  window.addEventListener('call-history-updated', state.onCallHistoryUpdated);
+
 
   scheduleTimers();
 }
@@ -3335,10 +3697,12 @@ export async function render(root, params = {}) {
 export function destroy() {
   state.destroyed = true;
   cancelTimers();
-  clearCallTimers();
   if (state.onViewport) state.onViewport();
   if (state.onVisibility) {
     document.removeEventListener('visibilitychange', state.onVisibility);
+  }
+  if (state.onCallHistoryUpdated) {
+    window.removeEventListener('call-history-updated', state.onCallHistoryUpdated);
   }
   clearTimeout(longPressTimer);
 }

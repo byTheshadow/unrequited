@@ -7,16 +7,64 @@ import {
 
 let listUnsub = null;
 
+function getRandomRotationInterval() {
+  return (2 + Math.random() * 4) * 60 * 60 * 1000;
+}
+
+async function checkAndRotateCharacterStatus(character) {
+  if (!character) return character;
+  if (!character.statusPool || !Array.isArray(character.statusPool) || !character.statusPool.length) return character;
+
+  const now = Date.now();
+  const nextTime = character.nextStatusRotationTime || 0;
+
+  if (now < nextTime) return character;
+
+  const pool = character.statusPool.filter(Boolean);
+  if (!pool.length) return character;
+
+  let nextStatus = character.status || '';
+
+  if (pool.length === 1) {
+    nextStatus = pool[0];
+  } else {
+    const candidates = pool.filter((s) => s !== character.status);
+    nextStatus = candidates.length
+      ? candidates[Math.floor(Math.random() * candidates.length)]
+      : pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  const nextRotationTime = now + getRandomRotationInterval();
+
+  await db.characters.update(character.id, {
+    status: nextStatus,
+    nextStatusRotationTime: nextRotationTime,
+  });
+
+  character.status = nextStatus;
+  character.nextStatusRotationTime = nextRotationTime;
+  return character;
+}
+
 async function loadData() {
   const conversations = await db.conversations.orderBy('lastMessageTime').reverse().toArray();
   const charIds = [...new Set(conversations.map((c) => c.characterId))];
-  const chars = charIds.length ? await db.characters.where('id').anyOf(charIds).toArray() : [];
+  const rawChars = charIds.length ? await db.characters.where('id').anyOf(charIds).toArray() : [];
+
+  const chars = [];
+  for (let i = 0; i < rawChars.length; i += 1) {
+    const ch = await checkAndRotateCharacterStatus(rawChars[i]);
+    chars.push(ch);
+  }
+
   const charMap = new Map(chars.map((c) => [c.id, c]));
+
   // 置顶排序
   conversations.sort((a, b) => {
     if ((b.pinned ? 1 : 0) !== (a.pinned ? 1 : 0)) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
     return (b.lastMessageTime || 0) - (a.lastMessageTime || 0);
   });
+
   return { conversations, charMap };
 }
 
@@ -35,6 +83,7 @@ function renderList(conversations, charMap) {
       </div>
     `;
   }
+
   return `
     <ul class="conv-list">
       ${conversations.map((c) => {
@@ -42,12 +91,18 @@ function renderList(conversations, charMap) {
         const name = ch ? ch.name : '（角色已删除）';
         const time = c.lastMessageTime ? formatTime(c.lastMessageTime) : '';
         const preview = c.lastMessage || '开始一段对话';
+        const subText = ch
+          ? (ch.status
+            ? `「${ch.status}」`
+            : (ch.signature ? ch.signature.slice(0, 20) : preview))
+          : preview;
+
         return `
           <li class="conv-row list-row" data-id="${c.id}">
             ${avatarHTML(ch && ch.avatar, name, 46)}
             <div class="list-row-body">
               <div class="list-row-title">${escapeHtml(name)}${c.pinned ? '<span class="pin-dot"></span>' : ''}</div>
-              <div class="list-row-sub">${escapeHtml(preview)}</div>
+              <div class="list-row-sub">${escapeHtml(subText)}</div>
             </div>
             <div class="list-row-aside">
               <span>${time}</span>

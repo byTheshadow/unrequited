@@ -37,6 +37,10 @@ function calculateNextActiveTime(minMinutes, maxMinutes) {
   return Date.now() + offset * 60 * 1000;
 }
 
+function calculateNextStatusRotationTime() {
+  return Date.now() + (Math.random() * 4 + 2) * 60 * 60 * 1000;
+}
+
 function renderList(list) {
   if (!list.length) {
     return `
@@ -102,7 +106,7 @@ function bindRowEvents() {
 async function openEditor(charId) {
   const isNew = !charId;
   const char = isNew
-    ? { name: '', avatar: '', signature: '', linkedDeckIds: [], replyConfig: {} }
+    ? { name: '', avatar: '', signature: '', linkedDeckIds: [], statusPool: [], replyConfig: {} }
     : await db.characters.get(charId);
   if (!char) { toast('角色不存在'); return; }
 
@@ -286,6 +290,9 @@ async function openEditor(charId) {
 
         <div class="field-hint" style="margin-top:12px;">已读不回文案（每行一句，空则用默认）</div>
         <textarea class="input textarea" id="f-skip-hints" rows="3" placeholder="对方无视了这条消息&#10;对方跳过了这条消息">${escapeHtml((cfg.skipHints || []).join('\n'))}</textarea>
+
+        <div class="field-hint" style="margin-top:12px;">角色专属状态池（每行一条，留空则不轮换）</div>
+        <textarea class="input textarea" id="f-status-pool" rows="3" placeholder="正在看海...&#10;信号不太好。&#10;失联中...">${escapeHtml((char.statusPool || []).join('\n'))}</textarea>
       </div>
     </div>
   `;
@@ -412,6 +419,12 @@ async function openEditor(charId) {
     const skipHints = sheetRoot.querySelector('#f-skip-hints').value
       .split('\n').map((s) => s.trim()).filter(Boolean);
 
+    const statusPoolText = sheetRoot.querySelector('#f-status-pool').value;
+    const statusPool = statusPoolText
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     if (activeEnabled && 'Notification' in window && Notification.permission === 'default') {
       try {
         await Notification.requestPermission();
@@ -423,6 +436,7 @@ async function openEditor(charId) {
     const payload = {
       name, avatar, signature,
       linkedDeckIds: selected,
+      statusPool,
       replyConfig: {
         minMsgs, maxMsgs,
         comboChance, minCombo: 2, maxCombo,
@@ -446,9 +460,30 @@ async function openEditor(charId) {
     let savedCharId = charId;
 
     if (isNew) {
-      savedCharId = await db.characters.add({ ...payload, createdAt: Date.now(), status: '' });
+      savedCharId = await db.characters.add({
+        ...payload,
+        createdAt: Date.now(),
+        status: statusPool[0] || '',
+        nextStatusRotationTime: calculateNextStatusRotationTime(),
+      });
     } else {
-      await db.characters.update(charId, payload);
+      const oldChar = await db.characters.get(charId);
+
+      const nextTime = oldChar.nextStatusRotationTime || calculateNextStatusRotationTime();
+
+      let curStatus = oldChar.status || '';
+      if (statusPool.length && !statusPool.includes(curStatus)) {
+        curStatus = statusPool[0];
+      }
+      if (!statusPool.length) {
+        curStatus = '';
+      }
+
+      await db.characters.update(charId, {
+        ...payload,
+        status: curStatus,
+        nextStatusRotationTime: nextTime,
+      });
     }
 
     if (savedCharId) {

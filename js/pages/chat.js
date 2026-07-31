@@ -744,6 +744,113 @@ function openChoiceCreatorSheet() {
   bindEvents();
 }
 
+// 12面星骰文字与占卜释义
+const DICE_FACES = [
+  { word: "亘古", desc: "深夜独有的时间停滞感。意味着问题超出了当下的维度，需要回溯前世或家族业力才能看清。" },
+  { word: "混沌", desc: "宇宙诞生前的状态。代表答案尚在孕育，是接收到的第一波未解码的原始能量。" },
+  { word: "沉没", desc: "并非消极，而是指意识的深度下潜。代表你需要潜入潜意识深潭去捞取那个被你遗忘的真相。" },
+  { word: "共时", desc: "宇宙的奥秘在说话。代表你与高我建立了稳定的通讯频道，当下的时间线是准确的。" },
+  { word: "脉动", desc: "代表能量层面的链接，两人之间存在极深的、无声的能量纠缠。" },
+  { word: "呓语", desc: "深夜半梦半醒间的灵性讯息。代表你正被灵性护法轻声呼唤。" },
+  { word: "命茧", desc: "宿命的包裹感。暗示你正处于灵魂的封存期，孤独是为了孵化下一个阶段的蜕变。" },
+  { word: "通透", desc: "孤独的至高境界。代表隐藏的真实已经暴露，你拥有看穿一切幻象的灵视能力。" },
+  { word: "归途", desc: "深度的链接指向回家的路。这是一种宿命的牵引，表示灵魂终将回到这条线上。" },
+  { word: "悬停", desc: "深夜燃烧后的残留。代表还有未了的意愿在灰烬中闪烁。" },
+  { word: "静默", desc: "当所有牌都杂乱无章时，静默意味着关闭门户，此时适合冥想而非解读。" },
+  { word: "轮转", desc: "宿命的闭环。说明当下的痛苦是循环的一部分，你拥有打破它或接纳它的最终选择权。" }
+];
+
+async function openSynchronicityDiceSheet() {
+  const body = `
+    <div class="dice-container">
+      <div class="d12-dice-wrapper rolling" id="d12-dice">
+        <div class="d12-ring"></div>
+        <div class="d12-ring-inner"></div>
+        <div class="d12-geometric-shape"></div>
+        <div class="d12-center-word" id="d12-word">✦</div>
+      </div>
+      <div id="dice-result-panel" style="display:none; width: 100%;"></div>
+    </div>
+  `;
+
+  const { close } = openSheet({
+    title: '共时星骰',
+    body,
+    actions: `<div id="dice-actions" style="display:flex; gap:10px; width:100%;"><button class="btn btn-ghost btn-block" disabled>正在祈导星轨...</button></div>`
+  });
+
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  if (!root) return;
+
+  const diceEl = root.querySelector('#d12-dice');
+  const wordEl = root.querySelector('#d12-word');
+  const resultPanel = root.querySelector('#dice-result-panel');
+  const actionsEl = root.querySelector('#dice-actions');
+
+  setTimeout(async () => {
+    if (!diceEl || !wordEl || !resultPanel || !actionsEl) return;
+
+    haptic(15);
+    diceEl.classList.remove('rolling');
+
+    const rolled = pick(DICE_FACES);
+
+    wordEl.textContent = rolled.word;
+
+    let quoteText = "";
+    if (state.character) {
+      const { messages } = await generateForCharacter(state.character.id);
+      if (messages && messages.length) {
+        quoteText = messages[0].content;
+      }
+    }
+
+    resultPanel.innerHTML = `
+      <div class="dice-result-card">
+        <div class="dice-result-word">✦ ${escapeHtml(rolled.word)} ✦</div>
+        <div class="dice-result-desc">${escapeHtml(rolled.desc)}</div>
+        ${quoteText ? `<div class="dice-result-quote">“ ${escapeHtml(quoteText)} ”</div>` : ''}
+      </div>
+    `;
+
+    resultPanel.style.display = 'block';
+
+    actionsEl.innerHTML = `
+      <button class="btn btn-secondary" id="btn-dice-keep">默默珍藏</button>
+      <button class="btn btn-primary" id="btn-dice-send">一键发送</button>
+    `;
+
+    const keepBtn = root.querySelector('#btn-dice-keep');
+    const sendBtn = root.querySelector('#btn-dice-send');
+
+    if (keepBtn) {
+      keepBtn.onclick = () => close();
+    }
+
+    if (sendBtn) {
+      sendBtn.onclick = async () => {
+        close();
+
+        const prompt = `◈ 掷得了星骰「${rolled.word}」${quoteText ? `，谶语为：“${quoteText}”` : ''}`;
+
+        const input = document.getElementById('chat-input');
+        if (input) {
+          input.value = prompt;
+          autoGrow(input);
+          updateSendBtn();
+
+          const realSendBtn = document.getElementById('send-btn');
+          if (realSendBtn) {
+            realSendBtn.click();
+          } else {
+            await sendUserMessage();
+          }
+        }
+      };
+    }
+  }, 2200);
+}
+
 
 function bindDraftEvents(root, renderDraftList) {
   const list = root.querySelector('[data-draft-list]');
@@ -859,26 +966,29 @@ function openDraftSheet() {
 }
 
 
-
-function showShuffling() {
-  const page = document.querySelector('.chat-page');
-  if (!page) return;
-  if (document.getElementById('shuffle-fx')) return;
-  page.insertAdjacentHTML('beforeend', shuffleHTML(state.character));
-}
-
-function hideShuffling() {
-  const el = document.getElementById('shuffle-fx');
-  if (el) el.remove();
-}
-
-function showTyping() {
+function showTyping(customHint) {
   if (state.typing) return;
   state.typing = true;
+
+  hideShuffling();
+
   const page = document.querySelector('.chat-page');
   if (!page) return;
-  const hint = state.conv && state.conv.typingHint;
-  page.insertAdjacentHTML('beforeend', typingHTML(state.character, hint));
+
+  const text = customHint || (state.conv && state.conv.typingHint) || "正在输入...";
+
+  page.insertAdjacentHTML('beforeend', `
+    <div class="center-typing-card" id="center-typing-card">
+      <div class="center-typing-avatar">
+        ${avatarHTML(state.character && state.character.avatar, state.character && state.character.name, 50)}
+      </div>
+      <div class="center-typing-name">${escapeHtml(state.character && state.character.name)}</div>
+      <div class="center-typing-loading">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <div class="center-typing-hint">${escapeHtml(text)}</div>
+    </div>
+  `);
 }
 
 function hideTyping() {
@@ -887,6 +997,30 @@ function hideTyping() {
   if (t) t.remove();
 }
 
+function showShuffling() {
+  hideTyping();
+  const page = document.querySelector('.chat-page');
+  if (!page) return;
+  if (document.getElementById('center-shuffling-card')) return;
+
+  page.insertAdjacentHTML('beforeend', `
+    <div class="center-typing-card" id="center-shuffling-card">
+      <div class="center-typing-avatar">
+        ${avatarHTML(state.character && state.character.avatar, state.character && state.character.name, 50)}
+      </div>
+      <div class="center-typing-name">${escapeHtml(state.character && state.character.name)}</div>
+      <div class="center-typing-loading" style="color:var(--color-accent); font-size:10px;">
+        ✦ 正在洗牌 ✦
+      </div>
+      <div class="center-typing-hint">挑选最能引起共鸣的字卡碎片...</div>
+    </div>
+  `);
+}
+
+function hideShuffling() {
+  const t = document.getElementById('center-shuffling-card');
+  if (t) t.remove();
+}
 
 async function schedulePendingReply() {
   const cfg = (state.character && state.character.replyConfig) || {};
@@ -896,13 +1030,33 @@ async function schedulePendingReply() {
 
   const delayMs = Math.round((minD + Math.random() * (maxD - minD)) * 1000);
   const target = Date.now() + delayMs;
+
   await db.conversations.update(state.convId, { pendingReplyAt: target });
   if (state.conv) state.conv.pendingReplyAt = target;
+
+  showImmediateStatusIndicator();
+
   scheduleTimers();
 }
 
+
+
+function showImmediateStatusIndicator() {
+  if (state.destroyed) return;
+
+  hideTyping();
+  hideShuffling();
+
+  const cfg = (state.character && state.character.replyConfig) || {};
+  const hints = (cfg.thinkingHints && cfg.thinkingHints.length) ? cfg.thinkingHints : DEFAULT_THINKING_HINTS;
+
+  showTyping(hints[0]);
+  startThinkingUI(hints);
+}
+
+
 function scheduleTimers() {
-  cancelTimers({ keepSubtitle: false });
+  cancelTimers({ keepSubtitle: true });
   if (!state.conv || !state.conv.pendingReplyAt) return;
 
   const remain = state.conv.pendingReplyAt - Date.now();
@@ -910,17 +1064,29 @@ function scheduleTimers() {
 
   const cfg = (state.character && state.character.replyConfig) || {};
   const hints = (cfg.thinkingHints && cfg.thinkingHints.length) ? cfg.thinkingHints : DEFAULT_THINKING_HINTS;
-  const typingDurationMs = 3000;
 
-  if (remain > typingDurationMs + 500) {
-    startThinkingUI(hints);
+  const typingDurationMs = 3000;
+  const shuffleDurationMs = 1500;
+
+  if (remain > typingDurationMs + shuffleDurationMs) {
     state.thinkingTimer = setTimeout(() => {
       if (state.destroyed) return;
-      stopThinkingUI();
-      showTyping();
+      showShuffling();
+
+      state.thinkingTimer = setTimeout(() => {
+        if (state.destroyed) return;
+        showTyping("正在输入...");
+      }, shuffleDurationMs);
+
+    }, remain - (typingDurationMs + shuffleDurationMs));
+  } else if (remain > typingDurationMs) {
+    showShuffling();
+    state.thinkingTimer = setTimeout(() => {
+      if (state.destroyed) return;
+      showTyping("正在输入...");
     }, remain - typingDurationMs);
   } else {
-    showTyping();
+    showTyping("正在输入...");
   }
 
   state.replyTimer = setTimeout(() => {
@@ -928,6 +1094,7 @@ function scheduleTimers() {
     executeReply();
   }, remain);
 }
+
 
 function cancelTimers({ keepSubtitle } = {}) {
   clearTimeout(state.replyTimer);
@@ -2357,7 +2524,7 @@ export async function render(root, params = {}) {
       <div class="msg-scroll" id="msg-scroll"></div>
 
      
-     <div class="chat-input-dock">
+    <div class="chat-input-dock">
   <button class="dock-btn draft" data-act="open-draft" title="草稿箱" aria-label="草稿箱">
     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -2373,10 +2540,21 @@ export async function render(root, params = {}) {
     </svg>
   </button>
 
+  <button class="dock-btn dice-trigger" data-act="open-star-dice" title="共时星骰" aria-label="共时星骰">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+      <line x1="12" y1="22" x2="12" y2="15.5"/>
+      <line x1="22" y1="8.5" x2="12" y2="12"/>
+      <line x1="2" y1="8.5" x2="12" y2="12"/>
+      <line x1="12" y1="2" x2="12" y2="12"/>
+    </svg>
+  </button>
+
   <button class="dock-btn spark" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
   <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
   <button class="dock-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
 </div>
+
 
 
 
@@ -3331,6 +3509,207 @@ export async function render(root, params = {}) {
           border-top-left-radius: 10px;
           border-top-right-radius: 4px;
         }
+.dice-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 0 8px;
+}
+
+.d12-dice-wrapper {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+}
+
+.d12-dice-wrapper.rolling {
+  animation: d12Roll 1.1s linear infinite;
+}
+
+.d12-ring,
+.d12-ring-inner,
+.d12-geometric-shape {
+  position: absolute;
+  inset: 0;
+  border-radius: 28%;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.d12-ring {
+  transform: rotate(0deg);
+}
+
+.d12-ring-inner {
+  inset: 16px;
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+.d12-geometric-shape {
+  inset: 30px;
+  border-radius: 18%;
+  transform: rotate(22deg);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.d12-center-word {
+  position: relative;
+  z-index: 2;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 14px color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+@keyframes d12Roll {
+  0% {
+    transform: rotate(0deg) scale(1);
+    filter: blur(0);
+  }
+  35% {
+    transform: rotate(135deg) scale(1.08);
+    filter: blur(0.4px);
+  }
+  70% {
+    transform: rotate(260deg) scale(0.96);
+    filter: blur(0.2px);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    filter: blur(0);
+  }
+}
+
+.dice-result-card {
+  width: 100%;
+  padding: 16px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--color-bg-secondary) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, var(--color-border));
+  box-shadow: 0 8px 30px var(--color-shadow);
+}
+
+.dice-result-word {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-accent);
+  margin-bottom: 10px;
+  letter-spacing: 0.08em;
+}
+
+.dice-result-desc {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.dice-result-quote {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.center-typing-card {
+  position: fixed;
+  left: 50%;
+  top: 48%;
+  transform: translate(-50%, -50%);
+  z-index: 55;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--color-bg-secondary) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 24%, var(--color-border));
+  box-shadow: 0 12px 38px var(--color-shadow);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: centerTypingIn 0.26s ease-out;
+  pointer-events: none;
+}
+
+@keyframes centerTypingIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.center-typing-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.center-typing-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.center-typing-loading {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  min-height: 14px;
+  color: var(--color-text-secondary);
+}
+
+.center-typing-loading .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  animation: centerTypingDot 1s ease-in-out infinite;
+}
+
+.center-typing-loading .dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.center-typing-loading .dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes centerTypingDot {
+  0%, 80%, 100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-4px);
+  }
+}
+
+.center-typing-hint {
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--color-text-secondary);
+}
 
         /* call layer */
         .call-layer {
@@ -3765,7 +4144,11 @@ root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => to
  const dock = root.querySelector('.chat-input-dock');
 dock.addEventListener('click', (e) => {
   const closeBtn = e.target.closest('[data-act=clear-quote]');
-  if (closeBtn) { haptic(6); clearPendingQuote(); return; }
+  if (closeBtn) {
+    haptic(6);
+    clearPendingQuote();
+    return;
+  }
 
   const draftBtn = e.target.closest('[data-act=open-draft]');
   if (draftBtn) {
@@ -3778,8 +4161,17 @@ dock.addEventListener('click', (e) => {
   if (choiceBtn) {
     haptic(6);
     openChoiceCreatorSheet();
+    return;
+  }
+
+  const diceBtn = e.target.closest('[data-act=open-star-dice]');
+  if (diceBtn) {
+    haptic(8);
+    openSynchronicityDiceSheet();
+    return;
   }
 });
+
 
 
 

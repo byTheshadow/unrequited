@@ -19,6 +19,8 @@ import * as keepAlive from '../lib/keepAlive.js';
 import * as sound from '../lib/sound.js';
 import { CallManager } from '../lib/callManager.js';
 import { renderMusicCardHTML } from '../lib/musicBarRenderer.js';
+// 在其他 import 语句后添加：
+import { getShufflingHTML, getShufflingHint } from '../lib/shufflingRenderer.js';
 
 
 
@@ -999,25 +1001,36 @@ function hideTyping() {
   if (t) t.remove();
 }
 
-function showShuffling() {
+
+async function showShuffling() {
   hideTyping();
   const page = document.querySelector('.chat-page');
   if (!page) return;
   if (document.getElementById('center-shuffling-card')) return;
 
+  // 1. 从 IndexedDB 数据库中读取动画配置 (默认为 shuffle)
+  const settingRow = await db.settings.get('shufflingStyle');
+  const style = settingRow ? settingRow.value : 'shuffle';
+
+  // 2. 从独立组件中获取对应的 HTML 以及底部文本
+  const animHTML = getShufflingHTML(style);
+  const hintText = getShufflingHint(style);
+
+  // 3. 渲染并将 style 作为 class 加在最外层以供 CSS 独立适配
   page.insertAdjacentHTML('beforeend', `
-    <div class="center-typing-card" id="center-shuffling-card">
+    <div class="center-typing-card shuffling-style-${style}" id="center-shuffling-card">
       <div class="center-typing-avatar">
         ${avatarHTML(state.character && state.character.avatar, state.character && state.character.name, 50)}
       </div>
       <div class="center-typing-name">${escapeHtml(state.character && state.character.name)}</div>
-      <div class="center-typing-loading" style="color:var(--color-accent); font-size:10px;">
-        ✦ 正在洗牌 ✦
+      <div class="center-typing-loading">
+        ${animHTML}
       </div>
-      <div class="center-typing-hint">挑选最能引起共鸣的字卡碎片...</div>
+      <div class="center-typing-hint">${escapeHtml(hintText)}</div>
     </div>
   `);
 }
+
 
 function hideShuffling() {
   const t = document.getElementById('center-shuffling-card');

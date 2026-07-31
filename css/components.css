@@ -1763,3 +1763,632 @@
 }
 .cd-input-sig { font-size: 12px; margin-bottom: 6px; border-bottom: 1px dashed var(--color-border); padding-bottom: 2px;}
 .cd-input-dist { font-size: 10px; color: var(--color-text-secondary); }
+/* ==========================================================================
+   全局抽卡动画多主题统一样式命名空间
+   ========================================================================== */
+
+/* 1. 主卡片随主题自适应调整尺寸 */
+.center-typing-card.shuffling-style-angel,
+.center-typing-card.shuffling-style-carousel,
+.center-typing-card.shuffling-style-devil,
+.center-typing-card.shuffling-style-zodiac {
+  min-height: 258px;
+  width: 258px;
+}
+.center-typing-card.shuffling-style-book,
+.center-typing-card.shuffling-style-bottle {
+  min-height: 236px;
+  width: 250px;
+}
+
+/* 统一动画容器尺寸 */
+.center-typing-card[class*="shuffling-style-"] .center-typing-loading {
+  position: relative;
+  width: 200px;
+  height: 132px;
+  margin-bottom: 14px;
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
+}
+
+/* 特殊：经典洗牌保持原始样式 */
+.center-typing-card.shuffling-style-shuffle .center-typing-loading {
+  width: 160px;
+  height: 78px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  margin-bottom: 13px;
+}
+
+/* ==================== 1. 经典洗牌 ==================== */
+.shuffling-style-shuffle .shuffle-orbit {
+  position: relative;
+  width: 150px;
+  height: 76px;
+}
+.shuffling-style-shuffle .card-sprite {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 31px; height: 43px;
+  margin-left: -15.5px; margin-top: -21.5px;
+  border-radius: 7px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transform-origin: center center;
+  animation: cardFly 1.65s cubic-bezier(.45,.02,.28,1) infinite;
+  opacity: 0;
+}
+.shuffling-style-shuffle .card-sprite::before {
+  content: ""; position: absolute; inset: 5px;
+  border-radius: 5px;
+  border: 1px solid var(--color-accent-soft);
+}
+.shuffling-style-shuffle .card-sprite::after {
+  content: "✦"; position: absolute;
+  left: 50%; top: 50%; transform: translate(-50%, -52%);
+  font-size: 10px; color: var(--color-accent);
+  opacity: 0.8;
+}
+.shuffling-style-shuffle .card-sprite:nth-child(1) { animation-delay: 0s; }
+.shuffling-style-shuffle .card-sprite:nth-child(2) { animation-delay: -0.18s; scale: 0.94; }
+.shuffling-style-shuffle .card-sprite:nth-child(3) { animation-delay: -0.36s; scale: 1.04; }
+.shuffling-style-shuffle .card-sprite:nth-child(4) { animation-delay: -0.54s; scale: 0.88; }
+.shuffling-style-shuffle .card-sprite:nth-child(5) { animation-delay: -0.72s; scale: 0.98; }
+.shuffling-style-shuffle .card-sprite:nth-child(6) { animation-delay: -0.9s; scale: 0.92; }
+.shuffling-style-shuffle .card-sprite:nth-child(7) { animation-delay: -1.08s; scale: 1.02; }
+
+.shuffling-style-shuffle .shuffle-glow {
+  position: absolute; left: 50%; top: 50%;
+  width: 86px; height: 42px; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--color-accent-soft), transparent 68%);
+  animation: glowPulse 1.65s ease-in-out infinite;
+}
+.shuffling-style-shuffle .shuffle-caption {
+  position: absolute; left: 50%; bottom: -3px; transform: translateX(-50%);
+  font-size: 10px; letter-spacing: 0.12em; color: var(--color-accent);
+}
+
+/* ==================== 2. 天使召唤 ==================== */
+.angel-box { position: absolute; inset: 0; overflow: hidden; }
+.angel-halo {
+  position: absolute; left: 50%; top: 52%; width: 118px; height: 118px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, var(--color-accent-soft), transparent 62%);
+  filter: blur(1px); animation: haloPulse 2.8s ease-in-out infinite;
+}
+.angel-ring {
+  position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 1px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  animation: ringSpin 12s linear infinite;
+}
+.angel-core {
+  position: absolute; left: 50%; top: 50%; width: 62px; height: 62px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, var(--color-bg-primary), transparent 72%);
+  box-shadow: 0 0 20px var(--color-accent-soft), 0 0 30px rgba(255,255,255,0.4);
+  animation: corePulse 2s ease-in-out infinite; z-index: 3;
+}
+.angel-core::before {
+  content: ""; position: absolute; inset: 14px; border-radius: 50%;
+  border: 1px solid var(--color-border); background: var(--color-bg-primary);
+}
+.angel-rays {
+  position: absolute; left: 50%; top: 50%; width: 170px; height: 170px; transform: translate(-50%, -50%);
+  background: conic-gradient(from 0deg, transparent 0deg, var(--color-accent-soft) 180deg, transparent 360deg);
+  opacity: 0.4; filter: blur(1px); animation: ringSpin 10s linear infinite; z-index: 1;
+}
+.feathers { position: absolute; inset: 0; z-index: 4; }
+.feather {
+  position: absolute; width: 18px; height: 42px; border-radius: 50% 50% 40% 40%;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-accent-soft));
+  opacity: 0; transform-origin: center bottom; animation: featherRise 3.6s ease-in-out infinite;
+}
+.feather:nth-child(1) { left: 20px; top: 70px; animation-delay: 0s; }
+.feather:nth-child(2) { left: 50px; top: 15px; animation-delay: -0.8s; }
+.feather:nth-child(3) { left: 130px; top: 20px; animation-delay: -1.6s; }
+.feather:nth-child(4) { left: 160px; top: 80px; animation-delay: -2.2s; }
+
+.stars span {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  background: var(--color-accent); box-shadow: 0 0 8px var(--color-accent);
+  animation: sparkle 3s ease-in-out infinite;
+}
+.stars span:nth-child(1) { left: 24px; top: 22px; animation-delay: 0s; }
+.stars span:nth-child(2) { left: 162px; top: 24px; animation-delay: -0.7s; }
+.stars span:nth-child(3) { left: 32px; top: 96px; animation-delay: -1.4s; }
+.stars span:nth-child(4) { left: 154px; top: 94px; animation-delay: -2.1s; }
+.stars span:nth-child(5) { left: 98px; top: 12px; animation-delay: -2.4s; }
+
+.angel-notes i {
+  position: absolute; font-style: normal; color: var(--color-accent); opacity: 0;
+  animation: noteFloat 3.4s ease-in-out infinite;
+}
+.angel-notes i:nth-child(1) { left: 38px; top: 80px; animation-delay: 0s; }
+.angel-notes i:nth-child(2) { left: 148px; top: 72px; animation-delay: -0.9s; }
+.angel-notes i:nth-child(3) { left: 92px; top: 18px; animation-delay: -1.8s; }
+
+.angel-label {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  font-size: 9px; letter-spacing: 0.14em; color: var(--color-text-secondary); white-space: nowrap; z-index: 6;
+}
+
+/* ==================== 3. 旋转木马 ==================== */
+.carousel-box { position: absolute; inset: 0; overflow: hidden; }
+.carousel-glow {
+  position: absolute; left: 50%; top: 52%; width: 124px; height: 92px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, var(--color-accent-soft), transparent 68%);
+  filter: blur(1px); animation: glowPulse 2.6s ease-in-out infinite;
+}
+.carousel-top {
+  position: absolute; left: 50%; top: 16px; width: 118px; height: 24px; transform: translateX(-50%);
+  border-radius: 60px 60px 14px 14px;
+  background: linear-gradient(135deg, var(--color-bg-primary), var(--color-accent-soft));
+  border: 1px solid var(--color-border); z-index: 4;
+}
+.carousel-top::before {
+  content: ""; position: absolute; left: 50%; top: -8px; width: 14px; height: 14px;
+  transform: translateX(-50%) rotate(45deg); border-radius: 3px;
+  background: var(--color-accent); box-shadow: 0 0 10px var(--color-accent);
+}
+.carousel-base {
+  position: absolute; left: 50%; bottom: 20px; width: 128px; height: 20px; transform: translateX(-50%);
+  border-radius: 50%; background: linear-gradient(180deg, var(--color-bg-primary), var(--color-border));
+  border: 1px solid var(--color-border); z-index: 3;
+}
+.carousel-pole {
+  position: absolute; left: 50%; top: 32px; width: 3px; height: 72px; transform: translateX(-50%);
+  border-radius: 999px; background: linear-gradient(180deg, var(--color-accent), var(--color-border));
+  z-index: 2;
+}
+.carousel-orbit {
+  position: absolute; left: 50%; top: 56px; width: 138px; height: 58px; transform: translateX(-50%);
+  animation: ringSpin 4.8s linear infinite; transform-origin: 50% 34px; z-index: 2;
+}
+.carousel-card {
+  position: absolute; left: 50%; top: 12px; width: 28px; height: 36px; margin-left: -14px;
+  border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-bg-primary);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform-origin: center -22px;
+  animation: ponyFloat 1.8s ease-in-out infinite;
+}
+.carousel-card::after {
+  content: "♪"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -52%);
+  font-size: 10px; color: var(--color-accent);
+}
+.carousel-card:nth-child(1) { transform: translate(-48px, 8px) scale(0.82) rotate(-7deg); animation-delay: 0s; }
+.carousel-card:nth-child(2) { transform: translate(-18px, -2px) scale(0.94) rotate(-2deg); animation-delay: -0.25s; }
+.carousel-card:nth-child(3) { transform: translate(18px, -2px) scale(0.94) rotate(2deg); animation-delay: -0.5s; }
+.carousel-card:nth-child(4) { transform: translate(48px, 8px) scale(0.82) rotate(7deg); animation-delay: -0.75s; }
+.carousel-card:nth-child(5) { transform: translate(0, 12px) scale(0.76) rotate(0deg); animation-delay: -1s; }
+
+.carousel-sparkles span {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  background: var(--color-accent); opacity: 0.6; animation: sparkle 2.8s ease-in-out infinite;
+}
+.carousel-sparkles span:nth-child(1) { left: 24px; top: 24px; animation-delay: 0s; }
+.carousel-sparkles span:nth-child(2) { left: 166px; top: 26px; animation-delay: -0.7s; }
+.carousel-sparkles span:nth-child(3) { left: 30px; top: 92px; animation-delay: -1.4s; }
+.carousel-sparkles span:nth-child(4) { left: 158px; top: 94px; animation-delay: -2.1s; }
+.carousel-sparkles span:nth-child(5) { left: 98px; top: 12px; animation-delay: -2.4s; }
+
+.carousel-notes i {
+  position: absolute; font-style: normal; color: var(--color-accent); opacity: 0;
+  animation: noteFloat 3.4s ease-in-out infinite;
+}
+.carousel-notes i:nth-child(1) { left: 38px; top: 80px; animation-delay: 0s; }
+.carousel-notes i:nth-child(2) { left: 150px; top: 72px; animation-delay: -0.9s; }
+.carousel-notes i:nth-child(3) { left: 92px; top: 18px; animation-delay: -1.8s; }
+
+.carousel-label {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  font-size: 9px; letter-spacing: 0.14em; color: var(--color-text-secondary); white-space: nowrap; z-index: 6;
+}
+
+/* ==================== 4. 恶魔召唤 ==================== */
+.summon-core { position: absolute; inset: 0; overflow: hidden; }
+.altar {
+  position: absolute; left: 50%; bottom: 18px; width: 120px; height: 18px; transform: translateX(-50%);
+  border-radius: 50%; background: radial-gradient(circle, var(--color-accent-soft), transparent 70%);
+  border: 1px solid var(--color-border); animation: altarGlow 3s ease-in-out infinite;
+}
+.sigil-ring {
+  position: absolute; left: 50%; top: 50%; width: 144px; height: 144px; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 1px solid var(--color-border);
+  border-top-color: var(--color-accent); animation: ringSpin 9s linear infinite;
+}
+.sigil-star {
+  position: absolute; left: 50%; top: 50%; width: 74px; height: 74px; transform: translate(-50%, -50%);
+  animation: ringSpin 6s linear infinite;
+}
+.sigil-star::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--color-accent-soft);
+  clip-path: polygon(50% 0%, 61% 30%, 92% 35%, 68% 55%, 76% 88%, 50% 70%, 24% 88%, 32% 55%, 8% 35%, 39% 30%);
+}
+.sigil-core {
+  position: absolute; left: 50%; top: 50%; width: 42px; height: 42px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, var(--color-bg-primary), var(--color-accent-soft) 50%, transparent 70%);
+  box-shadow: 0 0 20px var(--color-accent-soft); z-index: 3;
+}
+.runes {
+  position: absolute; left: 50%; top: 50%; width: 130px; height: 130px; transform: translate(-50%, -50%);
+  border-radius: 50%; animation: spinReverse 12s linear infinite;
+}
+.runes span {
+  position: absolute; left: 50%; top: 50%; color: var(--color-accent); font-size: 11px;
+}
+.runes span:nth-child(1) { transform: rotate(18deg) translateX(54px); }
+.runes span:nth-child(2) { transform: rotate(56deg) translateX(54px); }
+.runes span:nth-child(3) { transform: rotate(94deg) translateX(54px); }
+.runes span:nth-child(4) { transform: rotate(132deg) translateX(54px); }
+.runes span:nth-child(5) { transform: rotate(170deg) translateX(54px); }
+.runes span:nth-child(6) { transform: rotate(208deg) translateX(54px); }
+.runes span:nth-child(7) { transform: rotate(246deg) translateX(54px); }
+.runes span:nth-child(8) { transform: rotate(284deg) translateX(54px); }
+
+.card-swirl {
+  position: absolute; left: 50%; top: 50%; width: 170px; height: 114px; transform: translate(-50%, -50%);
+  animation: cardFloat 4s ease-in-out infinite;
+}
+.card-swirl .card {
+  position: absolute; left: 50%; top: 50%; width: 26px; height: 36px; margin-left: -13px; margin-top: -18px;
+  border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-bg-primary);
+  opacity: 0; animation: cardRise 1.9s ease-in-out infinite;
+}
+.card-swirl .card:nth-child(1) { animation-delay: 0s; transform: rotate(0deg) translate(46px) rotate(0deg); }
+.card-swirl .card:nth-child(2) { animation-delay: -0.31s; transform: rotate(60deg) translate(46px) rotate(-60deg); }
+.card-swirl .card:nth-child(3) { animation-delay: -0.62s; transform: rotate(120deg) translate(46px) rotate(-120deg); }
+.card-swirl .card:nth-child(4) { animation-delay: -0.93s; transform: rotate(180deg) translate(46px) rotate(-180deg); }
+.card-swirl .card:nth-child(5) { animation-delay: -1.24s; transform: rotate(240deg) translate(46px) rotate(-240deg); }
+.card-swirl .card:nth-child(6) { animation-delay: -1.55s; transform: rotate(300deg) translate(46px) rotate(-300deg); }
+
+.embers span {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--color-accent); opacity: 0; animation: emberRise 2.5s infinite;
+}
+.embers span:nth-child(1) { left: 45px; animation-delay: 0s; }
+.embers span:nth-child(2) { left: 85px; animation-delay: -0.5s; }
+.embers span:nth-child(3) { left: 115px; animation-delay: -1s; }
+.embers span:nth-child(4) { left: 145px; animation-delay: -1.5s; }
+.embers span:nth-child(5) { left: 65px; animation-delay: -2s; }
+
+.loading-label {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  font-size: 9px; letter-spacing: 0.12em; color: var(--color-text-secondary); z-index: 6;
+}
+
+/* ==================== 5. 星座 ==================== */
+.zodiac-box { position: absolute; inset: 0; overflow: hidden; }
+.nebula {
+  position: absolute; left: 50%; top: 50%; width: 120px; height: 120px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, var(--color-accent-soft), transparent 70%);
+  filter: blur(4px); animation: corePulse 3s ease-in-out infinite;
+}
+.zodiac-ring {
+  position: absolute; left: 50%; top: 50%; width: 144px; height: 144px; transform: translate(-50%, -50%);
+  border-radius: 50%; border: 1px solid var(--color-border); animation: ringSpin 16s linear infinite;
+}
+.zodiac-glyphs {
+  position: absolute; left: 50%; top: 50%; width: 144px; height: 144px; transform: translate(-50%, -50%);
+  animation: spinReverse 22s linear infinite;
+}
+.zodiac-glyphs span {
+  position: absolute; left: 50%; top: 50%; color: var(--color-text-secondary); font-size: 10px; opacity: 0.7;
+}
+.zodiac-glyphs span:nth-child(1) { transform: rotate(0deg) translateY(-64px) rotate(0deg); }
+.zodiac-glyphs span:nth-child(2) { transform: rotate(30deg) translateY(-64px) rotate(-30deg); }
+.zodiac-glyphs span:nth-child(3) { transform: rotate(60deg) translateY(-64px) rotate(-60deg); }
+.zodiac-glyphs span:nth-child(4) { transform: rotate(90deg) translateY(-64px) rotate(-90deg); }
+.zodiac-glyphs span:nth-child(5) { transform: rotate(120deg) translateY(-64px) rotate(-120deg); }
+.zodiac-glyphs span:nth-child(6) { transform: rotate(150deg) translateY(-64px) rotate(-150deg); }
+.zodiac-glyphs span:nth-child(7) { transform: rotate(180deg) translateY(-64px) rotate(-180deg); }
+.zodiac-glyphs span:nth-child(8) { transform: rotate(210deg) translateY(-64px) rotate(-210deg); }
+.zodiac-glyphs span:nth-child(9) { transform: rotate(240deg) translateY(-64px) rotate(-240deg); }
+.zodiac-glyphs span:nth-child(10) { transform: rotate(270deg) translateY(-64px) rotate(-270deg); }
+.zodiac-glyphs span:nth-child(11) { transform: rotate(300deg) translateY(-64px) rotate(-300deg); }
+.zodiac-glyphs span:nth-child(12) { transform: rotate(330deg) translateY(-64px) rotate(-330deg); }
+
+.card-orbit {
+  position: absolute; left: 50%; top: 50%; width: 140px; height: 140px; transform: translate(-50%, -50%);
+  animation: ringSpin 7s linear infinite;
+}
+.astro-card {
+  position: absolute; left: 50%; top: 8px; width: 18px; height: 26px; margin-left: -9px;
+  border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-bg-primary);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1); transform-origin: center center;
+}
+.astro-card::after {
+  content: "✦"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -52%);
+  font-size: 7px; color: var(--color-accent);
+}
+.astro-card:nth-child(1) { transform: rotate(0deg) translateY(-54px); }
+.astro-card:nth-child(2) { transform: rotate(72deg) translateY(-54px); }
+.astro-card:nth-child(3) { transform: rotate(144deg) translateY(-54px); }
+.astro-card:nth-child(4) { transform: rotate(216deg) translateY(-54px); }
+.astro-card:nth-child(5) { transform: rotate(288deg) translateY(-54px); }
+
+.constellation {
+  position: absolute; left: 50%; top: 50%; width: 92px; height: 70px;
+  transform: translate(-50%, -50%); opacity: 0.85;
+}
+.constellation svg { width: 100%; height: 100%; fill: none; }
+.constellation svg line { stroke: var(--color-accent-soft); stroke-width: 1.2; stroke-dasharray: 2 3; }
+.constellation svg circle { fill: var(--color-accent); filter: drop-shadow(0 0 2px var(--color-accent)); }
+
+.star-core {
+  position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: var(--color-bg-primary); box-shadow: 0 0 12px var(--color-accent);
+}
+
+.star-dust span {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--color-accent); opacity: 0.6; animation: sparkle 2.2s infinite;
+}
+.star-dust span:nth-child(1) { left: 45px; top: 35px; animation-delay: 0s; }
+.star-dust span:nth-child(2) { left: 145px; top: 40px; animation-delay: -0.4s; }
+.star-dust span:nth-child(3) { left: 95px; top: 18px; animation-delay: -0.8s; }
+.star-dust span:nth-child(4) { left: 65px; top: 98px; animation-delay: -1.2s; }
+.star-dust span:nth-child(5) { left: 125px; top: 92px; animation-delay: -1.6s; }
+
+/* ==================== 6. 翻书 ==================== */
+.book { position: absolute; left: 50%; top: 50%; width: 146px; height: 88px; transform: translate(-50%, -50%); perspective: 900px; }
+.book-base {
+  position: absolute; inset: 0; border-radius: 16px;
+  background: linear-gradient(135deg, var(--color-bg-secondary), var(--color-bg-primary) 50%, var(--color-bg-secondary));
+  box-shadow: 0 6px 16px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.1);
+  border: 1px solid var(--color-border);
+}
+.book-base::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px;
+  background: var(--color-border); transform: translateX(-50%);
+}
+.book .page {
+  position: absolute; top: 8px; left: 11px; width: 62px; height: 72px;
+  border-radius: 8px 4px 4px 8px; background: var(--color-bg-primary);
+  border: 1px solid var(--color-border); transform-origin: right center;
+  transform-style: preserve-3d; animation: pageFlip 2.2s cubic-bezier(.45,.02,.2,1) infinite;
+}
+.book .page::before {
+  content: ""; position: absolute; inset: 10px 9px;
+  background: repeating-linear-gradient(to bottom, var(--color-text-secondary) 0 1px, transparent 1px 6px);
+  opacity: 0.2;
+}
+.book .page::after {
+  content: "✦"; position: absolute; right: 9px; bottom: 8px; font-size: 8px; color: var(--color-accent);
+}
+.book .page.page-1 { animation-delay: 0s; }
+.book .page.page-2 { left: 20px; animation-delay: -0.32s; transform: rotateY(-6deg); }
+.book .page.page-3 { left: 30px; animation-delay: -0.64s; transform: rotateY(-12deg); }
+.book .page.page-4 { left: 40px; animation-delay: -0.96s; transform: rotateY(-18deg); }
+.book .page.page-5 { left: 50px; animation-delay: -1.28s; transform: rotateY(-24deg); }
+.book .page.page-6 { left: 60px; animation-delay: -1.60s; transform: rotateY(-30deg); }
+
+.page-edge {
+  position: absolute; right: 16px; top: 12px; width: 14px; height: 64px; border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-accent-soft), transparent);
+  animation: edgeGlow 2.2s ease-in-out infinite;
+}
+.flip-ray {
+  position: absolute; left: 50%; top: 50%; width: 92px; height: 70px; transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--color-accent-soft), transparent 68%);
+  animation: rayPulse 2.2s ease-in-out infinite;
+}
+.book-label {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  font-size: 9px; letter-spacing: 0.12em; color: var(--color-text-secondary); white-space: nowrap;
+}
+
+/* ==================== 7. 记忆瓶 ==================== */
+.bottle-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.bottle {
+  position: relative; width: 112px; height: 96px;
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,0.06));
+  animation: bottleFloat 3.2s ease-in-out infinite;
+}
+.bottle::before {
+  content: ""; position: absolute; left: 50%; top: 0; width: 28px; height: 16px; transform: translateX(-50%);
+  border-radius: 8px 8px 6px 6px; background: linear-gradient(180deg, var(--color-bg-primary), transparent);
+  border: 1px solid var(--color-border);
+}
+.bottle-body {
+  position: absolute; left: 50%; top: 11px; width: 92px; height: 80px; transform: translateX(-50%);
+  border-radius: 26px 26px 28px 28px; border: 1px solid var(--color-border);
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), transparent), var(--color-bg-primary);
+  box-shadow: inset 0 0 15px rgba(255,255,255,0.2); overflow: hidden;
+}
+.bottle-body::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 20%, transparent 40%, transparent 60%, rgba(255,255,255,0.1) 80%, transparent 100%);
+  animation: glassShine 3.6s linear infinite;
+}
+.bottle-water {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 28px;
+  background: var(--color-accent-soft); border-top: 1px solid var(--color-border);
+  animation: waterWave 2.7s ease-in-out infinite;
+}
+.bottle .message {
+  position: absolute; width: 24px; height: 16px; border-radius: 3px;
+  border: 1px solid var(--color-border); background: var(--color-bg-primary);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05); opacity: 0;
+  animation: floatPaper 3.2s ease-in-out infinite;
+}
+.bottle .message::before {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 12px; height: 1px;
+  transform: translate(-50%, -50%); background: var(--color-accent-soft);
+  box-shadow: 0 -2px 0 var(--color-accent-soft), 0 2px 0 var(--color-accent-soft);
+}
+.bottle .message:nth-child(1) { left: 14px; top: 14px; animation-delay: 0s; }
+.bottle .message:nth-child(2) { left: 54px; top: 8px; animation-delay: -0.45s; }
+.bottle .message:nth-child(3) { left: 96px; top: 20px; animation-delay: -0.9s; }
+.bottle .message:nth-child(4) { left: 20px; top: 40px; animation-delay: -1.35s; }
+.bottle .message:nth-child(5) { left: 70px; top: 42px; animation-delay: -1.8s; }
+.bottle .message:nth-child(6) { left: 110px; top: 38px; animation-delay: -2.25s; }
+
+.message-focus {
+  position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, var(--color-accent-soft), transparent 68%);
+  animation: focusPulse 1.3s ease-in-out infinite;
+}
+.message-sparkle {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  background: var(--color-accent); animation: sparkle 1.6s ease-in-out infinite;
+}
+.message-sparkle:nth-child(8) { left: 45px; top: 18px; animation-delay: 0s; }
+.message-sparkle:nth-child(9) { left: 100px; top: 20px; animation-delay: -0.5s; }
+.message-sparkle:nth-child(10) { left: 118px; top: 54px; animation-delay: -1s; }
+.message-sparkle:nth-child(11) { left: 28px; top: 56px; animation-delay: -1.2s; }
+
+.bottle-label {
+  position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%);
+  font-size: 8px; letter-spacing: 0.08em; color: var(--color-text-secondary); white-space: nowrap;
+}
+
+/* ==================== 天使/恶魔漂浮文字通用样式 ==================== */
+.floating-text-wrap {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+.float-txt {
+  position: absolute;
+  bottom: -20px;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0;
+  animation-name: textRiseFloat;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.float-txt-angel {
+  color: var(--color-accent);
+  text-shadow: 0 0 6px var(--color-bg-primary), 0 0 10px var(--color-accent-soft);
+}
+.float-txt-devil {
+  color: var(--color-accent);
+  text-shadow: 0 0 4px #000, 0 0 8px var(--color-accent);
+}
+
+/* ==================== 动画定义（Keyframes） ==================== */
+@keyframes textRiseFloat {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.85;
+    transform: translateY(-80px) rotate(8deg) scale(1.05);
+  }
+  100% {
+    transform: translateY(-130px) rotate(-10deg) scale(0.8);
+    opacity: 0;
+  }
+}
+
+@keyframes cardFly {
+  0% { opacity: 0; transform: translate(-10px, 8px) rotate(-18deg) scale(0.76); }
+  12% { opacity: 1; }
+  25% { transform: translate(-48px, -12px) rotate(-38deg) scale(0.92); }
+  50% { opacity: 1; transform: translate(0px, -30px) rotate(8deg) scale(1); }
+  75% { transform: translate(48px, -10px) rotate(36deg) scale(0.92); }
+  100% { opacity: 0; transform: translate(12px, 10px) rotate(58deg) scale(0.76); }
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.46; transform: translate(-50%, -50%) scale(0.9); }
+  50% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.18); }
+}
+@keyframes haloPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.92); opacity: 0.56; }
+  50% { transform: translate(-50%, -50%) scale(1.16); opacity: 1; }
+}
+@keyframes ringSpin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes spinReverse {
+  from { transform: translate(-50%, -50%) rotate(360deg); }
+  to { transform: translate(-50%, -50%) rotate(0deg); }
+}
+@keyframes corePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0.9; }
+  50% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+}
+@keyframes featherRise {
+  0% { transform: translateY(12px) scale(0.8) rotate(-10deg); opacity: 0; }
+  20% { opacity: 0.85; }
+  55% { transform: translateY(-15px) scale(1) rotate(5deg); opacity: 1; }
+  100% { transform: translateY(-45px) scale(1.06) rotate(15deg); opacity: 0; }
+}
+@keyframes sparkle {
+  0%, 100% { transform: scale(0.55); opacity: 0; }
+  32% { opacity: 1; }
+  52% { transform: scale(1.18); opacity: 1; }
+  78% { opacity: 0.28; }
+}
+@keyframes noteFloat {
+  0% { transform: translateY(10px) scale(0.8); opacity: 0; }
+  25% { opacity: 0.78; }
+  55% { transform: translateY(-8px) scale(1); opacity: 1; }
+  100% { transform: translateY(-26px) scale(1.08); opacity: 0; }
+}
+@keyframes ponyFloat {
+  0%, 100% { filter: brightness(0.98) saturate(0.96); }
+  50% { filter: brightness(1.08) saturate(1.08); }
+}
+@keyframes altarGlow {
+  0%, 100% { opacity: 0.55; transform: translateX(-50%) scale(0.92); }
+  50% { opacity: 1; transform: translateX(-50%) scale(1.1); }
+}
+@keyframes cardRise {
+  0% { opacity: 0; transform: translateY(12px) scale(0.8); }
+  25% { opacity: 0.9; }
+  50% { transform: translateY(-12px) scale(1.04); opacity: 1; }
+  100% { transform: translateY(-28px) scale(0.8); opacity: 0; }
+}
+@keyframes emberRise {
+  0% { transform: translateY(0) scale(0.8); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 0.8; }
+  100% { transform: translateY(-60px) scale(0.5); opacity: 0; }
+}
+@keyframes pageFlip {
+  0% { transform: rotateY(0deg) translateX(0); opacity: 0.92; }
+  38% { transform: rotateY(-110deg) translateX(6px); opacity: 1; }
+  100% { transform: rotateY(-270deg) translateX(0); opacity: 0; }
+}
+@keyframes edgeGlow {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.92; }
+}
+@keyframes rayPulse {
+  0%, 100% { opacity: 0.36; transform: translate(-50%, -50%) scale(0.95); }
+  50% { opacity: 0.82; transform: translate(-50%, -50%) scale(1.06); }
+}
+@keyframes bottleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes waterWave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes glassShine {
+  0% { transform: translateX(-50px); opacity: 0; }
+  20% { opacity: 1; }
+  50% { transform: translateX(82px); opacity: 0.9; }
+  100% { transform: translateX(140px); opacity: 0; }
+}
+@keyframes focusPulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0.72; }
+  50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+}

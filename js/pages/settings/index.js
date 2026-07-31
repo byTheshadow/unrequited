@@ -23,6 +23,17 @@ const THEMES = [
   
 
 ];
+// 在 THEMES 的后面插入
+const SHUFFLING_STYLES = [
+  { id: 'shuffle', name: '洗牌' },
+  { id: 'angel', name: '天使召唤' },
+  { id: 'carousel', name: '旋转木马' },
+  { id: 'devil', name: '恶魔召唤' },
+  { id: 'zodiac', name: '星座' },
+  { id: 'book', name: '翻书' },
+  { id: 'bottle', name: '记忆瓶' }
+];
+
 
 let state = {};
 let rootRef = null;
@@ -47,7 +58,8 @@ export async function render(root) {
     ai: { baseUrl: '', apiKey: '', model: '', models: [] },
     aiKeyRevealed: false,
     aiFetching: false,
-    launchStyle: await getSetting('launchStyle', 'classic')
+    launchStyle: await getSetting('launchStyle', 'classic'),
+    shufflingStyle: await getSetting('shufflingStyle', 'shuffle')
   };
 
   const users = await db.user.toArray();
@@ -246,6 +258,17 @@ function renderAppearanceSection() {
           <button class="chip" data-act="pick-launch-style" data-val="ecg" data-on="${state.launchStyle === 'ecg' ? '1' : '0'}" type="button">心跳播放器</button>
         </div>
       </div>
+            <div class="row row-vertical">
+        <div class="row-header">
+          <div class="row-label">抽卡动画主题</div>
+        </div>
+        <div class="chips inline" style="flex-wrap: wrap; gap: 6px 8px;">
+          ${SHUFFLING_STYLES.map(s => `
+            <button class="chip" data-act="pick-shuffling-style" data-val="${s.id}" data-on="${state.shufflingStyle === s.id ? '1' : '0'}" type="button">${s.name}</button>
+          `).join('')}
+        </div>
+      </div>
+
     </section>
   `;
 }
@@ -490,6 +513,20 @@ async function onMainClick(e) {
       toast('启动动画已更改，下次进入时生效');
       break;
     }
+
+        case 'pick-shuffling-style': {
+      const v = t.getAttribute('data-val');
+      if (v === state.shufflingStyle) return;
+      state.shufflingStyle = v;
+      await setSetting('shufflingStyle', v);
+      rootRef.querySelectorAll('[data-act="pick-shuffling-style"]').forEach(el => {
+        el.setAttribute('data-on', el.getAttribute('data-val') === v ? '1' : '0');
+      });
+      haptic(6);
+      toast('抽卡动画主题已更改');
+      break;
+    }
+
 
     case 'toggle-mute': {
       const now = t.getAttribute('data-on') === '1';

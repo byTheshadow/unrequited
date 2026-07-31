@@ -993,27 +993,39 @@ async function markLatestUserUnreadAsRead() {
     if (el) el.textContent = '已读';
   }
 }
-
 async function executeReply() {
   cancelTimers();
+
   if (state.destroyed) return;
-  if (!state.character) { toast('未绑定角色'); return; }
+  if (!state.character) {
+    toast('未绑定角色');
+    return;
+  }
 
   await db.conversations.update(state.convId, { pendingReplyAt: null });
   if (state.conv) state.conv.pendingReplyAt = null;
 
   const cfg = state.character.replyConfig || {};
+  const quoteChance = typeof cfg.quoteChance === 'number'
+    ? cfg.quoteChance
+    : DEFAULT_QUOTE_CHANCE;
 
   await maybeInsertSyncMessage();
   if (state.destroyed) return;
 
   const userChoice = findLatestUnansweredUserChoice();
 
+  // 没有待回答的用户选项时，才允许触发“跳过回复”
   if (!userChoice) {
     const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
+
     if (skipChance > 0 && Math.random() < skipChance) {
-      const skipList = (cfg.skipHints && cfg.skipHints.length) ? cfg.skipHints : DEFAULT_SKIP_HINTS;
+      const skipList = (cfg.skipHints && cfg.skipHints.length)
+        ? cfg.skipHints
+        : DEFAULT_SKIP_HINTS;
+
       await markLatestUserUnreadAsRead();
+
       const sysMsg = {
         conversationId: state.convId,
         sender: 'system',
@@ -1024,8 +1036,10 @@ async function executeReply() {
         timestamp: Date.now(),
         isRead: true,
       };
+
       const sysId = await db.messages.add(sysMsg);
       sysMsg.id = sysId;
+
       appendMessage(sysMsg);
       await persistConvSummary();
       return;
@@ -1045,8 +1059,11 @@ async function executeReply() {
 
   await markLatestUserUnreadAsRead();
 
-  const quoteChance = typeof cfg.quoteChance === 'number' ? cfg.quoteChance : DEFAULT_QUOTE_CHANCE;
-
+  /**
+   * 分支 A：
+   * 如果用户发的是 choice 类型消息，并且还没被角色回答，
+   * 角色从用户给出的选项里随机选择一个。
+   */
   if (userChoice) {
     const answer = pick(userChoice.choice.options);
     await markChoiceAnswered(userChoice.msg.id, answer, 'character');
@@ -1056,52 +1073,19 @@ async function executeReply() {
       autoQuoteId = userChoice.msg.id;
     }
 
-    const msg = {
-      conversationId: state.convId,
-      sender: 'character',
-      content: answer,
-      type: 'card',
-      status: 'sent',
-      quotedMessageId: autoQuoteId,
-      timestamp: Date.now(),
-      isRead: true,
-    };
-    const id = await db.messages.add(msg);
-    msg.id = id;
-    hideTyping();
-    renderMessages();
-    playCharSound();
-    await persistConvSummary();
-    return;
-  }
-
-  const { messages, choices, reason } = await generateForCharacter(state.character.id);
-  if (state.destroyed) return;
-
-  if ((!messages || !messages.length) && (!choices || !choices.length)) {
-    hideTyping();
-    toast(reason === 'no_fragments' ? '此角色暂无可用的字卡内容' : '生成失败', 2200);
-    return;
-  }
-
-    if (userChoice) {
-    const answer = pick(userChoice.choice.options);
-    await markChoiceAnswered(userChoice.msg.id, answer, 'character');
-
-    let autoQuoteId = null;
-    if (quoteChance > 0 && Math.random() < quoteChance) {
-      autoQuoteId = userChoice.msg.id;
-    }
-
-    // B 方案：生成该角色的随机字卡消息进行融合
+    // 可选：融合一条角色字卡内容
     const generated = await generateForCharacter(state.character.id);
     const generatedMessages = generated && generated.messages ? generated.messages : [];
+
     let extraText = '';
     if (generatedMessages.length) {
       const pickedMsg = generatedMessages[0];
       const pickedContent = typeof pickedMsg === 'string'
         ? pickedMsg
-        : (pickedMsg && pickedMsg.content) ? pickedMsg.content : '';
+        : pickedMsg && pickedMsg.content
+          ? pickedMsg.content
+          : '';
+
       if (pickedContent) {
         extraText = `。${pickedContent}`;
       }
@@ -1119,27 +1103,121 @@ async function executeReply() {
       timestamp: Date.now(),
       isRead: true,
     };
+
     const id = await db.messages.add(msg);
     msg.id = id;
+
     hideTyping();
 
-    // 重新获取并渲染消息流
-    state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
-    renderMessages();
+    // 因为 markChoiceAnswered 修改了旧消息，所以这里重新拉取并完整渲染
+    state.messages = await db.messages
+      .where('conversationId')
+      .equals(state.convId)
+      .sortBy('timestamp');
 
+    renderMessages();
     playCharSound();
     await persistConvSummary();
     return;
   }
 
+  /**
+   * 分支 B：
+   * 普通回复：从角色字卡里生成消息。
+   */
+  const generated = await generateForCharacter(state.character.id);
+  const messages = generated && generated.messages ? generated.messages : [];
+  const choices = generated && generated.choices ? generated.choices : [];
+  const reason = generated && generated.reason;
+
+  if (state.destroyed) return;
+
+  if ((!messages || !messages.length) && (!choices || !choices.length)) {
+    hideTyping();
+    toast(reason === 'no_fragments' ? '此角色暂无可用的字卡内容' : '生成失败', 2200);
+    return;
+  }
+
+  /**
+   * 普通字卡消息
+   */
+  for (let i = 0; i < messages.length; i++) {
+    if (state.destroyed) return;
+
+    if (i > 0) {
+      hideTyping();
+      showTyping();
+      await sleep(randInt(600, 1400));
+    }
+
+    let autoQuoteId = null;
+    if (i === 0 && quoteChance > 0 && Math.random() < quoteChance) {
+      autoQuoteId = pickAutoQuoteTarget();
+    }
+
+    const msg = {
+      conversationId: state.convId,
+      sender: 'character',
+      content: messages[i],
+      type: 'card',
+      status: 'sent',
+      quotedMessageId: autoQuoteId,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+
     const id = await db.messages.add(msg);
     msg.id = id;
+
     hideTyping();
     appendMessage(msg);
     playCharSound();
-    await persistConvSummary();
-    return;
   }
+
+  /**
+   * 如果 generateForCharacter 返回了 choices，
+   * 这里把它们作为角色发出的 choice 消息插入。
+   *
+   * 注意：
+   * 如果你的 choices 已经是 choiceToContent() 后的字符串，可以直接用；
+   * 如果是原始对象，这里会自动转成 content。
+   */
+  for (let i = 0; i < choices.length; i++) {
+    if (state.destroyed) return;
+
+    if (messages.length > 0 || i > 0) {
+      hideTyping();
+      showTyping();
+      await sleep(randInt(600, 1400));
+    }
+
+    const choice = choices[i];
+    const content = typeof choice === 'string'
+      ? choice
+      : choiceToContent(choice);
+
+    const msg = {
+      conversationId: state.convId,
+      sender: 'character',
+      content,
+      type: 'choice',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+
+    const id = await db.messages.add(msg);
+    msg.id = id;
+
+    hideTyping();
+    appendMessage(msg);
+    playCharSound();
+  }
+
+  await persistConvSummary();
+}
+
 
   for (let i = 0; i < messages.length; i++) {
     if (state.destroyed) return;

@@ -1459,3 +1459,653 @@
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ==========================================================================
+   音乐舱 (musicBar) 4 种外观风格与动效扩展样式
+   ========================================================================== */
+
+.music-card {
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.music-main-viewport {
+  margin: 10px 0 16px;
+  position: relative;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.music-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed var(--color-border);
+  padding-bottom: 10px;
+}
+.music-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.music-play-btn.is-active {
+  background: var(--color-accent);
+  color: var(--color-bg-primary);
+  box-shadow: 0 0 10px var(--color-accent);
+  border-color: transparent;
+}
+.music-play-btn:active {
+  transform: scale(0.9);
+}
+
+.music-inputs-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+.music-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.music-input-label {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  width: 32px;
+  flex-shrink: 0;
+  letter-spacing: 1px;
+}
+.music-inputs-panel input.ghost-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid transparent;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  padding: 4px 2px;
+  transition: border-bottom-color 0.2s;
+}
+.music-inputs-panel input.ghost-input:focus {
+  border-bottom-color: var(--color-accent);
+  outline: none;
+}
+.music-style-select.select {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  height: 28px;
+  line-height: 1.2;
+}
+.music-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+.music-count {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  letter-spacing: 1px;
+}
+
+/* ==========================================
+   风格一：星轨共鸣 (Orbit Resonance)
+   ========================================== */
+.music-style-orbit {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 600px;
+}
+.orbit-space {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  transform: rotateX(20deg);
+}
+.orbit-line {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+.orbit-line-inner {
+  width: 80px;
+  height: 80px;
+  border-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+.orbit-line-outer {
+  width: 130px;
+  height: 130px;
+  border-color: color-mix(in srgb, var(--color-accent) 25%, transparent);
+}
+.orbit-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  animation: orbitSpin 20s linear infinite;
+  animation-play-state: paused;
+}
+.orbit-track-inner {
+  inset: 30px;
+  animation-duration: 12s;
+  animation-direction: reverse;
+}
+.orbit-track-outer {
+  inset: 5px;
+  animation-duration: 18s;
+}
+
+.music-style-orbit.is-playing .orbit-track {
+  animation-play-state: running;
+}
+
+.orbit-avatar {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--color-bg-secondary);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+}
+.orbit-avatar .avatar {
+  width: 100%;
+  height: 100%;
+}
+.orbit-avatar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px var(--color-accent);
+  opacity: 0.4;
+  animation: orbitTrail 2s ease-in-out infinite;
+}
+
+.orbit-core-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  background: var(--color-accent);
+  border-radius: 50%;
+  filter: blur(4px);
+  opacity: 0.3;
+  animation: corePulse 3s ease-in-out infinite;
+}
+
+@keyframes orbitSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes orbitTrail {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+@keyframes corePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.2; }
+  50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.5; }
+}
+
+/* ==========================================
+   风格二：复古磁带 (Retro Tape)
+   ========================================== */
+.music-style-tape {
+  width: 100%;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tape-body {
+  width: 190px;
+  height: 110px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.05), 0 8px 16px rgba(0,0,0,0.3);
+  position: relative;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+.tape-sticker {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 6px;
+  color: #111;
+  position: relative;
+  overflow: hidden;
+  border-top: 6px solid #2563eb;
+}
+.tape-sticker-title {
+  font-family: monospace;
+  font-size: 8px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  opacity: 0.7;
+}
+.tape-spindles {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  margin: 4px 0;
+  position: relative;
+  z-index: 2;
+}
+.tape-spindle {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #222;
+  border: 3px solid #ccc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.spindle-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  z-index: 2;
+}
+.spindle-avatar .avatar {
+  width: 100%;
+  height: 100%;
+}
+.tape-spindle::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px dashed #444;
+  animation: spindleRotate 12s linear infinite;
+  animation-play-state: paused;
+}
+.music-style-tape.is-playing .tape-spindle::after {
+  animation-play-state: running;
+}
+.music-style-tape.is-playing .spindle-avatar {
+  animation: spindleRotate 12s linear infinite;
+  animation-play-state: running;
+}
+
+@keyframes spindleRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.tape-sound-waves {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 3px;
+  height: 12px;
+}
+.wave-bar {
+  width: 2px;
+  height: 2px;
+  background: #3b82f6;
+  border-radius: 1px;
+  transition: height 0.1s ease;
+}
+.music-style-tape.is-playing .wave-bar {
+  animation: tapeWaveJump 0.8s ease-in-out infinite alternate;
+}
+.music-style-tape.is-playing .wave-bar:nth-child(1) { animation-delay: 0.1s; }
+.music-style-tape.is-playing .wave-bar:nth-child(2) { animation-delay: 0.3s; }
+.music-style-tape.is-playing .wave-bar:nth-child(3) { animation-delay: 0.0s; }
+.music-style-tape.is-playing .wave-bar:nth-child(4) { animation-delay: 0.4s; }
+.music-style-tape.is-playing .wave-bar:nth-child(5) { animation-delay: 0.2s; }
+
+@keyframes tapeWaveJump {
+  0% { height: 2px; }
+  100% { height: 12px; }
+}
+
+/* ==========================================
+   风格三：潮汐月相 (Lunar Tide)
+   ========================================== */
+.music-style-tide {
+  width: 100%;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.tide-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+}
+.tide-avatar {
+  position: relative;
+}
+.tide-avatar .avatar {
+  width: 38px;
+  height: 38px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+}
+.tide-avatar-left::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  animation: tidePulse 3s infinite ease-in-out;
+}
+.tide-avatar-right::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  animation: tidePulse 3s infinite ease-in-out;
+  animation-delay: 1.5s;
+}
+
+.tide-moon-core {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #fffde6 0%, #ecd06c 60%, #bd9c1e 100%);
+  box-shadow: 0 0 10px rgba(254, 240, 138, 0.3);
+  overflow: hidden;
+  transition: box-shadow 0.5s ease;
+}
+.music-style-tide.is-playing .tide-moon-core {
+  animation: moonNeonBreath 4s infinite ease-in-out;
+}
+.tide-moon-shadow {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--tide-percent, 0%);
+  right: 0;
+  background: rgba(10, 10, 12, 0.92);
+  mix-blend-mode: multiply;
+  transition: left 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.tide-moon-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.8);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.music-style-tide.is-playing .tide-moon-glow {
+  opacity: 1;
+}
+
+.tide-aurora-waves {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.tide-wave-ring {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
+  border-radius: 50%;
+  animation: tideWaveSpread 4s infinite linear;
+}
+.tide-wave-ring.ring-2 {
+  animation-delay: 2s;
+}
+
+@keyframes tidePulse {
+  0%, 100% { transform: scale(1); opacity: 0.4; }
+  50% { transform: scale(1.08); opacity: 0.8; }
+}
+@keyframes moonNeonBreath {
+  0%, 100% { box-shadow: 0 0 10px rgba(254, 240, 138, 0.3), 0 0 2px rgba(254, 240, 138, 0.1); }
+  50% { box-shadow: 0 0 25px rgba(254, 240, 138, 0.8), 0 0 8px rgba(254, 240, 138, 0.4); }
+}
+@keyframes tideWaveSpread {
+  0% { width: 50px; height: 50px; opacity: 0.8; }
+  100% { width: 200px; height: 200px; opacity: 0; }
+}
+
+/* ==========================================
+   风格四：灵动小票机 (Receipt Printer)
+   ========================================== */
+.music-style-receipt {
+  width: 100%;
+  height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 14px;
+}
+.receipt-printer-slot {
+  width: 160px;
+  height: 10px;
+  background: #111;
+  border: 2px solid #333;
+  border-radius: 4px 4px 0 0;
+  box-shadow: 0 -2px 5px rgba(0,0,0,0.5);
+  position: relative;
+  z-index: 5;
+}
+.receipt-paper {
+  width: 146px;
+  background: #fdfdfd;
+  color: #111;
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+  padding: 8px 10px;
+  font-family: monospace, sans-serif;
+  font-size: 8px;
+  line-height: 1.3;
+  position: relative;
+  z-index: 4;
+  margin-top: -2px;
+  border-radius: 0 0 2px 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background-image: 
+    radial-gradient(rgba(0,0,0,0.06) 1px, transparent 0),
+    linear-gradient(#fdfdfd, #f6f6f6);
+  background-size: 3px 3px, 100% 100%;
+  animation: receiptSlideOut 1.5s ease-out forwards;
+  max-height: 122px;
+  overflow: hidden;
+}
+.receipt-paper::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: 
+    linear-gradient(-45deg, transparent 4px, #fdfdfd 0),
+    linear-gradient(45deg, transparent 4px, #fdfdfd 0);
+  background-position: left bottom;
+  background-repeat: repeat-x;
+  background-size: 8px 8px;
+}
+.music-style-receipt.is-playing .receipt-paper {
+  animation: receiptSlideOut 1.5s ease-out forwards, receiptShaking 0.15s infinite alternate;
+}
+
+.receipt-decor-top {
+  text-align: center;
+  font-weight: bold;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+  opacity: 0.6;
+}
+.receipt-dither-avatars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 4px 0;
+}
+.receipt-dither-av {
+  width: 24px;
+  height: 24px;
+  border-radius: 2px;
+  overflow: hidden;
+  border: 1px solid #111;
+  position: relative;
+  background: #eee;
+}
+.receipt-dither-av .avatar {
+  width: 100%;
+  height: 100%;
+}
+.user-1bit .avatar img,
+.char-1bit .avatar img {
+  filter: grayscale(1) contrast(5) brightness(1.2);
+}
+.user-1bit .avatar-fallback,
+.char-1bit .avatar-fallback {
+  background: #fff;
+  color: #000;
+  filter: contrast(3);
+}
+.receipt-dither-av::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(0,0,0,0.15) 50%, transparent 50%),
+                    linear-gradient(90deg, rgba(0,0,0,0.15) 50%, transparent 50%);
+  background-size: 2px 2px;
+  pointer-events: none;
+}
+.receipt-dither-link {
+  color: #333;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+}
+
+.receipt-divider {
+  text-align: center;
+  letter-spacing: 2px;
+  font-size: 7px;
+  opacity: 0.5;
+  margin: 4px 0;
+}
+
+.receipt-marquee {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 1px solid #222;
+  padding: 2px 0;
+  background: #fff;
+  color: #111;
+  font-weight: bold;
+}
+.receipt-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+  animation: receiptScrollText 12s linear infinite;
+  animation-play-state: paused;
+}
+.music-style-receipt.is-playing .receipt-marquee-inner {
+  animation-play-state: running;
+}
+.receipt-marquee-inner span {
+  display: inline-block;
+  padding-right: 10px;
+}
+
+.receipt-whisper {
+  font-size: 7px;
+  text-align: center;
+  color: #333;
+  line-height: 1.4;
+  margin: 3px 0 6px;
+  padding: 0 4px;
+}
+.receipt-barcode {
+  height: 12px;
+  margin: 2px 8px;
+  background: repeating-linear-gradient(
+    90deg,
+    #111,
+    #111 1px,
+    transparent 1px,
+    transparent 3px,
+    #111 3px,
+    #111 5px,
+    transparent 5px,
+    transparent 6px
+  );
+  opacity: 0.8;
+}
+.receipt-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 6px;
+  opacity: 0.6;
+  padding: 0 2px 4px;
+  border-top: 1px dashed #bbb;
+  margin-top: 4px;
+  padding-top: 3px;
+}
+
+@keyframes receiptSlideOut {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes receiptShaking {
+  0% { transform: translate(0.5px, 0px) rotate(0.2deg); }
+  100% { transform: translate(-0.5px, 0.5px) rotate(-0.2deg); }
+}
+@keyframes receiptScrollText {
+  from { transform: translateX(0%); }
+  to { transform: translateX(-50%); }
+}

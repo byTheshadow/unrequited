@@ -1326,3 +1326,136 @@
     transition: none !important;
   }
 }
+/* ============ 中央卡片梦幻霓虹效果 ============ */
+.center-typing-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 999;
+  width: 240px;
+  padding: 28px 20px;
+  background: rgba(10, 10, 10, 0.7);
+  backdrop-filter: blur(25px) saturate(1.8);
+  -webkit-backdrop-filter: blur(25px) saturate(1.8);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 20px;
+  box-shadow: 0 0 30px rgba(139, 92, 246, 0.15), inset 0 0 15px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: centerFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============ 共时星骰 (D12) 华丽动效 ============ */
+.dice-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 10px;
+  perspective: 1000px;
+}
+
+/* 旋转的星骰主体 */
+.d12-dice-wrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  transform-style: preserve-3d;
+  margin-bottom: 24px;
+}
+
+/* 骰子快速自旋动画 */
+.d12-dice-wrapper.rolling {
+  animation: rollD12 1.8s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+}
+
+/* 两层干涉旋转的几何环 */
+.d12-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 50%;
+  box-shadow: 0 0 15px rgba(139, 92, 246, 0.2);
+}
+.d12-ring-inner {
+  position: absolute;
+  inset: 15px;
+  border: 1.5px dashed rgba(236, 72, 153, 0.4);
+  border-radius: 50%;
+  animation: rotateClockwise 8s linear infinite;
+}
+.d12-geometric-shape {
+  position: absolute;
+  inset: 5px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+  clip-path: polygon(50% 0%, 90% 20%, 100% 60%, 75% 95%, 25% 95%, 0% 60%, 10% 20%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  animation: rotateCounterClockwise 12s linear infinite;
+}
+
+/* 骰子中心发光字 */
+.d12-center-word {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 300;
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px var(--color-accent), 0 0 15px var(--color-accent);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+/* 占卜谶语展示卡片 */
+.dice-result-card {
+  width: 100%;
+  padding: 16px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  margin-top: 10px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  animation: fadeInResult 0.5s ease-out;
+}
+.dice-result-word {
+  font-size: 18px;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+  letter-spacing: 4px;
+}
+.dice-result-desc {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: 12px;
+  padding: 0 10px;
+}
+.dice-result-quote {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  border-top: 1px dashed rgba(255,255,255,0.1);
+  padding-top: 10px;
+  font-style: italic;
+}
+
+@keyframes rollD12 {
+  0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
+  50% { transform: rotateX(360deg) rotateY(180deg) rotateZ(90deg) scale(1.1); filter: drop-shadow(0 0 20px rgba(139, 92, 246, 0.6)); }
+  100% { transform: rotateX(720deg) rotateY(360deg) rotateZ(360deg) scale(1); }
+}
+@keyframes rotateClockwise {
+  from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+}
+@keyframes rotateCounterClockwise {
+  from { transform: rotate(0deg); } to { transform: rotate(-360deg); }
+}
+@keyframes fadeInResult {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

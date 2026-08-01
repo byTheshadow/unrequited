@@ -50,7 +50,7 @@ const divinationGlyph = `
   </svg>
 `;
 
-// 新增：漂流瓶图标 SVG (无 emoji，纯手绘线条风格)
+// 漂流瓶图标 SVG (线条手绘风格)
 const driftGlyph = `
   <svg viewBox="0 0 60 60" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
     <path d="M30 12v6M24 18h12M26 18v6c0 1.5-.8 3-2 3.8l-5.6 4.2A6 6 0 0 0 16 36.8V46a4 4 0 0 0 4 4h20a4 4 0 0 0 4-4v-9.2a6 6 0 0 0-2.4-4.8l-5.6-4.2c-1.2-.8-2-2.3-2-3.8v-6" opacity="0.85"/>
@@ -60,20 +60,16 @@ const driftGlyph = `
   </svg>
 `;
 
-// 新增：星图教程指引图标 SVG (星线网格与星子手账风格)
-const tutorialGlyph = `
-  <svg viewBox="0 0 60 60" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M16 12h28a4 4 0 0 1 4 4v28a4 4 0 0 1-4 4H16a4 4 0 0 1-4-4V16a4 4 0 0 1 4-4z" opacity="0.45"/>
-    <path d="M24 12v36M30 20h10M30 28h8M30 36h6"/>
-    <circle cx="18" cy="20" r="1.5" fill="currentColor"/>
-    <circle cx="18" cy="28" r="1.5" fill="currentColor"/>
-    <circle cx="18" cy="36" r="1.5" fill="currentColor"/>
+// 新增：小书本/手账样式的小指引图标 (放在月相左侧)
+const tutorialSmallIcon = `
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
   </svg>
 `;
 
 let tiltCleanups = [];
 
-// 实现 3D 卡片倾斜交互
 function attachTilt(el) {
   let raf = null;
   const onMove = (e) => {
@@ -99,7 +95,7 @@ function attachTilt(el) {
   });
 }
 
-// 已实装页面路由注册表：增加 /drift 与 /tutorial
+// 已实装页面：添加 /drift 与 /tutorial
 const IMPLEMENTED = ['/home', '/cards', '/divination', '/settings', '/drift', '/tutorial'];
 
 export async function render(root) {
@@ -117,11 +113,17 @@ export async function render(root) {
   root.innerHTML = `
     <div class="home-page page">
       <header class="home-top">
+        <!-- 指引手账按钮 (小尺寸，在月相左边) -->
+        <button class="tutorial-btn-top" data-nav="/tutorial" title="查看指引" aria-label="查看指引">
+          ${tutorialSmallIcon}
+        </button>
+        <!-- 月相组件 -->
         <div class="moon-widget" title="当前月相：${phaseName}">
           <span class="moon-svg">${moonSVG(phase)}</span>
           <span class="moon-name">${phaseName}</span>
         </div>
       </header>
+      
       <main class="home-main">
         <div class="brand-wrap">
           <div class="brand">Unrequited</div>
@@ -139,8 +141,8 @@ export async function render(root) {
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
           </button>
-          
-          <!-- 新增：漂流瓶入口 (包含动态呼吸徽章提示) -->
+
+          <!-- 漂流瓶 (带有呼吸灯微标) -->
           <button class="entry" data-nav="/drift" type="button">
             <div class="entry-glyph">${driftGlyph}</div>
             <div class="entry-body">
@@ -166,20 +168,9 @@ export async function render(root) {
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
           </button>
-
-          <!-- 新增：教程入口 -->
-          <button class="entry" data-nav="/tutorial" type="button">
-            <div class="entry-glyph">${tutorialGlyph}</div>
-            <div class="entry-body">
-              <div class="entry-title">星 图 指 引</div>
-              <div class="entry-sub">新晋星旅者的指南手账</div>
-            </div>
-            <div class="entry-chev">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </div>
-          </button>
         </div>
       </main>
+
       <footer class="home-bottom">
         <button class="icon-btn" data-nav="/settings" type="button" aria-label="设置">${settingsIcon}</button>
       </footer>
@@ -188,25 +179,41 @@ export async function render(root) {
         .home-page { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh;
           padding: 16px 20px; padding-top: calc(16px + env(safe-area-inset-top));
           padding-bottom: calc(16px + env(safe-area-inset-bottom)); animation: fadeInPlain 0.5s ease; }
-        .home-top { display: flex; justify-content: flex-end; }
+        
+        /* 顶部组件放置 */
+        .home-top { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+        
+        /* 指引顶部圆按钮 (毛玻璃设计) */
+        .tutorial-btn-top {
+          display: inline-flex; align-items: center; justify-content: center;
+          width: 32px; height: 32px; border-radius: 50%;
+          color: var(--color-text-secondary);
+          background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
+          -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--color-border);
+          transition: color 0.2s, background 0.2s, transform 0.2s;
+          cursor: pointer;
+        }
+        .tutorial-btn-top:active {
+          color: var(--color-accent);
+          transform: scale(0.9);
+        }
+
         .moon-widget { display: inline-flex; align-items: center; gap: 8px;
-          padding: 7px 14px; border-radius: 999px;
+          padding: 7px 14px; border-radius: 999px; height: 32px;
           color: var(--color-text-secondary); font-size: 11px; letter-spacing: 3px;
           background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur));
           -webkit-backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--color-border); }
         .moon-svg { display: inline-flex; }
         
-        /* 考虑到增加了两个选项，将 gap 适当调小，使排版更紧凑呼吸 */
         .home-main { flex: 1; display: flex; flex-direction: column; justify-content: center;
-          gap: 24px; padding: 12px 0; }
-        
+          gap: 40px; padding: 24px 0; }
         .brand-wrap { text-align: center; }
         .brand { font-size: 28px; letter-spacing: 8px; font-weight: 300; color: var(--color-text-primary); }
         .brand-sub { margin-top: 10px; font-size: 11px; letter-spacing: 8px; color: var(--color-text-tertiary); }
         
-        .entries { display: flex; flex-direction: column; gap: 12px; }
+        .entries { display: flex; flex-direction: column; gap: 16px; }
         .entry { display: flex; align-items: center; gap: 16px; width: 100%;
-          padding: 16px 18px; background: var(--glass-bg);
+          padding: 22px 20px; background: var(--glass-bg);
           backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
           border: 1px solid var(--color-border); border-radius: var(--radius-lg);
           color: var(--color-text-primary); text-align: left;
@@ -214,14 +221,15 @@ export async function render(root) {
           transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.3s;
           will-change: transform; }
         .entry:active { transform: scale(0.985) !important; box-shadow: 0 2px 12px var(--color-shadow); }
-        .entry-glyph { flex-shrink: 0; width: 48px; height: 48px;
+        .entry-glyph { flex-shrink: 0; width: 54px; height: 54px;
           display: flex; align-items: center; justify-content: center;
           border-radius: var(--radius-md); color: var(--color-accent);
           background: var(--color-bg-secondary); }
         .entry-body { flex: 1; min-width: 0; }
-        .entry-title { font-size: 17px; letter-spacing: 5px; font-weight: 400; margin-bottom: 4px; }
-        .entry-sub { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 1.5px; }
+        .entry-title { font-size: 19px; letter-spacing: 6px; font-weight: 400; margin-bottom: 4px; }
+        .entry-sub { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 2px; }
         .entry-chev { color: var(--color-text-tertiary); flex-shrink: 0; }
+        
         .home-bottom { display: flex; justify-content: center; padding-top: 12px; }
         .icon-btn { display: inline-flex; align-items: center; justify-content: center;
           width: 44px; height: 44px; border-radius: 999px;
@@ -251,9 +259,9 @@ export async function render(root) {
         }
 
         @media (max-height: 640px) {
-          .brand { font-size: 22px; } .home-main { gap: 14px; }
-          .entry { padding: 12px 14px; } .entry-glyph { width: 40px; height: 40px; }
-          .entry-title { font-size: 15px; }
+          .brand { font-size: 24px; } .home-main { gap: 24px; }
+          .entry { padding: 18px 18px; } .entry-glyph { width: 46px; height: 46px; }
+          .entry-title { font-size: 17px; }
         }
       </style>
     </div>

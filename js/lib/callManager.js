@@ -369,30 +369,38 @@ export const CallManager = {
   renderMinimized() {
     const statusText = this.getStatusText();
     const timeText = formatDuration(this.getElapsedSeconds());
+    
+    // 是否正在“发声”阶段（拨号音或通话中）以启动EQ动效
+    const isPlaying = this.state === 'connected' || this.state === 'dialing' || this.state === 'incoming';
 
     this.overlay.className = 'global-call-active global-call-minimized';
 
     this.overlay.innerHTML = `
-      <button class="global-call-floating" id="call-btn-expand" type="button" aria-label="展开通话">
-        <div class="global-call-floating-avatar">
-          ${avatarHTML(this.characterAvatar, this.characterName, 44)}
-        </div>
-
-        <div class="global-call-floating-info">
-          <div class="global-call-floating-name">${this.characterName || ''}</div>
-          <div class="global-call-floating-status">
-            ${
-              this.state === 'connected'
-                ? `<span class="global-call-mini-time">${timeText}</span>`
-                : statusText
-            }
+      <div class="global-call-floating music-style" id="call-btn-expand" role="button" aria-label="展开通话">
+        <div class="music-header">
+          <div class="music-cover">
+            ${avatarHTML(this.characterAvatar, this.characterName, 56)}
+          </div>
+          <div class="music-info">
+            <div class="music-title">${this.characterName || 'Unknown'}</div>
+            <div class="music-subtitle">${this.state === 'connected' ? '正在通话...' : statusText}</div>
+          </div>
+          <div class="music-eq ${isPlaying ? 'playing' : ''}">
+            <span class="eq-bar"></span>
+            <span class="eq-bar"></span>
+            <span class="eq-bar"></span>
+            <span class="eq-bar"></span>
           </div>
         </div>
-
-        <div class="global-call-floating-icon">
-          ${SVG_EXPAND}
+        
+        <div class="music-progress">
+          <span class="progress-time global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</span>
+          <div class="progress-track">
+            <div class="progress-fill ${this.state === 'connected' ? 'active' : ''}"></div>
+          </div>
+          <span class="progress-time status-text">${this.state === 'connected' ? 'Live' : '...'}</span>
         </div>
-      </button>
+      </div>
     `;
 
     const expandBtn = this.overlay.querySelector('#call-btn-expand');

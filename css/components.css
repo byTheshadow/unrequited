@@ -2756,11 +2756,12 @@
   80% { opacity: 0.6; }
   100% { transform: translateY(-150px) scale(1.2) rotate(180deg); opacity: 0; }
 }
+
+
 /* ==========================================================================
    四、 漂流瓶 (Drift) 与 教程 (Tutorial) 特有样式
    ========================================================================== */
 
-/* --- 漂流瓶页面主容器 --- */
 .drift-container {
   position: relative;
   min-height: 100vh;
@@ -2772,48 +2773,45 @@
   padding-bottom: 40px;
 }
 
-/* 霓虹晕染深空背景 */
+/* 优化后的霓虹深空背景，自动适配当前主题底色，仅有柔和的彩色漫反射 */
 .drift-bg-glow {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 1;
-  background: radial-gradient(circle at 50% 50%, #0d0a1a 0%, var(--color-bg-primary) 100%);
+  background: var(--color-bg-primary); /* 跟随系统背景颜色 */
   overflow: hidden;
   pointer-events: none;
 }
 .glow-orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.15;
+  filter: blur(70px);
+  opacity: 0.08; /* 非常淡的彩色光晕，避免形成大面积污斑 */
   mix-blend-mode: screen;
-  transition: background 0.8s ease;
 }
 .orb-1 {
-  top: 10%; left: -20%;
-  width: 300px; height: 300px;
+  top: 15%; left: -10%;
+  width: 320px; height: 320px;
   background: var(--color-accent);
-  animation: driftGlowOrb 12s ease-in-out infinite alternate;
+  animation: driftGlowOrb 14s ease-in-out infinite alternate;
 }
 .orb-2 {
-  bottom: 15%; right: -20%;
-  width: 350px; height: 350px;
+  bottom: 20%; right: -10%;
+  width: 300px; height: 300px;
   background: var(--color-text-secondary);
   animation: driftGlowOrb 18s ease-in-out infinite alternate-reverse;
 }
 .orb-3 {
-  top: 40%; left: 30%;
-  width: 200px; height: 200px;
+  top: 45%; left: 25%;
+  width: 220px; height: 220px;
   background: var(--color-accent);
-  animation: driftGlowOrb 15s ease-in-out infinite alternate 2s;
+  animation: driftGlowOrb 16s ease-in-out infinite alternate 1.5s;
 }
 @keyframes driftGlowOrb {
-  0% { transform: translate(0, 0) scale(1); opacity: 0.12; }
-  50% { transform: translate(30px, -40px) scale(1.2); opacity: 0.18; }
-  100% { transform: translate(-20px, 20px) scale(0.9); opacity: 0.12; }
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(25px, -30px) scale(1.15); }
 }
 
-/* 顶栏 */
 .drift-top-bar {
   position: relative;
   z-index: 5;
@@ -2828,15 +2826,14 @@
   font-weight: 500;
   text-align: center;
   color: var(--color-text-primary);
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
 }
 .drift-btn-circle {
   width: 40px; height: 40px;
   border-radius: 50%;
   border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--color-text-secondary);
   display: inline-flex; align-items: center; justify-content: center;
   transition: transform 0.15s, color 0.2s, background 0.2s;
@@ -2847,13 +2844,12 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* 标签导航 */
 .drift-tabs {
   position: relative;
   z-index: 5;
   display: flex;
   margin: 10px 16px 15px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 3px;
@@ -2879,11 +2875,9 @@
   opacity: 0.7;
   transition: transform 0.2s, opacity 0.2s;
 }
-.drift-tab-item:active {
-  transform: scale(0.97);
-}
+.drift-tab-item:active { transform: scale(0.97); }
 .drift-tab-item.active {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--color-accent);
 }
 .drift-tab-item.active svg {
@@ -2891,14 +2885,13 @@
   transform: translateY(-1px);
 }
 
-/* 未读提示条 */
 .unread-alert-bar {
   position: relative;
   z-index: 5;
   margin: 0 16px 10px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.01), rgba(255,255,255,0.05), rgba(255,255,255,0.01));
-  border-top: 1px dashed rgba(255, 255, 255, 0.1);
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  border-top: 1px dashed var(--color-border);
+  border-bottom: 1px dashed var(--color-border);
   padding: 8px 0;
   text-align: center;
 }
@@ -2913,13 +2906,13 @@
 .pulse-star {
   color: var(--color-accent);
   animation: pulseStarGlow 2s infinite alternate;
+  display: inline-flex;
 }
 @keyframes pulseStarGlow {
-  0% { transform: scale(0.8); opacity: 0.5; filter: drop-shadow(0 0 1px var(--color-accent)); }
-  100% { transform: scale(1.15); opacity: 1; filter: drop-shadow(0 0 5px var(--color-accent)); }
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.1); opacity: 1; }
 }
 
-/* 主内容视图 */
 .drift-view-content {
   position: relative;
   z-index: 4;
@@ -2929,7 +2922,6 @@
   padding: 0 16px;
 }
 
-/* 磨砂玻璃卡片 */
 .drift-card {
   background: var(--glass-bg);
   backdrop-filter: blur(var(--glass-blur));
@@ -2940,11 +2932,52 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 32px var(--color-shadow);
   transition: opacity 0.3s, transform 0.3s;
 }
 
-/* --- 写信信封展开动效设计 --- */
+/* --- 写信步骤1: 邮箱筒视图 --- */
+.postbox-step-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  animation: driftFadeInUp 0.4s ease forwards;
+}
+.postbox-step-view.hide {
+  display: none;
+}
+.postbox-cylinder-box {
+  position: relative;
+  color: var(--color-accent);
+  padding: 20px;
+}
+.postbox-glowing-glow {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100px; height: 100px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  filter: blur(35px);
+  opacity: 0.15;
+  animation: postboxBreath 3s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes postboxBreath {
+  0% { opacity: 0.1; transform: translate(-50%, -50%) scale(0.9); }
+  100% { opacity: 0.22; transform: translate(-50%, -50%) scale(1.15); }
+}
+.postbox-hint {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--color-text-secondary);
+  margin-bottom: 10px;
+}
+
+/* --- 写信步骤2: 信封展开动效 --- */
 .envelope-wrapper {
   flex: 1;
   display: flex;
@@ -2952,11 +2985,14 @@
   justify-content: center;
   perspective: 1000px;
 }
+.envelope-wrapper.hide {
+  display: none;
+}
 .envelope-outer {
   position: relative;
   width: 240px; height: 160px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
@@ -2970,8 +3006,8 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 80px;
-  background: rgba(255, 255, 255, 0.05);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--color-border);
   clip-path: polygon(0 0, 100% 0, 50% 100%);
   transform-origin: top;
   transition: transform 0.5s ease;
@@ -2981,8 +3017,8 @@
   position: absolute;
   bottom: 0; left: 0; right: 0;
   height: 100px;
-  background: rgba(255, 255, 255, 0.03);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.01);
+  border-top: 1px solid rgba(255, 255, 255, 0.03);
   clip-path: polygon(0 100%, 100% 100%, 50% 0);
   z-index: 2;
 }
@@ -2990,15 +3026,15 @@
   position: absolute;
   bottom: 30px;
   width: 200px; height: 100px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed var(--color-border);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1;
   transition: transform 0.5s ease, opacity 0.5s;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 .paper-preview-text {
   font-size: 10px;
@@ -3006,13 +3042,12 @@
   color: var(--color-text-secondary);
 }
 
-/* 打开信封后的 CSS 类控制 */
 .envelope-wrapper.opened .envelope-outer {
   transform: rotateX(15deg) translateY(20px);
 }
 .envelope-wrapper.opened .envelope-flap {
   transform: rotateX(180deg);
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
 }
 .envelope-wrapper.opened .envelope-paper-preview {
   transform: translateY(-50px) scale(1.05);
@@ -3023,7 +3058,7 @@
   z-index: 4;
 }
 
-/* 信纸展开后的文本编辑区 */
+/* --- 写信步骤3: 信纸书写区 --- */
 .letter-paper-wrapper {
   display: flex;
   flex-direction: column;
@@ -3042,7 +3077,7 @@
 }
 
 .drift-select-char {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
   border: 1px solid var(--color-border);
   font-size: 13px;
   letter-spacing: 1px;
@@ -3051,27 +3086,22 @@
 .drift-textarea {
   flex: 1;
   background: transparent;
-  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border: 1px dashed var(--color-border);
   font-size: 14px;
   line-height: 1.6;
   letter-spacing: 1.5px;
   padding: 10px;
   margin-bottom: 14px;
 }
-.letter-actions {
-  display: flex;
-  gap: 10px;
-}
-.letter-actions .btn {
-  flex: 1;
-}
+.letter-actions { display: flex; gap: 10px; }
+.letter-actions .btn { flex: 1; }
 
-/* --- 投递星光动画浮层 --- */
+/* --- 投递动画浮层 --- */
 .drift-anim-overlay {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: radial-gradient(circle at center, #0d091a 0%, #030206 100%);
+  background: radial-gradient(circle at center, rgba(13, 9, 26, 0.95) 0%, rgba(3, 2, 6, 0.98) 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3089,9 +3119,7 @@
   filter: drop-shadow(0 0 15px var(--color-accent));
   animation: floatDriftBottle 3s ease-in-out infinite;
 }
-.drift-anim-bottle svg {
-  width: 68px; height: 68px;
-}
+.drift-anim-bottle svg { width: 68px; height: 68px; }
 .drift-anim-text {
   margin-top: 40px;
   font-size: 13px;
@@ -3099,8 +3127,6 @@
   color: var(--color-text-secondary);
   animation: breathText 1.5s ease-in-out infinite alternate;
 }
-
-/* 星光粒子粒子背景 */
 .drift-particles-container {
   position: absolute;
   inset: 0;
@@ -3133,6 +3159,86 @@
   100% { transform: translateY(-100vh) scale(1.2); opacity: 0; }
 }
 
+/* --- 仪式感打捞漂流瓶动画 --- */
+.salvage-anim-vortex {
+  position: relative;
+  width: 160px; height: 160px;
+  display: flex; align-items: center; justify-content: center;
+}
+.salvage-swirl {
+  position: absolute;
+  width: 100%; height: 100%;
+  border: 1px dashed var(--color-accent);
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: salvageSwirlRotate 3s linear infinite;
+}
+.salvage-swirl::before {
+  content: '';
+  position: absolute;
+  inset: 15px;
+  border: 1px dashed var(--color-text-secondary);
+  border-radius: 50%;
+  opacity: 0.5;
+  animation: salvageSwirlRotate 2s linear infinite reverse;
+}
+.salvage-bottle-rise {
+  color: var(--color-accent);
+  filter: drop-shadow(0 0 10px var(--color-accent));
+  animation: bottleRiseUp 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.salvage-bottle-rise svg { width: 56px; height: 56px; }
+
+@keyframes salvageSwirlRotate {
+  0% { transform: rotate(0deg) scale(0.85); }
+  50% { transform: rotate(180deg) scale(1.05); }
+  100% { transform: rotate(360deg) scale(0.85); }
+}
+@keyframes bottleRiseUp {
+  0% { transform: translateY(80px) rotate(-30deg) scale(0.5); opacity: 0; }
+  50% { transform: translateY(-10px) rotate(15deg) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-30px) rotate(0deg) scale(1); opacity: 1; }
+}
+
+/* --- 仪式感打捞区域 --- */
+.salvage-trigger-zone {
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.salvage-trigger-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.salvage-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.salvage-title {
+  font-size: 13px;
+  letter-spacing: 2px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.salvage-sub {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  letter-spacing: 1px;
+}
+.btn-salvage {
+  padding: 6px 12px;
+  min-height: 34px;
+  font-size: 12px;
+  border-radius: var(--radius-md);
+}
+
 /* --- 收件箱时间线机制 --- */
 .drift-mailbox-list {
   position: relative;
@@ -3146,7 +3252,7 @@
   position: absolute;
   top: 0; bottom: 0; left: 16px;
   width: 1px;
-  background: linear-gradient(to bottom, var(--color-border) 0%, rgba(255,255,255,0.02) 100%);
+  background: linear-gradient(to bottom, var(--color-border) 0%, rgba(255,255,255,0.01) 100%);
 }
 
 .drift-timeline-item {
@@ -3175,7 +3281,7 @@
 
 .drift-timeline-card {
   flex: 1;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.01);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
@@ -3185,14 +3291,14 @@
   cursor: pointer;
 }
 .drift-timeline-card:active {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 .drift-timeline-card.received-bubble {
   border-left: 2px solid var(--color-text-secondary);
 }
 .drift-timeline-card.received-bubble:has(.drift-unread-dot) {
   border-left: 2px solid var(--color-accent);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .drift-letter-meta {
@@ -3219,9 +3325,7 @@
   color: var(--color-text-tertiary);
 }
 
-.drift-letter-body-container {
-  min-height: 24px;
-}
+.drift-letter-body-container { min-height: 24px; }
 .drift-letter-text {
   font-size: 13px;
   line-height: 1.6;
@@ -3243,13 +3347,13 @@
   display: flex;
   justify-content: flex-end;
   margin-top: 8px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.04);
+  border-top: 1px dashed rgba(255, 255, 255, 0.03);
   padding-top: 8px;
 }
 .drift-text-btn-danger {
   background: transparent;
   border: none;
-  color: rgba(220, 38, 38, 0.7);
+  color: rgba(220, 38, 38, 0.6);
   font-size: 10px;
   display: inline-flex;
   align-items: center;
@@ -3261,12 +3365,29 @@
   color: rgba(220, 38, 38, 1);
 }
 
-/* 打字机光标闪烁效果 */
+/* 打捞后弹窗打字机排版 */
+.salvaged-sheet-body {
+  padding: 16px 8px;
+  min-height: 120px;
+}
+.salvaged-typewriter-text {
+  font-size: 14px;
+  line-height: 1.8;
+  letter-spacing: 1.5px;
+  color: var(--color-text-primary);
+  word-break: break-all;
+}
+
+/* 打字机光标闪烁 */
 .typing-active::after {
-  content: '▋';
-  color: var(--color-accent);
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 1.2em;
+  background: var(--color-accent);
   animation: blinkCursor 0.8s infinite;
-  margin-left: 2px;
+  margin-left: 3px;
+  vertical-align: -0.15em;
 }
 @keyframes blinkCursor {
   0%, 100% { opacity: 0; }
@@ -3279,12 +3400,8 @@
 }
 
 /* --- 长段字卡库管理 --- */
-.long-cards-card {
-  padding: 18px;
-}
-.long-cards-header {
-  margin-bottom: 14px;
-}
+.long-cards-card { padding: 18px; }
+.long-cards-header { margin-bottom: 14px; }
 .long-cards-title {
   font-size: 14px;
   letter-spacing: 2px;
@@ -3348,177 +3465,9 @@
   color: var(--color-text-secondary);
   opacity: 0.5;
   padding: 2px;
-  transition: opacity 0.2s, color 0.2s;
+  transition: opacity 0.2s;
 }
 .long-item-del:active {
   opacity: 1;
   color: #dc2626;
-}
-
-/* ==================== 教程 (Tutorial) 样式 ==================== */
-.tutorial-container {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
-  padding-bottom: 60px;
-}
-
-/* 星图背景 */
-.star-grid-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.constellation-svg {
-  width: 100%;
-  height: 100%;
-}
-
-.tutorial-top-bar {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
-}
-.tut-btn-circle {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--color-text-secondary);
-  display: inline-flex; align-items: center; justify-content: center;
-}
-.tut-btn-circle:active {
-  background: rgba(255, 255, 255, 0.08);
-}
-.tut-title {
-  font-size: 13px;
-  letter-spacing: 6px;
-  font-weight: 500;
-  opacity: 0.8;
-}
-
-/* 手账排版 */
-.tutorial-scroll-body {
-  position: relative;
-  z-index: 4;
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 24px 40px;
-  display: flex;
-  flex-direction: column;
-}
-
-.tut-header {
-  text-align: center;
-  margin-top: 10px;
-  margin-bottom: 40px;
-}
-.tut-main-title {
-  font-family: serif, system-ui;
-  font-size: 20px;
-  font-weight: 300;
-  letter-spacing: 5px;
-  color: var(--color-text-primary);
-  margin-bottom: 8px;
-}
-.tut-subtitle {
-  font-size: 11px;
-  letter-spacing: 6px;
-  color: var(--color-text-secondary);
-  opacity: 0.6;
-}
-.tut-divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 16px;
-}
-.tut-divider::before, .tut-divider::after {
-  content: '';
-  width: 40px; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-border));
-}
-.tut-divider::after {
-  background: linear-gradient(270deg, transparent, var(--color-border));
-}
-.divider-diamond {
-  font-size: 10px;
-  color: var(--color-accent);
-  margin: 0 8px;
-  opacity: 0.7;
-}
-
-.tut-section {
-  position: relative;
-  margin-bottom: 40px;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 24px 20px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.section-number {
-  position: absolute;
-  top: -14px; left: 20px;
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  width: 26px; height: 26px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px;
-  color: var(--color-accent);
-  font-weight: 500;
-  z-index: 2;
-}
-.section-title {
-  font-size: 13px;
-  letter-spacing: 3px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  margin-bottom: 14px;
-  border-left: 2px solid var(--color-accent);
-  padding-left: 8px;
-}
-.section-content {
-  font-size: 12px;
-  line-height: 1.8;
-  letter-spacing: 2px;
-  color: var(--color-text-secondary);
-  text-align: justify;
-}
-.section-content p {
-  margin-bottom: 10px;
-}
-.section-content p:last-child {
-  margin-bottom: 0;
-}
-.tut-highlight {
-  color: var(--color-accent);
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.05);
-  font-weight: 500;
-}
-
-.tut-footer {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 10px;
-  letter-spacing: 3px;
-  color: var(--color-text-tertiary);
-  line-height: 2;
-}
-.star-cluster {
-  margin-top: 10px;
-  color: var(--color-accent);
-  opacity: 0.5;
-  letter-spacing: 6px;
 }

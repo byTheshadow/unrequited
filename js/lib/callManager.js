@@ -192,14 +192,14 @@ function safeCssUrl(value) {
 
 // 音频跳跃的进度波动图
 function renderWaveBarsHTML(elapsedSeconds, isConnected) {
-  const totalBars = 18;
+  const totalBars = 22;
   const progressPercent = isConnected ? Math.min(100, (elapsedSeconds % 60) / 60 * 100) : 0;
   const activeCount = Math.round((progressPercent / 100) * totalBars);
 
   let html = '';
   for (let i = 0; i < totalBars; i++) {
     const isActive = i < activeCount ? ' is-active' : '';
-    const height = isConnected ? Math.floor(Math.random() * 20) + 6 : 6;
+    const height = isConnected ? Math.floor(Math.random() * 22) + 4 : 4;
     html += `<span class="call-player-bar${isActive}" style="height: ${height}px;"></span>`;
   }
   return html;
@@ -429,7 +429,7 @@ export const CallManager = {
 
   getPlayerKickerText() {
     if (this.state === 'incoming') return 'INCOMING';
-    if (this.state === 'connected') return 'LIVE CALL';
+    if (this.state === 'connected') return 'NOW PLAYING';
     if (this.state === 'dialing') return 'CALLING';
     return 'CALL';
   },
@@ -484,63 +484,72 @@ export const CallManager = {
       '这一刻很近',
       '别让声音熄灭',
       '沉默也有回音',
-      '频率正在靠近'
+      '频率正在靠近',
     ];
 
-    const createParticle = () => {
+    // 逐字飘散：从一个短语中一个字一个字地发射
+    const createPhraseSequence = () => {
       if (this.viewMode !== 'full' || this.state === 'idle') return;
 
       const currentContainer = this.overlay.querySelector('#particle-container');
       if (!currentContainer) return;
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-      const char = phrase[Math.floor(Math.random() * phrase.length)];
+      const baseX = 10 + Math.random() * 80;
 
-      const el = document.createElement('span');
-      el.className = 'float-char';
-      el.textContent = char;
+      for (let i = 0; i < phrase.length; i++) {
+        const char = phrase[i];
 
-      const x = 5 + Math.random() * 90;
-      const size = 16 + Math.random() * 26;
-      const duration = 6.0 + Math.random() * 5.0;
-      const rise = -(60 + Math.random() * 35);
-      const drift = Math.random() * 140 - 70;
-      const rotate = Math.random() * 40 - 20;
-      const rotateMore = Math.random() * 90 - 45;
-      const alpha = 0.25 + Math.random() * 0.55;
-      const blur = Math.random() > 0.72 ? '2px' : '0px';
+        setTimeout(() => {
+          if (this.viewMode !== 'full' || this.state === 'idle') return;
 
-      el.style.setProperty('--x', `${x}%`);
-      el.style.setProperty('--size', `${size}px`);
-      el.style.setProperty('--duration', `${duration}s`);
-      el.style.setProperty('--rise', `${rise}vh`);
-      el.style.setProperty('--drift', `${drift}px`);
-      el.style.setProperty('--r', `${rotate}deg`);
-      el.style.setProperty('--rr', `${rotateMore}deg`);
-      el.style.setProperty('--alpha', alpha);
-      el.style.setProperty('--blur', blur);
+          const activeContainer = this.overlay.querySelector('#particle-container');
+          if (!activeContainer) return;
 
-      currentContainer.appendChild(el);
+          const el = document.createElement('span');
+          el.className = 'float-char';
+          el.textContent = char;
 
-      setTimeout(() => {
-        if (el.parentNode) {
-          el.remove();
-        }
-      }, duration * 1000);
+          const x = baseX + (i * 2.5) - (phrase.length * 1.2);
+          const size = 18 + Math.random() * 14;
+          const duration = 7.0 + Math.random() * 4.0;
+          const rise = -(50 + Math.random() * 40);
+          const drift = (Math.random() * 60 - 30) + (i * 3);
+          const rotate = Math.random() * 15 - 7.5;
+          const rotateMore = Math.random() * 30 - 15;
+          const alpha = 0.3 + Math.random() * 0.5;
+          const blur = Math.random() > 0.8 ? '1.5px' : '0px';
+
+          el.style.setProperty('--x', `${Math.max(3, Math.min(97, x))}%`);
+          el.style.setProperty('--size', `${size}px`);
+          el.style.setProperty('--duration', `${duration}s`);
+          el.style.setProperty('--rise', `${rise}vh`);
+          el.style.setProperty('--drift', `${drift}px`);
+          el.style.setProperty('--r', `${rotate}deg`);
+          el.style.setProperty('--rr', `${rotateMore}deg`);
+          el.style.setProperty('--alpha', alpha);
+          el.style.setProperty('--blur', blur);
+          el.style.setProperty('--delay', '0s');
+
+          activeContainer.appendChild(el);
+
+          setTimeout(() => {
+            if (el.parentNode) {
+              el.remove();
+            }
+          }, duration * 1000);
+        }, i * 220); // 每个字间隔 220ms 发射
+      }
     };
 
-    // 初始快速产生粒子填充屏幕
-    for (let i = 0; i < 25; i++) {
-      setTimeout(createParticle, i * 150);
+    // 初始产生几组
+    for (let i = 0; i < 4; i++) {
+      setTimeout(createPhraseSequence, i * 800);
     }
 
     this.particleInterval = setInterval(() => {
-      const count = 1 + Math.floor(Math.random() * 2);
-
-      for (let i = 0; i < count; i++) {
-        setTimeout(createParticle, i * 200);
-      }
-    }, 700);
+      createPhraseSequence();
+    }, 3500);
   },
 
   stopParticles() {
@@ -587,7 +596,7 @@ export const CallManager = {
 
     const moveTo = (x, y) => {
       const rect = targetEl.getBoundingClientRect();
-      const margin = 16;
+      const margin = 12;
       const maxX = Math.max(margin, window.innerWidth - rect.width - margin);
       const maxY = Math.max(margin, window.innerHeight - rect.height - margin);
 
@@ -627,6 +636,8 @@ export const CallManager = {
       targetEl.style.right = 'auto';
       targetEl.style.bottom = 'auto';
       targetEl.style.transition = 'none';
+      targetEl.style.transform = 'none';
+      targetEl.style.margin = '0';
 
       try {
         dragHandle.setPointerCapture(e.pointerId);
@@ -644,7 +655,7 @@ export const CallManager = {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
 
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
         this.dragState.moved = true;
         this.dragState.suppressClick = true;
         hasMoved = true;
@@ -672,10 +683,11 @@ export const CallManager = {
 
       if (hasMoved) {
         const rect = targetEl.getBoundingClientRect();
-        const margin = 16;
+        const margin = 12;
         let targetX = rect.left;
         let targetY = rect.top;
 
+        // 磁吸到较近的一侧
         if (rect.left + rect.width / 2 < window.innerWidth / 2) {
           targetX = margin;
         } else {
@@ -684,7 +696,7 @@ export const CallManager = {
 
         targetY = Math.max(margin, Math.min(targetY, window.innerHeight - rect.height - margin));
 
-        targetEl.style.transition = 'left 0.3s cubic-bezier(0.25, 1, 0.5, 1), top 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
+        targetEl.style.transition = 'left 0.35s cubic-bezier(0.25, 1, 0.5, 1), top 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
         targetEl.style.left = `${targetX}px`;
         targetEl.style.top = `${targetY}px`;
 
@@ -692,22 +704,24 @@ export const CallManager = {
         posStore.y = targetY;
 
         setTimeout(() => {
-          targetEl.style.transition = 'none';
-        }, 300);
+          if (targetEl) {
+            targetEl.style.transition = 'none';
+          }
+        }, 360);
       }
 
       if (this.dragState.suppressClick) {
         setTimeout(() => {
           this.dragState.suppressClick = false;
           this.dragState.moved = false;
-        }, 160);
+        }, 200);
       } else {
         this.dragState.moved = false;
       }
     };
 
-    dragHandle.addEventListener('pointerdown', onPointerDown);
-    dragHandle.addEventListener('pointermove', onPointerMove);
+    dragHandle.addEventListener('pointerdown', onPointerDown, { passive: false });
+    dragHandle.addEventListener('pointermove', onPointerMove, { passive: false });
     dragHandle.addEventListener('pointerup', onPointerEnd);
     dragHandle.addEventListener('pointercancel', onPointerEnd);
   },
@@ -726,7 +740,6 @@ export const CallManager = {
 
     this.overlay.className = 'global-call-active global-call-player';
 
-    // avatarHTML 生成的图片在外面嵌套了一层 .avatar-inner, 保证被 flex-shrink 限制，不会撑扁
     this.overlay.innerHTML = `
       <div class="global-call-floating call-player-widget" id="global-call-player" role="button" aria-label="展开通话">
         <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="最小化为悬浮球">
@@ -736,17 +749,17 @@ export const CallManager = {
         <div class="call-player-inner">
           <div class="call-player-drag-handle" id="call-player-drag-handle">
             <div class="call-player-cover">
-              ${avatarHTML(this.characterAvatar, this.characterName, 68)}
+              ${avatarHTML(this.characterAvatar, this.characterName, 64)}
             </div>
 
             <div class="call-player-meta">
               <div class="call-player-kicker">
-                <span class="call-player-live-dot" style="${!isConnected ? 'background:#f59e0b;box-shadow:0 0 8px #f59e0b;' : ''}"></span>
+                <span class="call-player-live-dot" style="${!isConnected ? 'background:#f59e0b;box-shadow:0 0 6px #f59e0b;' : ''}"></span>
                 ${escapeHtml(this.getPlayerKickerText())}
               </div>
 
               <div class="call-player-name">${escapeHtml(this.characterName || 'Unknown')}</div>
-              <div class="call-player-subtitle">${escapeHtml(isConnected ? '正在通话 · 像一首正在播放的歌' : statusText)}</div>
+              <div class="call-player-subtitle">${escapeHtml(isConnected ? '正在通话 · 声音是唯一的线索' : statusText)}</div>
             </div>
           </div>
 
@@ -757,7 +770,7 @@ export const CallManager = {
               ${renderWaveBarsHTML(this.getElapsedSeconds(), isConnected)}
             </div>
 
-            <span class="call-player-live-label">${isConnected ? 'LIVE' : '...'}</span>
+            <span class="call-player-live-label">${isConnected ? 'LIVE' : '···'}</span>
           </div>
 
           <div class="call-player-bottom" aria-hidden="true">
@@ -767,7 +780,7 @@ export const CallManager = {
               <span></span>
               <span></span>
             </div>
-            <div class="call-player-hint">拖动此处移动</div>
+            <div class="call-player-hint">拖动移动位置</div>
           </div>
         </div>
       </div>
@@ -781,7 +794,6 @@ export const CallManager = {
       this.makeElementDraggable(player, handle || player, 'player');
 
       player.addEventListener('click', (e) => {
-        if (player.style.transition !== '' && player.style.transition !== 'none') return;
         if (this.wasJustDragged()) {
           e.preventDefault();
           e.stopPropagation();
@@ -809,17 +821,14 @@ export const CallManager = {
   renderBall() {
     this.stopParticles();
 
-    const isPlaying = this.state === 'connected' || this.state === 'dialing' || this.state === 'incoming';
-
     this.overlay.className = 'global-call-active global-call-ball';
 
-    // 精简 avatar 嵌套，确保在 box-sizing 限制下，是完美的正圆，不会被撑扁
     this.overlay.innerHTML = `
       <div class="global-call-floating call-ball-widget" id="global-call-ball" role="button" aria-label="展开音乐通话窗口">
         <div class="call-ball-ring"></div>
 
         <div class="call-ball-avatar">
-          ${avatarHTML(this.characterAvatar, this.characterName, 58)}
+          ${avatarHTML(this.characterAvatar, this.characterName, 56)}
         </div>
 
         <div class="call-ball-status-dot"></div>
@@ -832,7 +841,6 @@ export const CallManager = {
       this.makeElementDraggable(ball, ball, 'ball');
 
       ball.addEventListener('click', (e) => {
-        if (ball.style.transition !== '' && ball.style.transition !== 'none') return;
         if (this.wasJustDragged()) {
           e.preventDefault();
           e.stopPropagation();
@@ -978,10 +986,11 @@ export const CallManager = {
       hangupBtn.onclick = () => this.endCall();
     }
 
-    // 每次渲染全屏完毕后，延迟一小步让DOM挂载完毕后，开启飘散粒子
+    // 延迟启动粒子让 DOM 就绪
     setTimeout(() => {
       this.startParticles();
-    }, 50);
+    }, 80);
+
     this.updateTimer();
   },
 

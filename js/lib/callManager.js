@@ -18,16 +18,9 @@ const SVG_MINIMIZE = `
 
 function getAudioContext() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) {
-    console.warn('Web Audio API is not supported in this browser.');
-    return null;
-  }
-  if (!audioCtx) {
-    audioCtx = new AudioContextClass();
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume().catch(() => {});
-  }
+  if (!AudioContextClass) return null;
+  if (!audioCtx) audioCtx = new AudioContextClass();
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
   return audioCtx;
 }
 
@@ -47,10 +40,8 @@ function playIncomingRing() {
       const osc1 = ctx.createOscillator();
       const osc2 = ctx.createOscillator();
       const localGain = ctx.createGain();
-
       osc1.type = 'sine';
       osc2.type = 'triangle';
-
       if (step % 2 === 0) {
         osc1.frequency.setValueAtTime(440, now);
         osc2.frequency.setValueAtTime(880, now);
@@ -58,24 +49,18 @@ function playIncomingRing() {
         osc1.frequency.setValueAtTime(480, now);
         osc2.frequency.setValueAtTime(960, now);
       }
-
       localGain.gain.setValueAtTime(0, now);
       localGain.gain.linearRampToValueAtTime(0.12, now + 0.1);
       localGain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-
       osc1.connect(localGain);
       osc2.connect(localGain);
       localGain.connect(soundGain);
-
       osc1.start(now);
       osc2.start(now);
       osc1.stop(now + 0.8);
       osc2.stop(now + 0.8);
-
       step++;
-    } catch (err) {
-      console.warn('playIncomingRing error:', err);
-    }
+    } catch (err) {}
   }, 1000);
 
   soundGain.gain.setValueAtTime(0, ctx.currentTime);
@@ -99,17 +84,14 @@ function playDialingTone() {
         soundOsc = ctx.createOscillator();
         soundOsc.type = 'sine';
         soundOsc.frequency.setValueAtTime(450, now);
-
         soundGain.gain.cancelScheduledValues(now);
         soundGain.gain.setValueAtTime(0, now);
         soundGain.gain.linearRampToValueAtTime(0.1, now + 0.05);
         soundGain.gain.setValueAtTime(0.1, now + 0.8);
         soundGain.gain.linearRampToValueAtTime(0, now + 0.85);
-
         soundOsc.connect(soundGain);
         soundOsc.start(now);
         soundOsc.stop(now + 0.9);
-
         soundOsc.onended = () => {
           try { soundOsc.disconnect(); } catch (e) {}
           soundOsc = null;
@@ -118,9 +100,7 @@ function playDialingTone() {
       } else {
         isBeeping = false;
       }
-    } catch (err) {
-      console.warn('playDialingTone error:', err);
-    }
+    } catch (err) {}
   }, 1000);
 }
 
@@ -158,15 +138,14 @@ function safeCssUrl(value) {
 }
 
 function renderWaveBarsHTML(elapsedSeconds, isConnected) {
-  const totalBars = 20;
+  const totalBars = 18;
   const progressPercent = isConnected ? Math.min(100, (elapsedSeconds % 60) / 60 * 100) : 0;
   const activeCount = Math.round((progressPercent / 100) * totalBars);
-
   let html = '';
   for (let i = 0; i < totalBars; i++) {
-    const isActive = i < activeCount ? ' is-active' : '';
-    const height = isConnected ? Math.floor(Math.random() * 20) + 4 : 4;
-    html += `<span class="call-player-bar${isActive}" style="height:${height}px"></span>`;
+    const active = i < activeCount ? ' is-active' : '';
+    const h = isConnected ? (Math.floor(Math.random() * 18) + 3) : 3;
+    html += `<span class="call-player-bar${active}" style="height:${h}px"></span>`;
   }
   return html;
 }
@@ -174,18 +153,15 @@ function renderWaveBarsHTML(elapsedSeconds, isConnected) {
 export const CallManager = {
   state: 'idle',
   viewMode: 'full',
-
   conversationId: null,
   characterId: null,
   characterName: '',
   characterAvatar: '',
   isUserInitiator: false,
-
   startTime: null,
   timerInterval: null,
   autoAnswerTimeout: null,
   particleInterval: null,
-
   overlay: null,
   minimized: false,
 
@@ -214,7 +190,6 @@ export const CallManager = {
 
   startCall(conversationId, characterId, characterName, characterAvatar, isUserInitiator = true) {
     if (this.state !== 'idle') return;
-
     this.conversationId = conversationId;
     this.characterId = characterId;
     this.characterName = characterName;
@@ -235,54 +210,20 @@ export const CallManager = {
     }
   },
 
-  minimize() {
-    if (this.state === 'idle') return;
-    this.viewMode = 'player';
-    this.minimized = true;
-    this.render();
-  },
-
-  expand() {
-    if (this.state === 'idle') return;
-    this.viewMode = 'full';
-    this.minimized = false;
-    this.render();
-  },
-
-  showPlayer() {
-    if (this.state === 'idle') return;
-    this.viewMode = 'player';
-    this.minimized = true;
-    this.render();
-  },
-
-  showBall() {
-    if (this.state === 'idle') return;
-    this.viewMode = 'ball';
-    this.minimized = true;
-    this.render();
-  },
-
-  toggleMinimize() {
-    if (this.viewMode === 'full') {
-      this.showPlayer();
-    } else {
-      this.expand();
-    }
-  },
+  minimize() { if (this.state === 'idle') return; this.viewMode = 'player'; this.minimized = true; this.render(); },
+  expand() { if (this.state === 'idle') return; this.viewMode = 'full'; this.minimized = false; this.render(); },
+  showPlayer() { if (this.state === 'idle') return; this.viewMode = 'player'; this.minimized = true; this.render(); },
+  showBall() { if (this.state === 'idle') return; this.viewMode = 'ball'; this.minimized = true; this.render(); },
+  toggleMinimize() { if (this.viewMode === 'full') this.showPlayer(); else this.expand(); },
 
   simulateCharacterAnswer() {
     const delay = Math.floor(Math.random() * 5000) + 3000;
     this.autoAnswerTimeout = setTimeout(async () => {
       if (this.state !== 'dialing') return;
       const rand = Math.random();
-      if (rand < 0.8) {
-        this.acceptCall();
-      } else if (rand < 0.95) {
-        await this.endCall('busy');
-      } else {
-        await this.endCall('missed');
-      }
+      if (rand < 0.8) this.acceptCall();
+      else if (rand < 0.95) await this.endCall('busy');
+      else await this.endCall('missed');
     }, delay);
   },
 
@@ -292,15 +233,11 @@ export const CallManager = {
     this.state = 'connected';
     this.startTime = Date.now();
     this.render();
-
     if (this.timerInterval) clearInterval(this.timerInterval);
-    this.timerInterval = setInterval(() => { this.updateTimer(); }, 1000);
+    this.timerInterval = setInterval(() => this.updateTimer(), 1000);
   },
 
-  async declineCall() {
-    if (this.state !== 'incoming') return;
-    await this.endCall('declined');
-  },
+  async declineCall() { if (this.state !== 'incoming') return; await this.endCall('declined'); },
 
   async endCall(statusReason = 'finished') {
     stopSound();
@@ -308,10 +245,7 @@ export const CallManager = {
     if (this.autoAnswerTimeout) { clearTimeout(this.autoAnswerTimeout); this.autoAnswerTimeout = null; }
 
     let duration = 0;
-    if (this.startTime && this.state === 'connected') {
-      duration = Math.floor((Date.now() - this.startTime) / 1000);
-    }
-
+    if (this.startTime && this.state === 'connected') duration = Math.floor((Date.now() - this.startTime) / 1000);
     const finalStatus = this.state === 'connected' ? 'finished' : statusReason;
 
     if (this.conversationId) {
@@ -323,12 +257,8 @@ export const CallManager = {
           type: 'call',
           content: JSON.stringify({ status: finalStatus, duration }),
         });
-        window.dispatchEvent(new CustomEvent('call-history-updated', {
-          detail: { conversationId: this.conversationId },
-        }));
-      } catch (err) {
-        console.error('Failed to log call history', err);
-      }
+        window.dispatchEvent(new CustomEvent('call-history-updated', { detail: { conversationId: this.conversationId } }));
+      } catch (err) { console.error('Failed to log call history', err); }
     }
 
     this.state = 'idle';
@@ -384,10 +314,10 @@ export const CallManager = {
     if (track) track.innerHTML = renderWaveBarsHTML(elapsed, this.state === 'connected');
   },
 
+  // ---- 飘字粒子系统 ----
   startParticles() {
     if (this.particleInterval) return;
     if (!this.overlay) return;
-
     const container = this.overlay.querySelector('#particle-container');
     if (!container) return;
 
@@ -411,94 +341,83 @@ export const CallManager = {
 
     const emitPhrase = () => {
       if (this.viewMode !== 'full' || this.state === 'idle') return;
-      const currentContainer = this.overlay ? this.overlay.querySelector('#particle-container') : null;
-      if (!currentContainer) return;
+      const c = this.overlay ? this.overlay.querySelector('#particle-container') : null;
+      if (!c) return;
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-      const baseX = 8 + Math.random() * 84;
+      const baseX = 5 + Math.random() * 85;
 
       for (let i = 0; i < phrase.length; i++) {
-        const charDelay = i * 200;
+        const delay = i * 180; // 每字间隔180ms
 
         setTimeout(() => {
           if (this.viewMode !== 'full' || this.state === 'idle') return;
-          const activeContainer = this.overlay ? this.overlay.querySelector('#particle-container') : null;
-          if (!activeContainer) return;
+          const cont = this.overlay ? this.overlay.querySelector('#particle-container') : null;
+          if (!cont) return;
 
           const el = document.createElement('span');
           el.className = 'float-char';
           el.textContent = phrase[i];
 
-          const x = baseX + (i * 2) - (phrase.length);
-          const size = 16 + Math.random() * 14;
-          const duration = 6 + Math.random() * 4;
-          const rise = -(45 + Math.random() * 35);
-          const drift = (Math.random() * 50 - 25) + (i * 2);
-          const rotate = Math.random() * 12 - 6;
-          const rotateMore = Math.random() * 25 - 12;
-          const alpha = 0.25 + Math.random() * 0.45;
-          const blur = Math.random() > 0.8 ? '1px' : '0px';
+          const x = baseX + (i * 1.8) - (phrase.length * 0.9);
+          const size = 15 + Math.random() * 12;
+          const dur = 5 + Math.random() * 4;
+          const rise = -(35 + Math.random() * 35);
+          const drift = (Math.random() * 40 - 20) + (i * 1.5);
+          const r = Math.random() * 10 - 5;
+          const rr = Math.random() * 15 - 7.5;
+          const alpha = 0.3 + Math.random() * 0.4;
 
-          el.style.setProperty('--x', `${Math.max(2, Math.min(98, x))}%`);
-          el.style.setProperty('--size', `${size}px`);
-          el.style.setProperty('--duration', `${duration}s`);
-          el.style.setProperty('--rise', `${rise}vh`);
-          el.style.setProperty('--drift', `${drift}px`);
-          el.style.setProperty('--r', `${rotate}deg`);
-          el.style.setProperty('--rr', `${rotateMore}deg`);
-          el.style.setProperty('--alpha', `${alpha}`);
-          el.style.setProperty('--blur', blur);
-          el.style.setProperty('--delay', '0s');
+          el.style.cssText = `
+            --fc-x: ${Math.max(2, Math.min(96, x))}%;
+            --fc-size: ${size}px;
+            --fc-dur: ${dur}s;
+            --fc-rise: ${rise}vh;
+            --fc-drift: ${drift}px;
+            --fc-r: ${r}deg;
+            --fc-rr: ${rr}deg;
+            --fc-alpha: ${alpha};
+            --fc-delay: 0s;
+          `;
 
-          activeContainer.appendChild(el);
-
-          setTimeout(() => { if (el.parentNode) el.remove(); }, duration * 1000 + 100);
-        }, charDelay);
+          cont.appendChild(el);
+          setTimeout(() => { if (el.parentNode) el.remove(); }, dur * 1000 + 200);
+        }, delay);
       }
     };
 
-    // 初始快速填充
-    for (let i = 0; i < 5; i++) {
-      setTimeout(emitPhrase, i * 600);
+    // 初始填充
+    for (let i = 0; i < 4; i++) {
+      setTimeout(emitPhrase, i * 500);
     }
 
-    this.particleInterval = setInterval(emitPhrase, 3000);
+    this.particleInterval = setInterval(emitPhrase, 2800);
   },
 
   stopParticles() {
     if (this.particleInterval) { clearInterval(this.particleInterval); this.particleInterval = null; }
-    const container = this.overlay ? this.overlay.querySelector('#particle-container') : null;
-    if (container) container.innerHTML = '';
+    const c = this.overlay ? this.overlay.querySelector('#particle-container') : null;
+    if (c) c.innerHTML = '';
   },
 
+  // ---- 拖动 ----
   makeElementDraggable(targetEl, handleEl, mode) {
     if (!targetEl) return;
-
     const dragHandle = handleEl || targetEl;
     let startX = 0, startY = 0, initialX = 0, initialY = 0, hasMoved = false;
     const posStore = this.floatingPos[mode] || this.floatingPos.player;
 
-    // 如果有保存位置就恢复
     if (posStore.x !== null && posStore.y !== null) {
-      targetEl.style.left = `${posStore.x}px`;
-      targetEl.style.top = `${posStore.y}px`;
+      targetEl.style.left = posStore.x + 'px';
+      targetEl.style.top = posStore.y + 'px';
       targetEl.style.right = 'auto';
       targetEl.style.bottom = 'auto';
       targetEl.style.transform = 'none';
       targetEl.style.margin = '0';
     }
 
-    const clamp = (x, y) => {
-      const rect = targetEl.getBoundingClientRect();
-      const m = 8;
-      const maxX = Math.max(m, window.innerWidth - rect.width - m);
-      const maxY = Math.max(m, window.innerHeight - rect.height - m);
-      return { x: Math.max(m, Math.min(x, maxX)), y: Math.max(m, Math.min(y, maxY)) };
-    };
-
     const onDown = (e) => {
       if (e.button !== undefined && e.button !== 0) return;
-
       this.dragState.active = true;
       this.dragState.moved = false;
       this.dragState.suppressClick = false;
@@ -512,8 +431,8 @@ export const CallManager = {
       initialX = rect.left;
       initialY = rect.top;
 
-      targetEl.style.left = `${initialX}px`;
-      targetEl.style.top = `${initialY}px`;
+      targetEl.style.left = initialX + 'px';
+      targetEl.style.top = initialY + 'px';
       targetEl.style.right = 'auto';
       targetEl.style.bottom = 'auto';
       targetEl.style.transition = 'none';
@@ -538,11 +457,17 @@ export const CallManager = {
       }
       if (!hasMoved) return;
 
-      const pos = clamp(initialX + dx, initialY + dy);
-      targetEl.style.left = `${pos.x}px`;
-      targetEl.style.top = `${pos.y}px`;
-      posStore.x = pos.x;
-      posStore.y = pos.y;
+      const rect = targetEl.getBoundingClientRect();
+      const m = 8;
+      const maxX = Math.max(m, window.innerWidth - rect.width - m);
+      const maxY = Math.max(m, window.innerHeight - rect.height - m);
+      const nx = Math.max(m, Math.min(initialX + dx, maxX));
+      const ny = Math.max(m, Math.min(initialY + dy, maxY));
+
+      targetEl.style.left = nx + 'px';
+      targetEl.style.top = ny + 'px';
+      posStore.x = nx;
+      posStore.y = ny;
 
       if (e.cancelable) e.preventDefault();
     };
@@ -558,19 +483,16 @@ export const CallManager = {
       if (hasMoved) {
         const rect = targetEl.getBoundingClientRect();
         const m = 8;
-        let tx = rect.left, ty = rect.top;
-
-        // 磁吸靠边
+        let tx, ty = Math.max(m, Math.min(rect.top, window.innerHeight - rect.height - m));
         if (rect.left + rect.width / 2 < window.innerWidth / 2) {
           tx = m;
         } else {
           tx = window.innerWidth - rect.width - m;
         }
-        ty = Math.max(m, Math.min(ty, window.innerHeight - rect.height - m));
 
-        targetEl.style.transition = 'left 0.3s cubic-bezier(0.25,1,0.5,1), top 0.3s cubic-bezier(0.25,1,0.5,1)';
-        targetEl.style.left = `${tx}px`;
-        targetEl.style.top = `${ty}px`;
+        targetEl.style.transition = 'left 0.3s ease, top 0.3s ease';
+        targetEl.style.left = tx + 'px';
+        targetEl.style.top = ty + 'px';
         posStore.x = tx;
         posStore.y = ty;
 
@@ -596,44 +518,33 @@ export const CallManager = {
 
   renderPlayer() {
     this.stopParticles();
-
-    const statusText = this.getStatusText();
     const timeText = formatDuration(this.getElapsedSeconds());
-    const isPlaying = this.state === 'connected' || this.state === 'dialing' || this.state === 'incoming';
+    const isPlaying = this.state !== 'idle';
     const isConnected = this.state === 'connected';
 
     this.overlay.className = 'global-call-active global-call-player';
-
     this.overlay.innerHTML = `
-      <div class="global-call-floating call-player-widget" id="global-call-player" role="button" aria-label="展开通话">
-        <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="最小化为悬浮球">
-          <span></span>
-        </button>
+      <div class="global-call-floating call-player-widget" id="global-call-player">
         <div class="call-player-inner">
+          <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="最小化"><span></span></button>
           <div class="call-player-drag-handle" id="call-player-drag-handle">
-            <div class="call-player-cover">
-              ${avatarHTML(this.characterAvatar, this.characterName, 56)}
-            </div>
+            <div class="call-player-cover">${avatarHTML(this.characterAvatar, this.characterName, 48)}</div>
             <div class="call-player-meta">
               <div class="call-player-kicker">
-                <span class="call-player-live-dot" style="${!isConnected ? 'background:#f59e0b;box-shadow:0 0 6px #f59e0b;' : ''}"></span>
+                <span class="call-player-live-dot" style="${!isConnected ? 'background:#f59e0b;box-shadow:0 0 5px #f59e0b;' : ''}"></span>
                 ${escapeHtml(this.getPlayerKickerText())}
               </div>
               <div class="call-player-name">${escapeHtml(this.characterName || 'Unknown')}</div>
-              <div class="call-player-subtitle">${escapeHtml(isConnected ? '正在通话 · 声音是唯一的线索' : statusText)}</div>
+              <div class="call-player-subtitle">${escapeHtml(isConnected ? '正在通话 · 声音是唯一的线索' : this.getStatusText())}</div>
             </div>
           </div>
           <div class="call-player-progress-bar">
             <span class="call-player-time">${isConnected ? timeText : '00:00'}</span>
-            <div class="call-player-track" aria-hidden="true">
-              ${renderWaveBarsHTML(this.getElapsedSeconds(), isConnected)}
-            </div>
+            <div class="call-player-track">${renderWaveBarsHTML(this.getElapsedSeconds(), isConnected)}</div>
             <span class="call-player-live-label">${isConnected ? 'LIVE' : '···'}</span>
           </div>
-          <div class="call-player-bottom" aria-hidden="true">
-            <div class="call-player-eq ${isPlaying ? 'playing' : ''}">
-              <span></span><span></span><span></span><span></span>
-            </div>
+          <div class="call-player-bottom">
+            <div class="call-player-eq ${isPlaying ? 'playing' : ''}"><span></span><span></span><span></span><span></span></div>
             <div class="call-player-hint">拖动移动</div>
           </div>
         </div>
@@ -651,7 +562,6 @@ export const CallManager = {
         this.expand();
       });
     }
-
     if (toBallBtn) {
       toBallBtn.addEventListener('click', (e) => {
         e.preventDefault(); e.stopPropagation();
@@ -659,20 +569,16 @@ export const CallManager = {
         this.showBall();
       });
     }
-
     this.updateTimer();
   },
 
   renderBall() {
     this.stopParticles();
     this.overlay.className = 'global-call-active global-call-ball';
-
     this.overlay.innerHTML = `
-      <div class="global-call-floating call-ball-widget" id="global-call-ball" role="button" aria-label="展开通话窗口">
+      <div class="global-call-floating call-ball-widget" id="global-call-ball">
         <div class="call-ball-ring"></div>
-        <div class="call-ball-avatar">
-          ${avatarHTML(this.characterAvatar, this.characterName, 52)}
-        </div>
+        <div class="call-ball-avatar">${avatarHTML(this.characterAvatar, this.characterName, 48)}</div>
         <div class="call-ball-status-dot"></div>
       </div>
     `;
@@ -695,64 +601,46 @@ export const CallManager = {
     const timeText = formatDuration(this.getElapsedSeconds());
 
     let actionButtons = '';
-
     if (this.state === 'incoming') {
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
-            <button class="call-btn btn-decline" id="call-btn-decline" type="button" aria-label="拒接">
-              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
-            </button>
+            <button class="call-btn btn-decline" id="call-btn-decline" type="button"><span class="call-icon-heartbeat">${ICON.phoneHangup}</span></button>
             <span class="call-action-label">拒接</span>
           </div>
           <div class="call-action-col">
-            <button class="call-btn btn-accept" id="call-btn-accept" type="button" aria-label="接听">
-              <span class="call-icon-heartbeat">${ICON.phone}</span>
-            </button>
+            <button class="call-btn btn-accept" id="call-btn-accept" type="button"><span class="call-icon-heartbeat">${ICON.phone}</span></button>
             <span class="call-action-label">接听</span>
           </div>
-        </div>
-      `;
+        </div>`;
     } else if (this.state === 'dialing') {
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
-            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
-              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
-            </button>
+            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button"><span class="call-icon-heartbeat">${ICON.phoneHangup}</span></button>
             <span class="call-action-label">挂断</span>
           </div>
-        </div>
-      `;
+        </div>`;
     } else {
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
-            <button class="call-btn btn-utility" type="button" aria-label="静音">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/>
-              </svg>
+            <button class="call-btn btn-utility" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/></svg>
             </button>
             <span class="call-action-label">静音</span>
           </div>
           <div class="call-action-col">
-            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
-              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
-            </button>
+            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button"><span class="call-icon-heartbeat">${ICON.phoneHangup}</span></button>
             <span class="call-action-label">挂断</span>
           </div>
           <div class="call-action-col">
-            <button class="call-btn btn-utility" type="button" aria-label="免提">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
-              </svg>
+            <button class="call-btn btn-utility" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
             </button>
             <span class="call-action-label">免提</span>
           </div>
-        </div>
-      `;
+        </div>`;
     }
 
     const bgStyle = this.characterAvatar ? `background-image:url('${safeCssUrl(this.characterAvatar)}')` : '';
@@ -762,9 +650,7 @@ export const CallManager = {
         <div class="global-call-bg" style="${bgStyle}"></div>
         <div class="global-call-mask"></div>
         <div id="particle-container"></div>
-        <button class="global-call-minimize-btn" id="call-btn-minimize" type="button" aria-label="缩小通话">
-          ${SVG_MINIMIZE}
-        </button>
+        <button class="global-call-minimize-btn" id="call-btn-minimize" type="button">${SVG_MINIMIZE}</button>
         <div class="global-call-content">
           <div class="global-call-info-group">
             <div class="global-call-avatar-wrapper">
@@ -792,20 +678,18 @@ export const CallManager = {
     if (declineBtn) declineBtn.onclick = () => this.declineCall();
     if (hangupBtn) hangupBtn.onclick = () => this.endCall();
 
-    setTimeout(() => { this.startParticles(); }, 100);
+    setTimeout(() => this.startParticles(), 100);
     this.updateTimer();
   },
 
   render() {
     if (!this.overlay) return;
-
     if (this.state === 'idle') {
       this.stopParticles();
       this.overlay.className = '';
       this.overlay.innerHTML = '';
       return;
     }
-
     if (this.viewMode === 'ball') { this.renderBall(); return; }
     if (this.viewMode === 'player') { this.renderPlayer(); return; }
     this.renderFull();

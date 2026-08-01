@@ -1940,7 +1940,7 @@ function renderUserCard() {
       <div class="card-avatar-lg">${avatarHTML(u.avatar, u.name, 60)}</div>
       <div class="card-header-info">
         <input class="ghost-input card-name" data-target="user" data-field="name" value="${escapeAttr(u.name || '')}" placeholder="未命名" maxlength="30">
-        <div class="card-role">USER · 本尊</div>
+        <div class="card-role">宇宙 · 这端</div>
       </div>
     </div>
     <div class="card-divider"></div>

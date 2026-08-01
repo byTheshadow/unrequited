@@ -187,6 +187,7 @@ export const CallManager = {
   autoAnswerTimeout: null,
   overlay: null,
   minimized: false,
+  particleInterval: null, // 文字粒子计时器
 
   init() {
     this.overlay = document.getElementById('global-call-overlay');
@@ -366,11 +367,62 @@ export const CallManager = {
     }
   },
 
+  // 粒子动画控制器
+  startParticles() {
+    if (this.particleInterval) return;
+    const container = this.overlay.querySelector('#particle-container');
+    if (!container) return;
+
+    const phrases = ["思念是链接的钥匙", "跨越时间的爱恋", "倾听微风中的呢喃", "命运的频率在此共鸣"];
+    const allChars = phrases.join('').split('');
+
+    const createParticle = () => {
+      if (this.minimized || this.state === 'idle') return;
+      const char = allChars[Math.floor(Math.random() * allChars.length)];
+      const el = document.createElement('div');
+      el.className = 'float-char';
+      el.innerText = char;
+
+      const startX = 5 + Math.random() * 90;
+      const fontSize = 14 + Math.random() * 14;
+      const duration = 6 + Math.random() * 6;
+      const moveY = - (40 + Math.random() * 40) + 'vh';
+      const rot = (Math.random() * 40 - 20) + 'deg';
+
+      el.style.left = `${startX}%`;
+      el.style.fontSize = `${fontSize}px`;
+      el.style.animationDuration = `${duration}s`;
+      el.style.setProperty('--move-y', moveY);
+      el.style.setProperty('--rot', rot);
+
+      container.appendChild(el);
+
+      setTimeout(() => {
+        if (el.parentNode) el.remove();
+      }, duration * 1000);
+    };
+
+    // 初始快速产生 5 个粒子防空缺
+    for (let i = 0; i < 5; i++) {
+      setTimeout(createParticle, i * 200);
+    }
+    this.particleInterval = setInterval(createParticle, 450);
+  },
+
+  stopParticles() {
+    if (this.particleInterval) {
+      clearInterval(this.particleInterval);
+      this.particleInterval = null;
+    }
+    const container = this.overlay ? this.overlay.querySelector('#particle-container') : null;
+    if (container) {
+      container.innerHTML = '';
+    }
+  },
+
   renderMinimized() {
     const statusText = this.getStatusText();
     const timeText = formatDuration(this.getElapsedSeconds());
-    
-    // 是否正在“发声”阶段（拨号音或通话中）以启动EQ动效
     const isPlaying = this.state === 'connected' || this.state === 'dialing' || this.state === 'incoming';
 
     this.overlay.className = 'global-call-active global-call-minimized';
@@ -379,13 +431,15 @@ export const CallManager = {
       <div class="global-call-floating music-style" id="call-btn-expand" role="button" aria-label="展开通话">
         <div class="music-header">
           <div class="music-cover">
-            ${avatarHTML(this.characterAvatar, this.characterName, 56)}
+            ${avatarHTML(this.characterAvatar, this.characterName, 48)}
           </div>
           <div class="music-info">
             <div class="music-title">${this.characterName || 'Unknown'}</div>
             <div class="music-subtitle">${this.state === 'connected' ? '正在通话...' : statusText}</div>
           </div>
           <div class="music-eq ${isPlaying ? 'playing' : ''}">
+            <span class="eq-bar"></span>
+            <span class="eq-bar"></span>
             <span class="eq-bar"></span>
             <span class="eq-bar"></span>
             <span class="eq-bar"></span>
@@ -398,7 +452,7 @@ export const CallManager = {
           <div class="progress-track">
             <div class="progress-fill ${this.state === 'connected' ? 'active' : ''}"></div>
           </div>
-          <span class="progress-time status-text">${this.state === 'connected' ? 'Live' : '...'}</span>
+          <span class="progress-time duration-total">${this.state === 'connected' ? 'Live' : '...'}</span>
         </div>
       </div>
     `;
@@ -413,25 +467,58 @@ export const CallManager = {
     this.overlay.className = 'global-call-active';
 
     const statusText = this.getStatusText();
-    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 100);
+    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 130);
     const timeText = formatDuration(this.getElapsedSeconds());
 
     let actionButtons = '';
 
     if (this.state === 'incoming') {
       actionButtons = `
-        <button class="call-btn btn-decline" id="call-btn-decline" type="button" aria-label="拒接">
-          <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
-        </button>
-        <button class="call-btn btn-accept" id="call-btn-accept" type="button" aria-label="接听">
-          <span class="call-icon-heartbeat">${ICON.phone}</span>
-        </button>
+        <div class="call-action-grid">
+          <div class="call-action-col">
+            <button class="call-btn btn-decline" id="call-btn-decline" type="button" aria-label="拒接">
+              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+            </button>
+            <span class="call-action-label">拒接</span>
+          </div>
+          <div class="call-action-col">
+            <button class="call-btn btn-accept" id="call-btn-accept" type="button" aria-label="接听">
+              <span class="call-icon-heartbeat">${ICON.phone}</span>
+            </button>
+            <span class="call-action-label">接听</span>
+          </div>
+        </div>
       `;
     } else {
       actionButtons = `
-        <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
-          <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
-        </button>
+        <div class="call-action-grid">
+          <div class="call-action-col">
+            <button class="call-btn btn-utility" type="button" aria-label="静音">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/>
+              </svg>
+            </button>
+            <span class="call-action-label">静音</span>
+          </div>
+          
+          <div class="call-action-col">
+            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
+              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+            </button>
+            <span class="call-action-label">挂断</span>
+          </div>
+          
+          <div class="call-action-col">
+            <button class="call-btn btn-utility" type="button" aria-label="免提">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            </button>
+            <span class="call-action-label">免提</span>
+          </div>
+        </div>
       `;
     }
 
@@ -439,6 +526,9 @@ export const CallManager = {
       <div class="global-call-container">
         <div class="global-call-bg" style="background-image: url('${this.characterAvatar || ''}')"></div>
         <div class="global-call-mask"></div>
+
+        <!-- 逐字漂浮的粒子渲染层 -->
+        <div id="particle-container"></div>
 
         <button class="global-call-minimize-btn" id="call-btn-minimize" type="button" aria-label="缩小通话">
           ${SVG_MINIMIZE}
@@ -451,24 +541,23 @@ export const CallManager = {
               <div class="global-call-wave wave-2"></div>
               <div class="global-call-wave wave-3"></div>
             </div>
-
-            <div class="global-call-ecg">
-              <svg viewBox="0 0 240 60" class="global-call-ecg-svg" aria-hidden="true">
-                <path d="M0 30 H35 L45 18 L58 44 L72 30 H96 L108 12 L120 48 L134 30 H162 L174 22 L186 38 L198 30 H240" />
-              </svg>
-            </div>
           ` : ''}
         </div>
 
         <div class="global-call-content">
-          <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
-            ${avatarHtmlStr}
+          <div class="global-call-info-group">
+            <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
+              ${avatarHtmlStr}
+            </div>
+
+            <h2 class="global-call-name">${this.characterName || ''}</h2>
+            <p class="global-call-status">
+              ${this.state === 'connected' ? '<span class="status-dot"></span>' : ''}
+              ${statusText}
+            </p>
+
+            ${this.state === 'connected' ? `<div class="global-call-time">${timeText}</div>` : ''}
           </div>
-
-          <h2 class="global-call-name">${this.characterName || ''}</h2>
-          <p class="global-call-status">${statusText}</p>
-
-          ${this.state === 'connected' ? `<div class="global-call-time">${timeText}</div>` : ''}
 
           <div class="global-call-actions">
             ${actionButtons}
@@ -486,18 +575,23 @@ export const CallManager = {
     if (acceptBtn) acceptBtn.onclick = () => this.acceptCall();
     if (declineBtn) declineBtn.onclick = () => this.declineCall();
     if (hangupBtn) hangupBtn.onclick = () => this.endCall();
+
+    // 启动文字粒子飘落
+    this.startParticles();
   },
 
   render() {
     if (!this.overlay) return;
 
     if (this.state === 'idle') {
+      this.stopParticles();
       this.overlay.className = '';
       this.overlay.innerHTML = '';
       return;
     }
 
     if (this.minimized) {
+      this.stopParticles();
       this.renderMinimized();
     } else {
       this.renderFull();

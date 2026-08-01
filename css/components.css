@@ -3439,7 +3439,6 @@
 .long-item-del:active { opacity: 1; color: #dc2626; }
 
 
-
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -3481,10 +3480,13 @@
   color: #fff !important;
   pointer-events: auto !important;
   background: 
-    radial-gradient(circle at 50% 28%, rgba(99, 102, 241, 0.18), transparent 38%),
-    radial-gradient(circle at 15% 75%, rgba(236, 72, 153, 0.12), transparent 32%),
-    radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.12), transparent 32%),
+    radial-gradient(circle at 50% 25%, rgba(99, 102, 241, 0.15), transparent 35%),
+    radial-gradient(circle at 15% 75%, rgba(236, 72, 153, 0.1), transparent 30%),
+    radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.1), transparent 30%),
     linear-gradient(180deg, #07090e 0%, #020306 100%) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
 }
 
 .global-call-bg {
@@ -3493,7 +3495,7 @@
   z-index: 0 !important;
   background-size: cover !important;
   background-position: center !important;
-  filter: blur(80px) brightness(0.28) saturate(1.25) !important;
+  filter: blur(80px) brightness(0.3) saturate(1.2) !important;
   transform: scale(1.15) !important;
   opacity: 0.65 !important;
 }
@@ -3504,8 +3506,8 @@
   z-index: 1 !important;
   pointer-events: none !important;
   background: 
-    radial-gradient(circle at 50% 35%, rgba(99, 102, 241, 0.08), transparent 35%),
-    linear-gradient(180deg, rgba(7, 9, 14, 0.15), rgba(7, 9, 14, 0.65) 55%, rgba(2, 3, 6, 0.96)) !important;
+    radial-gradient(circle at 50% 40%, rgba(99, 102, 241, 0.1), transparent 40%),
+    linear-gradient(180deg, rgba(7, 9, 14, 0.2), rgba(7, 9, 14, 0.7) 60%, rgba(2, 3, 6, 0.95)) !important;
 }
 
 /* 左上角缩小按钮 */
@@ -3514,9 +3516,9 @@
   top: calc(28px + env(safe-area-inset-top, 0px)) !important;
   left: 28px !important;
   z-index: 20 !important;
-  width: 46px !important;
-  height: 46px !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  width: 48px !important;
+  height: 48px !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 50% !important;
   color: #fff !important;
   background: rgba(255, 255, 255, 0.08) !important;
@@ -3524,12 +3526,15 @@
   -webkit-backdrop-filter: blur(20px) !important;
   box-shadow: 
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 10px 24px rgba(0, 0, 0, 0.35) !important;
+    0 12px 24px rgba(0, 0, 0, 0.3) !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   transition: transform 0.2s, background 0.2s !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .global-call-minimize-btn:hover {
@@ -3540,8 +3545,9 @@
   transform: scale(0.95) !important;
 }
 .global-call-minimize-btn svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: block !important;
 }
 
 /* 漂浮单字文字层 */
@@ -3562,8 +3568,8 @@
   font-weight: 300 !important;
   color: rgba(255, 255, 255, var(--alpha)) !important;
   text-shadow: 
-    0 0 14px rgba(255, 255, 255, 0.45),
-    0 0 28px rgba(99, 102, 241, 0.25) !important;
+    0 0 12px rgba(255, 255, 255, 0.4),
+    0 0 24px rgba(99, 102, 241, 0.3) !important;
   transform: translate3d(0, 0, 0) scale(0.8) rotate(var(--r)) !important;
   animation: globalCallFloatWord var(--duration) cubic-bezier(0.1, 0.8, 0.25, 1) forwards !important;
   filter: blur(var(--blur)) !important;
@@ -3587,7 +3593,7 @@
     opacity: 0;
     transform: 
       translate3d(var(--drift), var(--rise), 0) 
-      scale(1.22) 
+      scale(1.2) 
       rotate(calc(var(--r) + var(--rr)));
     filter: blur(8px);
   }
@@ -3597,7 +3603,7 @@
 .global-call-content {
   position: relative !important;
   z-index: 4 !important;
-  height: 100% !important;
+  flex: 1 !important;
   width: 100% !important;
   padding: 80px 24px calc(140px + env(safe-area-inset-bottom, 0px)) !important;
   display: flex !important;
@@ -3619,11 +3625,12 @@
   position: relative !important;
   width: 140px !important;
   height: 140px !important;
-  margin-bottom: 30px !important;
+  margin-bottom: 28px !important;
   border-radius: 50% !important;
+  box-sizing: border-box !important;
+  display: block !important;
 }
 
-/* 头像光晕涟漪 */
 .global-call-avatar-wrapper::before,
 .global-call-avatar-wrapper::after {
   content: "" !important;
@@ -3665,12 +3672,13 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  box-sizing: border-box !important;
 }
 .global-call-avatar-wrapper img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
-  border-radius: 50% !important;
+  display: block !important;
 }
 
 .global-call-name {
@@ -3682,7 +3690,7 @@
 }
 
 .global-call-status {
-  margin: 14px 0 0 !important;
+  margin: 12px 0 0 !important;
   font-size: 13px !important;
   color: rgba(255, 255, 255, 0.5) !important;
   letter-spacing: 0.18em !important;
@@ -3699,11 +3707,11 @@
   border-radius: 50% !important;
   background: #10b981 !important;
   box-shadow: 0 0 12px #10b981 !important;
-  display: inline-block !important;
+  display: block !important;
 }
 
 .global-call-time {
-  margin-top: 20px !important;
+  margin-top: 18px !important;
   font-size: 20px !important;
   font-weight: 500 !important;
   color: rgba(255, 255, 255, 0.85) !important;
@@ -3717,7 +3725,7 @@
   justify-content: center !important;
 }
 
-/* 底部控制区 - 校准对准 */
+/* 底部控制区 */
 .global-call-actions {
   position: absolute !important;
   z-index: 10 !important;
@@ -3727,16 +3735,13 @@
   display: flex !important;
   justify-content: center !important;
   pointer-events: auto !important;
-  width: 100% !important;
 }
 
 .call-action-grid {
   display: flex !important;
-  flex-direction: row !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 36px !important;
-  width: auto !important;
+  gap: 32px !important;
 }
 
 .call-action-col {
@@ -3744,15 +3749,14 @@
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 10px !important;
-  width: 76px !important;
+  gap: 8px !important;
 }
 
 .call-btn {
   width: 68px !important;
   height: 68px !important;
   border-radius: 50% !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   color: #fff !important;
   background: rgba(255, 255, 255, 0.08) !important;
   backdrop-filter: blur(20px) !important;
@@ -3766,7 +3770,6 @@
   padding: 0 !important;
   margin: 0 !important;
   box-sizing: border-box !important;
-  flex-shrink: 0 !important;
 }
 
 .call-btn:hover {
@@ -3781,6 +3784,8 @@
   height: 26px !important;
   fill: currentColor !important;
   display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 .call-btn.btn-accept {
@@ -3806,8 +3811,6 @@
   font-size: 12px !important;
   color: rgba(255, 255, 255, 0.6) !important;
   font-weight: 500 !important;
-  white-space: nowrap !important;
-  text-align: center !important;
 }
 
 /* ============ 音乐播放器形态悬浮窗 ============ */
@@ -3825,14 +3828,13 @@
     radial-gradient(circle at 10% 10%, rgba(255, 255, 255, 0.15), transparent 25%),
     radial-gradient(circle at 90% 80%, rgba(99, 102, 241, 0.2), transparent 30%),
     linear-gradient(135deg, rgba(22, 24, 30, 0.94) 0%, rgba(10, 11, 15, 0.97) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 
     0 30px 70px rgba(0, 0, 0, 0.45),
     0 12px 30px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(30px) saturate(1.2);
-  -webkit-backdrop-filter: blur(30px) saturate(1.2);
-  transition: opacity 0.3s ease;
+    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(30px) saturate(1.2) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(1.2) !important;
 }
 
 .call-player-inner {
@@ -3860,6 +3862,7 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  box-sizing: border-box !important;
 }
 .call-player-cover img,
 .call-player-cover > * {
@@ -3867,12 +3870,14 @@
   height: 100% !important;
   object-fit: cover !important;
   border-radius: 18px !important;
+  display: block !important;
 }
 
 .call-player-meta {
   flex: 1 !important;
   min-width: 0 !important;
   padding-right: 28px !important;
+  box-sizing: border-box !important;
 }
 
 .call-player-kicker {
@@ -3896,6 +3901,7 @@
   border-radius: 50% !important;
   background: #10b981 !important;
   box-shadow: 0 0 8px #10b981 !important;
+  display: block !important;
 }
 
 .call-player-name {
@@ -3931,6 +3937,7 @@
   justify-content: center !important;
   color: rgba(255, 255, 255, 0.6) !important;
   transition: all 0.2s !important;
+  padding: 0 !important;
 }
 .call-player-mini-btn:hover {
   background: rgba(255, 255, 255, 0.15) !important;
@@ -3942,6 +3949,7 @@
   border-radius: 50% !important;
   background: currentColor !important;
   box-shadow: -6px 0 0 currentColor, 6px 0 0 currentColor !important;
+  display: block !important;
 }
 
 /* 音频波形进度条 */
@@ -4029,13 +4037,13 @@
   color: rgba(255, 255, 255, 0.35) !important;
 }
 
-/* ============ 绝对圆形的悬浮球 ============ */
+/* ============ 悬浮球形态 (修正正圆与污染) ============ */
 .global-call-floating.call-ball-widget {
   position: fixed;
   top: 40px;
   right: 40px;
-  width: 72px;
-  height: 72px;
+  width: 72px !important;
+  height: 72px !important;
   border-radius: 50% !important;
   cursor: grab;
   z-index: 9999999;
@@ -4048,6 +4056,11 @@
     inset 0 1px 0 rgba(255,255,255,0.15) !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+  display: block !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 .global-call-floating.call-ball-widget:active {
   cursor: grabbing !important;
@@ -4055,10 +4068,14 @@
 
 .call-ball-avatar {
   position: absolute !important;
-  inset: 6px !important;
+  top: 6px !important;
+  left: 6px !important;
+  right: 6px !important;
+  bottom: 6px !important;
   border-radius: 50% !important;
   overflow: hidden !important;
   border: 1px solid rgba(255,255,255,0.1) !important;
+  box-sizing: border-box !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -4067,8 +4084,9 @@
 .call-ball-avatar > * {
   width: 100% !important;
   height: 100% !important;
-  object-fit: cover !important;
   border-radius: 50% !important;
+  object-fit: cover !important;
+  display: block !important;
 }
 
 .call-ball-ring {
@@ -4078,6 +4096,7 @@
   border: 1px solid rgba(99, 102, 241, 0.5) !important;
   animation: ballPulse 2s ease-out infinite !important;
   pointer-events: none !important;
+  box-sizing: border-box !important;
 }
 @keyframes ballPulse {
   0% { transform: scale(0.9); opacity: 0.8; }
@@ -4094,4 +4113,5 @@
   background: #10b981 !important;
   border: 2px solid #07090e !important;
   box-shadow: 0 0 10px #10b981 !important;
+  box-sizing: border-box !important;
 }

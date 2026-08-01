@@ -190,6 +190,15 @@ function safeCssUrl(value) {
   return String(value || '').replaceAll('\\', '\\\\').replaceAll("'", "\\'");
 }
 
+function renderWaveBars(progress = 0) {
+  const activeCount = Math.max(0, Math.min(12, Math.round((progress / 100) * 12)));
+
+  return Array.from({ length: 12 }, (_, index) => {
+    const activeClass = index < activeCount ? ' is-active' : '';
+    return `<span class="call-player-bar${activeClass}"></span>`;
+  }).join('');
+}
+
 export const CallManager = {
   state: 'idle', // 'idle' | 'dialing' | 'incoming' | 'connected'
   viewMode: 'full', // 'full' | 'player' | 'ball'
@@ -207,7 +216,7 @@ export const CallManager = {
 
   overlay: null,
 
-  // 兼容你原先可能用到的 minimized 字段
+  // 兼容原先可能用到的 minimized 字段
   minimized: false,
 
   floatingPos: {
@@ -401,8 +410,8 @@ export const CallManager = {
 
   getStatusText() {
     if (this.state === 'incoming') return '向你发起通话邀请';
-    if (this.state === 'connected') return '正在通话...';
-    if (this.state === 'dialing') return '正在呼叫...';
+    if (this.state === 'connected') return '正在通话';
+    if (this.state === 'dialing') return '正在呼叫';
     return '';
   },
 
@@ -411,6 +420,13 @@ export const CallManager = {
     if (this.state === 'connected') return 'VOICE CONNECTED';
     if (this.state === 'dialing') return 'CALLING';
     return '';
+  },
+
+  getPlayerKickerText() {
+    if (this.state === 'incoming') return 'INCOMING';
+    if (this.state === 'connected') return 'LIVE CALL';
+    if (this.state === 'dialing') return 'CALLING';
+    return 'CALL';
   },
 
   getElapsedSeconds() {
@@ -427,7 +443,7 @@ export const CallManager = {
 
     const fullTimerEl = this.overlay.querySelector('.global-call-time');
     if (fullTimerEl) {
-      fullTimerEl.textContent = timeText;
+      fullTimerEl.textContent = this.state === 'connected' ? timeText : '00:00';
     }
 
     const playerTimeEl = this.overlay.querySelector('.call-player-time');
@@ -435,13 +451,13 @@ export const CallManager = {
       playerTimeEl.textContent = this.state === 'connected' ? timeText : '00:00';
     }
 
-    const progressFill = this.overlay.querySelector('.call-player-fill');
-    if (progressFill) {
+    const track = this.overlay.querySelector('.call-player-track');
+    if (track) {
       const percent = this.state === 'connected'
         ? Math.max(3, Math.min(100, ((elapsed % 180) / 180) * 100))
         : 0;
 
-      progressFill.style.width = `${percent}%`;
+      track.innerHTML = renderWaveBars(percent);
     }
   },
 
@@ -465,6 +481,9 @@ export const CallManager = {
       '沉默也有回音',
       '频率正在靠近',
       '别让声音熄灭',
+      '呼吸落在耳边',
+      '这一刻很近',
+      '信号穿过夜色',
     ];
 
     const createParticle = () => {
@@ -481,13 +500,13 @@ export const CallManager = {
       el.textContent = char;
 
       const x = 8 + Math.random() * 84;
-      const size = 14 + Math.random() * 22;
+      const size = 14 + Math.random() * 24;
       const duration = 5.2 + Math.random() * 4.8;
-      const rise = -(48 + Math.random() * 46);
-      const drift = Math.random() * 120 - 60;
+      const rise = -(48 + Math.random() * 48);
+      const drift = Math.random() * 126 - 63;
       const rotate = Math.random() * 36 - 18;
       const rotateMore = Math.random() * 80 - 40;
-      const alpha = 0.28 + Math.random() * 0.48;
+      const alpha = 0.24 + Math.random() * 0.5;
       const blur = Math.random() > 0.72 ? '1.5px' : '0px';
 
       el.style.setProperty('--x', `${x}%`);
@@ -565,12 +584,12 @@ export const CallManager = {
 
     const moveTo = (x, y) => {
       const rect = targetEl.getBoundingClientRect();
+      const margin = 8;
+      const maxX = Math.max(margin, window.innerWidth - rect.width - margin);
+      const maxY = Math.max(margin, window.innerHeight - rect.height - margin);
 
-      const maxX = Math.max(0, window.innerWidth - rect.width);
-      const maxY = Math.max(0, window.innerHeight - rect.height);
-
-      const nextX = Math.max(0, Math.min(x, maxX));
-      const nextY = Math.max(0, Math.min(y, maxY));
+      const nextX = Math.max(margin, Math.min(x, maxX));
+      const nextY = Math.max(margin, Math.min(y, maxY));
 
       targetEl.style.left = `${nextX}px`;
       targetEl.style.top = `${nextY}px`;
@@ -583,60 +602,42 @@ export const CallManager = {
       posStore.y = nextY;
     };
 
-    const getPoint = (e) => {
-      if (e.touches && e.touches[0]) {
-        return {
-          x: e.touches[0].clientX,
-          y: e.touches[0].clientY,
-        };
-      }
-
-      if (e.changedTouches && e.changedTouches[0]) {
-        return {
-          x: e.changedTouches[0].clientX,
-          y: e.changedTouches[0].clientY,
-        };
-      }
-
-      return {
-        x: e.clientX,
-        y: e.clientY,
-      };
-    };
-
-    const onStart = (e) => {
-      if (e.type === 'mousedown' && e.button !== 0) return;
+    const onPointerDown = (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
 
       this.dragState.active = true;
       this.dragState.moved = false;
       this.dragState.suppressClick = false;
+      this.dragState.pointerId = e.pointerId;
       this.dragState.mode = mode;
 
-      const point = getPoint(e);
       const rect = targetEl.getBoundingClientRect();
 
-      startX = point.x;
-      startY = point.y;
+      startX = e.clientX;
+      startY = e.clientY;
       initialX = rect.left;
       initialY = rect.top;
 
-      document.addEventListener('mousemove', onMove, { passive: false });
-      document.addEventListener('mouseup', onEnd, { passive: false });
-      document.addEventListener('touchmove', onMove, { passive: false });
-      document.addEventListener('touchend', onEnd, { passive: false });
-      document.addEventListener('touchcancel', onEnd, { passive: false });
+      targetEl.style.left = `${initialX}px`;
+      targetEl.style.top = `${initialY}px`;
+      targetEl.style.right = 'auto';
+      targetEl.style.bottom = 'auto';
+
+      try {
+        dragHandle.setPointerCapture(e.pointerId);
+      } catch (err) {}
 
       if (e.cancelable) {
         e.preventDefault();
       }
     };
 
-    const onMove = (e) => {
+    const onPointerMove = (e) => {
       if (!this.dragState.active || this.dragState.mode !== mode) return;
+      if (this.dragState.pointerId !== null && e.pointerId !== this.dragState.pointerId) return;
 
-      const point = getPoint(e);
-      const dx = point.x - startX;
-      const dy = point.y - startY;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
 
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
         this.dragState.moved = true;
@@ -652,17 +653,16 @@ export const CallManager = {
       }
     };
 
-    const onEnd = () => {
+    const onPointerEnd = (e) => {
       if (!this.dragState.active || this.dragState.mode !== mode) return;
 
-      this.dragState.active = false;
-      this.dragState.mode = null;
+      try {
+        dragHandle.releasePointerCapture(e.pointerId);
+      } catch (err) {}
 
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onEnd);
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', onEnd);
-      document.removeEventListener('touchcancel', onEnd);
+      this.dragState.active = false;
+      this.dragState.pointerId = null;
+      this.dragState.mode = null;
 
       if (this.dragState.suppressClick) {
         setTimeout(() => {
@@ -674,8 +674,10 @@ export const CallManager = {
       }
     };
 
-    dragHandle.addEventListener('mousedown', onStart);
-    dragHandle.addEventListener('touchstart', onStart, { passive: false });
+    dragHandle.addEventListener('pointerdown', onPointerDown);
+    dragHandle.addEventListener('pointermove', onPointerMove);
+    dragHandle.addEventListener('pointerup', onPointerEnd);
+    dragHandle.addEventListener('pointercancel', onPointerEnd);
   },
 
   wasJustDragged() {
@@ -703,46 +705,45 @@ export const CallManager = {
         <div class="call-player-inner">
           <div class="call-player-drag-handle" id="call-player-drag-handle">
             <div class="call-player-cover">
-              ${avatarHTML(this.characterAvatar, this.characterName, 62)}
+              ${avatarHTML(this.characterAvatar, this.characterName, 72)}
             </div>
 
             <div class="call-player-meta">
-              <div class="call-player-name">${escapeHtml(this.characterName || 'Unknown')}</div>
-              <div class="call-player-subtitle">${escapeHtml(this.state === 'connected' ? '正在通话...' : statusText)}</div>
-            </div>
+              <div class="call-player-kicker">
+                <span class="call-player-live-dot"></span>
+                ${escapeHtml(this.getPlayerKickerText())}
+              </div>
 
-            <div class="call-player-eq ${isPlaying ? 'playing' : ''}" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
+              <div class="call-player-name">${escapeHtml(this.characterName || 'Unknown')}</div>
+              <div class="call-player-subtitle">${escapeHtml(this.state === 'connected' ? '正在通话 · 像一首正在播放的歌' : statusText)}</div>
             </div>
           </div>
 
           <div class="call-player-progress">
             <span class="call-player-time">${this.state === 'connected' ? timeText : '00:00'}</span>
 
-            <div class="call-player-track">
-              <div class="call-player-fill" style="width: ${progress}%;"></div>
+            <div class="call-player-track" aria-hidden="true">
+              ${renderWaveBars(progress)}
             </div>
 
             <span class="call-player-live">${this.state === 'connected' ? 'LIVE' : '...'}</span>
           </div>
 
           <div class="call-player-controls" aria-hidden="true">
-            <div class="call-player-control">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M11 18.5 3.5 12 11 5.5v13Zm9 0L12.5 12 20 5.5v13Z"/>
-              </svg>
+            <div class="call-player-eq ${isPlaying ? 'playing' : ''}">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
 
-            <div class="call-player-control pause">
+            <div class="call-player-main-control">
               ${
                 isPlaying
                   ? `
                     <svg viewBox="0 0 24 24" fill="currentColor">
-                      <rect x="6.2" y="4.2" width="4.7" height="15.6" rx="1.5"/>
-                      <rect x="13.1" y="4.2" width="4.7" height="15.6" rx="1.5"/>
+                      <rect x="6.4" y="4.5" width="4.4" height="15" rx="1.4"></rect>
+                      <rect x="13.2" y="4.5" width="4.4" height="15" rx="1.4"></rect>
                     </svg>
                   `
                   : `
@@ -753,11 +754,7 @@ export const CallManager = {
               }
             </div>
 
-            <div class="call-player-control">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M13 5.5 20.5 12 13 18.5v-13Zm-9 0L11.5 12 4 18.5v-13Z"/>
-              </svg>
-            </div>
+            <div class="call-player-hint">拖动移动</div>
           </div>
         </div>
       </div>
@@ -841,7 +838,7 @@ export const CallManager = {
     this.overlay.className = 'global-call-active global-call-full';
 
     const statusText = this.getScreenStatusText();
-    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 132);
+    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 142);
     const timeText = formatDuration(this.getElapsedSeconds());
 
     let actionButtons = '';
@@ -938,7 +935,7 @@ export const CallManager = {
               ${escapeHtml(statusText)}
             </p>
 
-            ${this.state === 'connected' ? `<div class="global-call-time">${timeText}</div>` : ''}
+            <div class="global-call-time">${this.state === 'connected' ? timeText : '00:00'}</div>
           </div>
 
           <div class="global-call-actions">

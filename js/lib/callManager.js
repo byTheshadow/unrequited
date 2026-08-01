@@ -171,7 +171,7 @@ function formatDuration(seconds) {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-export const callManager = {
+export const CallManager = {
   overlay: null,
   state: 'idle', // 'idle' | 'dialing' | 'incoming' | 'connected'
   minimized: false,

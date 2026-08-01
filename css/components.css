@@ -1578,191 +1578,7 @@
   opacity: 0.8;
 }
 
-/* ================= =========================================================
-   风格 1：狂热磁带 (Dynamic Retro Tape - Mini)
-   ========================================================================== */
-.view-tape {
-  background: linear-gradient(180deg, var(--color-bg-secondary) 0%, var(--color-bg-primary) 100%);
-}
-.tape-container {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -42%);
-  width: 230px;
-  height: 120px;
-  background: linear-gradient(to bottom, #d4d4d4, #a0a0a0);
-  border-radius: 8px;
-  box-shadow: 0 10px 20px rgba(0,0,0,0.4), inset 0 1px 3px rgba(255,255,255,0.8);
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-}
-.music-card-immersive.is-playing .tape-container { animation: tapeShake 2s infinite ease-in-out; }
-@keyframes tapeShake {
-  0%, 100% { transform: translate(-50%, -42%) rotate(0deg); }
-  25% { transform: translate(-50%, -41.5%) rotate(0.3deg); }
-  75% { transform: translate(-50%, -42.5%) rotate(-0.3deg); }
-}
-.tape-sticker {
-  flex: 1;
-  background: #fff;
-  border-radius: 4px;
-  position: relative;
-  padding: 6px;
-  box-shadow: inset 0 0 6px rgba(0,0,0,0.1);
-  border-top: 6px solid var(--color-accent, #ff4757);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-.tape-spindles-area {
-  display: flex;
-  justify-content: center;
-  gap: 25px;
-  align-items: center;
-  background: #1e1e1e;
-  border-radius: 20px;
-  height: 42px;
-  margin: 4px 0;
-  box-shadow: inset 0 3px 6px rgba(0,0,0,0.8);
-  position: relative;
-}
-.spindle {
-  width: 32px;
-  height: 32px;
-  background: #eee;
-  border-radius: 50%;
-  border: 3px solid #111;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-}
-.spindle::after {
-  content: ''; position: absolute; inset: 0; border: 3px dashed #555; border-radius: 50%;
-  animation: spin 6s linear infinite; animation-play-state: paused;
-}
-.music-card-immersive.is-playing .spindle::after, 
-.music-card-immersive.is-playing .spindle .avatar { 
-  animation-play-state: running; 
-}
-.spindle .avatar { 
-  width: 20px; 
-  height: 20px; 
-  border-radius: 50%; 
-  z-index: 2; 
-  animation: spin 6s linear infinite; 
-  animation-play-state: paused; 
-}
-.tape-eq { display: flex; justify-content: center; gap: 3px; height: 12px; align-items: flex-end; }
-.eq-bar { width: 4px; height: 2px; background: var(--color-accent, #ff4757); border-radius: 1px; transition: height 0.1s; }
-.music-card-immersive.is-playing .eq-bar { animation: eqJump 0.6s ease-in-out infinite alternate; }
-.eq-bar:nth-child(1) { animation-delay: 0.1s; } 
-.eq-bar:nth-child(2) { animation-delay: 0.4s; }
-.eq-bar:nth-child(3) { animation-delay: 0.2s; } 
-.eq-bar:nth-child(4) { animation-delay: 0.5s; }
-.eq-bar:nth-child(5) { animation-delay: 0.3s; }
 
-.tape-input-sig {
-  font-family: inherit; font-size: 11px; color: #111;
-  font-weight: bold; text-shadow: none; border-bottom: 1px dashed #ccc; padding-bottom: 1px;
-}
-.tape-input-dist {
-  position: absolute; bottom: 8px; left: 0; width: 100%; font-family: monospace;
-  font-size: 10px; color: var(--color-text-tertiary); letter-spacing: 1px;
-}
-
-/* ==========================================================================
-   风格 2：网易云“一起听” (Listen Together - Mini)
-   ========================================================================== */
-.view-netease { background: radial-gradient(circle at top, var(--color-bg-secondary), var(--color-bg-primary)); overflow: hidden; }
-.netease-blur-bg {
-  position: absolute; inset: -20px; background: var(--color-bg-secondary);
-  filter: blur(25px) brightness(0.3); z-index: 0;
-}
-.vinyl-wrapper { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 100px; height: 100px; z-index: 5; }
-.vinyl-record {
-  width: 100%; height: 100%; border-radius: 50%; background: #0c0c0c;
-  box-shadow: 0 6px 15px rgba(0,0,0,0.5), inset 0 0 0 3px #111, inset 0 0 10px #333;
-  display: flex; justify-content: center; align-items: center; position: relative;
-  animation: spin 12s linear infinite; animation-play-state: paused;
-}
-.music-card-immersive.is-playing .vinyl-record { animation-play-state: running; }
-.vinyl-record::after {
-  content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: conic-gradient(transparent 40deg, rgba(255,255,255,0.06) 60deg, transparent 80deg, transparent 220deg, rgba(255,255,255,0.06) 240deg, transparent 260deg);
-}
-.vinyl-cover { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 1px solid #000; z-index: 2; }
-.vinyl-cover .avatar { width: 100%; height: 100%; object-fit: cover; }
-.stylus-arm {
-  position: absolute; top: -8px; right: -12px; width: 45px; height: 65px;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 150"><path d="M80,20 C80,40 50,60 30,120 L20,130 L10,120 L20,110 C40,50 70,30 70,20 Z" fill="%23ccc"/><circle cx="75" cy="20" r="15" fill="%23999"/></svg>') no-repeat center/contain;
-  transform-origin: 75% 15%; transform: rotate(-30deg); transition: transform 0.5s ease; z-index: 6;
-}
-.music-card-immersive.is-playing .stylus-arm { transform: rotate(-5deg); }
-
-.listen-together-area {
-  position: absolute; top: 110px; left: 0; width: 100%; padding: 0 45px;
-  display: flex; justify-content: space-between; align-items: center; z-index: 10;
-}
-.lt-avatar { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--color-bg-primary); box-shadow: 0 0 8px rgba(255,255,255,0.2); overflow: hidden; }
-.lt-avatar .avatar { width: 100%; height: 100%; }
-.lt-connection {
-  flex: 1; height: 1.5px; margin: 0 10px; position: relative;
-  background: rgba(255,255,255,0.1); overflow: hidden; display: flex; align-items: center;
-}
-.lt-line-glow {
-  width: 40%; height: 1.5px; background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
-  animation: pulseLine 2s linear infinite; animation-play-state: paused;
-}
-.music-card-immersive.is-playing .lt-line-glow { animation-play-state: running; }
-
-.netease-input-sig { position: absolute; top: 148px; font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
-.netease-input-dist { position: absolute; top: 170px; font-size: 10px; color: var(--color-text-tertiary); }
-
-/* ==========================================================================
-   风格 3：Y2K 透明 CD 机 (Crystal CD - Mini)
-   ========================================================================== */
-.view-cd { 
-  background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent) 15%, var(--color-bg-secondary)) 0%, var(--color-bg-primary) 100%); 
-}
-.cd-player-case {
-  position: absolute; top: 46%; left: 30%; transform: translate(-35%, -50%);
-  width: 120px; height: 120px; border-radius: 20px;
-  background: rgba(255,255,255,0.08); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 8px 20px rgba(0,0,0,0.15), inset 0 5px 10px rgba(255,255,255,0.1);
-  display: flex; justify-content: center; align-items: center;
-}
-.cd-disc {
-  width: 106px; height: 106px; border-radius: 50%;
-  background: conic-gradient(from 0deg, rgba(240,240,240,0.8), var(--color-accent), rgba(250,250,250,0.7), rgba(160,200,250,0.8), rgba(240,240,240,0.8));
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.5), 0 3px 8px rgba(0,0,0,0.1);
-  display: flex; justify-content: center; align-items: center;
-  animation: spin 5s linear infinite; animation-play-state: paused;
-}
-.music-card-immersive.is-playing .cd-disc { animation-play-state: running; }
-.cd-center-hole {
-  width: 32px; height: 32px; border-radius: 50%; background: var(--color-bg-primary);
-  border: 4px solid rgba(255,255,255,0.3); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
-  display: flex; overflow: hidden; position: relative;
-}
-.cd-center-hole .avatar { width: 50%; height: 100%; object-fit: cover; }
-
-.cd-lcd-screen {
-  position: absolute; top: 50%; right: 12px; transform: translateY(-38%);
-  width: 160px; height: 100px; 
-  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-secondary));
-  border-radius: 10px; border: 1px solid var(--color-border);
-  box-shadow: inset 0 2px 6px rgba(0,0,0,0.15); padding: 8px 4px;
-  display: flex; flex-direction: column; justify-content: center; z-index: 10;
-}
-.cd-input-sig, .cd-input-dist {
-  background: transparent; border: none; text-align: center; width: 100%; outline: none;
-  font-family: monospace; font-weight: bold; color: var(--color-text-primary);
-}
-.cd-input-sig { font-size: 12px; margin-bottom: 6px; border-bottom: 1px dashed var(--color-border); padding-bottom: 2px;}
-.cd-input-dist { font-size: 10px; color: var(--color-text-secondary); }
 /* ==========================================================================
    全局抽卡动画多主题统一样式命名空间
    ========================================================================== */
@@ -2391,4 +2207,626 @@
 @keyframes focusPulse {
   0%, 100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0.72; }
   50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
+}
+/* ============ 想念箱 Miss Box ============ */
+
+#miss-box-wrap {
+  padding: 4px 20px 14px 20px;
+}
+
+.miss-box-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 12px;
+  letter-spacing: 1.5px;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.miss-box-card.calm {
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  color: var(--color-text-tertiary);
+}
+
+.miss-box-card.calm .miss-box-star {
+  color: rgba(255, 255, 255, 0.18);
+}
+
+.miss-box-card.active {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.18) 0%, rgba(10, 10, 10, 0.45) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.34);
+  color: var(--color-accent);
+  box-shadow:
+    0 4px 24px rgba(139, 92, 246, 0.16),
+    inset 0 0 18px rgba(139, 92, 246, 0.04);
+  cursor: pointer;
+}
+
+.miss-box-card.active:active {
+  transform: scale(0.985);
+}
+
+.miss-box-star {
+  flex-shrink: 0;
+}
+
+.miss-box-star.pulsing {
+  color: var(--color-accent);
+  filter: drop-shadow(0 0 6px var(--color-accent));
+  animation: starPulse 2.5s infinite ease-in-out;
+}
+
+.miss-box-text {
+  line-height: 1.6;
+}
+
+/* ============ 想念信笺 ============ */
+
+.miss-letters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 4px;
+}
+
+.miss-letter-item {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.miss-letter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+
+.miss-letter-char {
+  color: var(--color-accent);
+  font-weight: 500;
+  letter-spacing: 2px;
+}
+
+.miss-letter-time {
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.miss-letter-body {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  letter-spacing: 1px;
+  word-break: break-word;
+  font-style: italic;
+}
+
+@keyframes starPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+/* ==========================================================================
+   精致装饰型 - 沉浸式共鸣卡片 (Immersive MusicBar)
+   ========================================================================== */
+
+.music-card-immersive {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  height: 220px; /* 缩减至紧凑精致的 220px 高度 */
+  margin: 10px auto;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2), inset 0 0 0 1px var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* 顶部悬浮控制栏（默认高透明度，鼠标悬停时显现，极低打扰） */
+.floating-controls {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 50;
+  opacity: 0.3;
+  transition: opacity 0.2s ease;
+}
+.music-card-immersive:hover .floating-controls {
+  opacity: 1;
+}
+
+.stealth-select {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  outline: none;
+  cursor: pointer;
+}
+.stealth-select option {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+.stealth-play-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.stealth-play-btn:hover {
+  transform: scale(1.05);
+}
+.music-card-immersive.is-playing .stealth-play-btn {
+  background: color-mix(in srgb, var(--color-accent) 20%, transparent);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+/* 风格视图的基础定义 */
+.style-view {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  inset: 0;
+  padding: 30px 15px 15px 15px; /* 为顶部控制栏留出空间 */
+}
+.style-view.active {
+  display: block;
+  animation: fadeInStyle 0.4s ease-out;
+}
+@keyframes fadeInStyle {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* 无缝隐形输入框 */
+.stealth-input {
+  background: transparent;
+  border: none;
+  text-align: center;
+  color: var(--color-text-secondary);
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+}
+.stealth-input:focus {
+  color: var(--color-text-primary);
+}
+
+/* 底部微小统计 */
+.music-mini-footer {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+  opacity: 0.6;
+  z-index: 10;
+  pointer-events: none;
+}
+
+/* ==========================================
+   一、 风格 1：拍立得 (Polaroid) 样式
+   ========================================== */
+.view-polaroid {
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--color-accent) 4%, var(--color-bg-secondary)) 0%, var(--color-bg-secondary) 100%);
+}
+
+.polaroid-wrapper {
+  display: flex;
+  justify-content: center;
+  gap: 25px;
+  margin-top: 10px;
+}
+
+.mini-polaroid {
+  width: 76px;
+  background: #ffffff;
+  padding: 5px 5px 12px 5px;
+  border-radius: 2px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+  transform: rotate(var(--rotate-deg));
+  transition: transform 0.3s ease;
+}
+.polaroid-left { --rotate-deg: -4deg; }
+.polaroid-right { --rotate-deg: 4deg; }
+
+/* 播放时拍立得轻微摇摆 */
+.music-card-immersive.is-playing .polaroid-left {
+  animation: polaroidSwingLeft 4s ease-in-out infinite alternate;
+}
+.music-card-immersive.is-playing .polaroid-right {
+  animation: polaroidSwingRight 4s ease-in-out infinite alternate;
+}
+@keyframes polaroidSwingLeft {
+  0% { transform: rotate(-4deg) translateY(0); }
+  100% { transform: rotate(-1deg) translateY(-3px); }
+}
+@keyframes polaroidSwingRight {
+  0% { transform: rotate(4deg) translateY(0); }
+  100% { transform: rotate(1deg) translateY(-3px); }
+}
+
+.polaroid-photo {
+  width: 100%;
+  height: 66px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: #eee;
+}
+.polaroid-photo .avatar {
+  width: 100%;
+  height: 100%;
+}
+.polaroid-label {
+  font-size: 8px;
+  color: #555;
+  text-align: center;
+  margin-top: 4px;
+  font-family: cursive, sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 命运红线 SVG 动效 */
+.red-thread-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+}
+.path-thread {
+  fill: none;
+  stroke: #ff4757;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 2px rgba(255, 71, 87, 0.6));
+  stroke-dasharray: 400;
+  stroke-dashoffset: 0;
+}
+.music-card-immersive.is-playing .path-thread {
+  animation: drawThread 3s ease-out, redPulse 2s infinite alternate;
+}
+@keyframes drawThread {
+  from { stroke-dashoffset: 400; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes redPulse {
+  0% { filter: drop-shadow(0 0 1px rgba(255, 71, 87, 0.3)); stroke: #ff4757; }
+  100% { filter: drop-shadow(0 0 5px rgba(255, 71, 87, 0.9)); stroke: #ff6b81; }
+}
+
+.polaroid-inputs {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.polaroid-input-sig {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-family: cursive, sans-serif;
+}
+.polaroid-input-dist {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================
+   二、 风格 2：灵魂共鸣 (Sonic) 样式
+   ========================================== */
+.view-sonic {
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--color-accent) 6%, var(--color-bg-secondary)) 0%, var(--color-bg-secondary) 100%);
+}
+.sonic-ambient-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--color-accent) 15%, transparent) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.5s;
+}
+.music-card-immersive.is-playing .sonic-ambient-glow {
+  opacity: 1;
+}
+
+.sonic-player-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 15px;
+  z-index: 5;
+  position: relative;
+}
+
+.mini-vinyl {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.vinyl-record {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: spin 8s linear infinite;
+  animation-play-state: paused;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.music-card-immersive.is-playing .vinyl-record {
+  animation-play-state: running;
+}
+.vinyl-record::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(transparent 30deg, rgba(255,255,255,0.06) 60deg, transparent 90deg, transparent 210deg, rgba(255,255,255,0.06) 240deg, transparent 270deg);
+}
+.vinyl-cover {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #000;
+}
+.vinyl-cover .avatar {
+  width: 100%;
+  height: 100%;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* 音波桥接 */
+.sonic-connection {
+  width: 90px;
+  height: 30px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sonic-glow-line {
+  position: absolute;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  opacity: 0.5;
+}
+.sonic-visualizer {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  height: 100%;
+  z-index: 2;
+}
+.s-bar {
+  width: 3px;
+  height: 3px;
+  background: var(--color-accent);
+  border-radius: 3px;
+  box-shadow: 0 0 5px var(--color-accent);
+  transition: height 0.15s;
+}
+.music-card-immersive.is-playing .s-bar {
+  animation: sEqualize 0.5s ease-in-out infinite alternate;
+}
+.s-bar:nth-child(1) { animation-delay: 0.1s; }
+.s-bar:nth-child(2) { animation-delay: 0.3s; }
+.s-bar:nth-child(3) { animation-delay: 0.0s; }
+.s-bar:nth-child(4) { animation-delay: 0.4s; }
+.s-bar:nth-child(5) { animation-delay: 0.2s; }
+.s-bar:nth-child(6) { animation-delay: 0.5s; }
+.s-bar:nth-child(7) { animation-delay: 0.15s; }
+@keyframes sEqualize {
+  0% { transform: scaleY(1); height: 3px; }
+  100% { transform: scaleY(5); height: 5px; }
+}
+
+/* 液晶显示栏 */
+.sonic-lcd-display {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.sonic-input-sig {
+  font-size: 12px;
+  font-weight: 500;
+}
+.sonic-input-dist {
+  font-size: 9px;
+  color: var(--color-text-tertiary);
+}
+
+/* ==========================================
+   三、 风格 3：狂热磁带 (Tape) 样式
+   ========================================== */
+.view-tape {
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--color-text-secondary) 3%, var(--color-bg-secondary)) 0%, var(--color-bg-secondary) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.mini-tape-body {
+  width: 220px;
+  height: 110px;
+  background: linear-gradient(180deg, #d8d8d8, #afafaf);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25), inset 0 1px 2px white;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+.tape-sticker {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 4px;
+  border-top: 6px solid var(--color-accent);
+  box-shadow: inset 0 0 6px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 5px;
+}
+
+.tape-input-sig {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  font-weight: bold;
+  color: #111 !important;
+  border-bottom: 1px dashed #bbb;
+  padding-bottom: 1px;
+}
+
+.tape-spindles {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  align-items: center;
+  background: #151515;
+  border-radius: 15px;
+  height: 46px;
+  margin: 4px 0;
+  box-shadow: inset 0 3px 6px rgba(0,0,0,0.8);
+}
+.spindle-gear {
+  width: 32px;
+  height: 32px;
+  background: #f0f0f0;
+  border-radius: 50%;
+  border: 3px solid #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+}
+.spindle-gear::after {
+  content: ''; position: absolute; inset: 0; border: 3px dashed #444; border-radius: 50%;
+  animation: spin 5s linear infinite; animation-play-state: paused;
+}
+.music-card-immersive.is-playing .spindle-gear::after, 
+.music-card-immersive.is-playing .gear-avatar {
+  animation-play-state: running;
+}
+.gear-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  z-index: 2;
+  animation: spin 5s linear infinite;
+  animation-play-state: paused;
+}
+.gear-avatar .avatar {
+  width: 100%;
+  height: 100%;
+}
+
+.tape-led-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+.led-col {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+}
+.led-dot {
+  width: 5px;
+  height: 3px;
+  background: #ddd;
+  border-radius: 1px;
+}
+.music-card-immersive.is-playing .led-col:nth-child(1) .led-dot { background: #0be881; animation: flashLed 0.4s infinite alternate; }
+.music-card-immersive.is-playing .led-col:nth-child(2) .led-dot { background: #ffdd59; animation: flashLed 0.3s infinite alternate 0.1s; }
+.music-card-immersive.is-playing .led-col:nth-child(3) .led-dot { background: #ff3f34; animation: flashLed 0.2s infinite alternate 0.2s; }
+@keyframes flashLed { 0% { opacity: 0.2; } 100% { opacity: 1; } }
+
+.tape-input-dist {
+  margin-top: 10px;
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+/* ==========================================
+   四、 粒子音符飘浮机制
+   ========================================== */
+.particles-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: hidden;
+}
+.particle {
+  position: absolute;
+  bottom: 10px;
+  font-size: 12px;
+  color: var(--color-accent);
+  opacity: 0;
+}
+.music-card-immersive.is-playing .particle {
+  animation: floatUpParticle 3s linear infinite;
+}
+.p1 { left: 15%; animation-delay: 0s; }
+.p2 { left: 35%; animation-delay: 1.5s; font-size: 9px; }
+.p3 { left: 65%; animation-delay: 0.8s; }
+.p4 { left: 85%; animation-delay: 2.2s; font-size: 10px; }
+
+@keyframes floatUpParticle {
+  0% { transform: translateY(0) scale(0.6) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.6; }
+  80% { opacity: 0.6; }
+  100% { transform: translateY(-130px) scale(1.2) rotate(180deg); opacity: 0; }
 }

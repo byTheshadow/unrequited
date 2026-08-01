@@ -3,14 +3,20 @@ import { initTheme } from './themeManager.js';
 import { initDB } from './db.js';
 import * as scheduler from './lib/scheduler.js';
 import { CallManager } from './lib/callManager.js';
+import { MissManager } from './lib/missManager.js';
 
 async function boot() {
   initTheme();
 
   try {
     await initDB();
+
+    // 初始化想念箱
+    await MissManager.init();
+
     // 初始化全局通话管理器
     CallManager.init();
+
     // 初始化并启动角色主动消息调度器
     scheduler.init();
   } catch (err) {
@@ -29,3 +35,4 @@ async function boot() {
 }
 
 boot();
+

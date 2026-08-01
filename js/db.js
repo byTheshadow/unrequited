@@ -13,6 +13,18 @@ db.version(1).stores({
   settings: 'key'
 });
 
+db.version(2).stores({
+  user: '++id',
+  characters: '++id, name, createdAt',
+  conversations: '++id, characterId, pinned, lastMessageTime',
+  messages: '++id, conversationId, timestamp, sender',
+  decks: '++id, name, bindCharacterId, createdAt',
+  divinationHistory: '++id, type, timestamp',
+  statusPool: '++id',
+  settings: 'key',
+  missRecords: '++id, characterId, timestamp, isRead'
+});
+
 export async function initDB() {
   await db.open();
 

@@ -250,15 +250,98 @@ function openTopMenu() {
   });
 }
 
+async function renderMissBox() {
+  const container = document.getElementById('miss-box-wrap');
+  if (!container) return;
+
+  const unreadMisses = await db.missRecords
+    .where('isRead')
+    .equals(0)
+    .toArray();
+
+  if (!unreadMisses.length) {
+    container.innerHTML = `
+      <div class="miss-box-card calm">
+        <span class="miss-box-star">✦</span>
+        <span class="miss-box-text">星轨平稳，思绪在深空中漂流</span>
+      </div>
+    `;
+    container.onclick = null;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="miss-box-card active glow">
+      <span class="miss-box-star pulsing">✦</span>
+      <span class="miss-box-text">有 ${unreadMisses.length} 缕思绪落入了想念箱，点击开启</span>
+    </div>
+  `;
+
+  container.onclick = () => {
+    haptic(10);
+    openMissDetailsSheet(unreadMisses);
+  };
+}
+
+async function openMissDetailsSheet(unreadMisses) {
+  const characters = await db.characters.toArray();
+  const charMap = new Map(characters.map((c) => [c.id, c]));
+
+  const items = unreadMisses.map((miss) => {
+    const char = charMap.get(miss.characterId) || { name: '未知存在' };
+    const timeStr = formatTime(miss.timestamp);
+
+    return `
+      <div class="miss-letter-item">
+        <div class="miss-letter-header">
+          <span class="miss-letter-char">${escapeHtml(char.name)}</span>
+          <span class="miss-letter-time">${escapeHtml(timeStr)}</span>
+        </div>
+        <div class="miss-letter-body">“ ${escapeHtml(miss.fragment)} ”</div>
+      </div>
+    `;
+  }).join('');
+
+  const { close } = openSheet({
+    title: '想念箱的手记信笺',
+    body: `<div class="miss-letters-container">${items}</div>`,
+    actions: `<button class="btn btn-primary btn-block" data-act="read-all">默默收起</button>`,
+    maxHeight: '75vh'
+  });
+
+  const sheetRoot = document.querySelector('.sheet-backdrop:last-of-type');
+
+  sheetRoot.querySelector('[data-act=read-all]').addEventListener('click', async () => {
+    close();
+
+    for (const miss of unreadMisses) {
+      await db.missRecords.update(miss.id, {
+        isRead: 1
+      });
+    }
+
+    renderMissBox();
+  });
+}
+
+
+
+
 async function refresh() {
   const container = document.getElementById('conv-list-wrap');
   if (!container) return;
+
   const { conversations, charMap } = await loadData();
   container.innerHTML = renderList(conversations, charMap);
   bindRowEvents();
+
+  await renderMissBox();
 }
 
+
 let longPressTimer = null;
+let onMissBoxUpdated = null;
+
 function bindRowEvents() {
   document.querySelectorAll('.conv-row').forEach((row) => {
     const id = Number(row.getAttribute('data-id'));
@@ -281,24 +364,78 @@ function bindRowEvents() {
 export async function render(root) {
   root.innerHTML = `
     <div class="page cards-page">
-      <div class="top-bar">
-        <button class="top-bar-btn" data-act="back" aria-label="返回">${ICON.back}</button>
-        <div class="top-bar-title">字 卡</div>
-        <button class="top-bar-btn" data-act="menu" aria-label="菜单">${ICON.more}</button>
+      <div class="cards-floating-actions">
+        <button class="cards-icon-btn" data-act="back" aria-label="返回">${ICON.back}</button>
+        <button class="cards-icon-btn" data-act="menu" aria-label="菜单">${ICON.more}</button>
       </div>
+
+      <div id="miss-box-wrap"></div>
+
       <div id="conv-list-wrap"></div>
+
       <button class="fab" data-act="new" aria-label="新建对话">${ICON.plus}</button>
+
       <style>
-        .cards-page { min-height: 100vh; min-height: 100dvh; padding-bottom: 100px; }
-        .conv-list { list-style: none; }
-        .pin-dot {
-          display: inline-block; width: 6px; height: 6px; border-radius: 50%;
-          background: var(--color-accent); margin-left: 8px; vertical-align: middle;
+        .cards-page {
+          min-height: 100vh;
+          min-height: 100dvh;
+          padding-top: calc(18px + env(safe-area-inset-top));
+          padding-bottom: 100px;
         }
+
+        .cards-floating-actions {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 0 14px 10px;
+          pointer-events: none;
+        }
+
+        .cards-icon-btn {
+          width: 42px;
+          height: 42px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--color-text-secondary);
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--color-border);
+          backdrop-filter: blur(var(--glass-blur));
+          -webkit-backdrop-filter: blur(var(--glass-blur));
+          transition: transform 0.15s, background 0.2s, color 0.2s;
+          pointer-events: auto;
+        }
+
+        .cards-icon-btn:active {
+          transform: scale(0.94);
+          background: var(--color-bg-tertiary);
+          color: var(--color-text-primary);
+        }
+
+        .conv-list {
+          list-style: none;
+        }
+
+        .pin-dot {
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--color-accent);
+          margin-left: 8px;
+          vertical-align: middle;
+        }
+
         .sheet-list-icon {
-          width: 36px; height: 36px; border-radius: var(--radius-md);
-          display: inline-flex; align-items: center; justify-content: center;
-          background: var(--color-bg-secondary); color: var(--color-accent);
+          width: 36px;
+          height: 36px;
+          border-radius: var(--radius-md);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--color-bg-secondary);
+          color: var(--color-accent);
           flex-shrink: 0;
         }
       </style>
@@ -306,15 +443,45 @@ export async function render(root) {
   `;
 
   const { conversations, charMap } = await loadData();
+
   document.getElementById('conv-list-wrap').innerHTML = renderList(conversations, charMap);
   bindRowEvents();
 
-  root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/home'); });
-  root.querySelector('[data-act=menu]').addEventListener('click', () => { haptic(6); openTopMenu(); });
-  root.querySelector('[data-act=new]').addEventListener('click', () => { haptic(8); openNewConversationSheet(); });
+  await renderMissBox();
+
+  onMissBoxUpdated = () => {
+    renderMissBox();
+  };
+
+  window.addEventListener('miss-box-updated', onMissBoxUpdated);
+
+  root.querySelector('[data-act=back]').addEventListener('click', () => {
+    haptic(6);
+    goBack('/home');
+  });
+
+  root.querySelector('[data-act=menu]').addEventListener('click', () => {
+    haptic(6);
+    openTopMenu();
+  });
+
+  root.querySelector('[data-act=new]').addEventListener('click', () => {
+    haptic(8);
+    openNewConversationSheet();
+  });
 }
+
 
 export function destroy() {
   clearTimeout(longPressTimer);
-  if (listUnsub) listUnsub();
+
+  if (listUnsub) {
+    listUnsub();
+    listUnsub = null;
+  }
+
+  if (onMissBoxUpdated) {
+    window.removeEventListener('miss-box-updated', onMissBoxUpdated);
+    onMissBoxUpdated = null;
+  }
 }

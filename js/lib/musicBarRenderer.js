@@ -1,11 +1,11 @@
 import { avatarHTML, escapeHtml, escapeAttr } from '../utils.js';
 
-// SVG 图标定义（播放与暂停）
+// SVG 图标定义
 const SVG_PLAY = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
 const SVG_PAUSE = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
 
 /**
- * 渲染共鸣卡片的 HTML 字符串 (沉浸微缩自适应主题版)
+ * 渲染共鸣卡片的 HTML 字符串 (精致装饰版)
  * @param {Object} u - User 对象
  * @param {Object} c - Character 对象
  * @param {Object} music - 音乐舱参数对象 { signature, distance, style, playing }
@@ -15,23 +15,23 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
   const distance = music.distance != null ? music.distance : '相距 1024 光年';
   const signature = music.signature != null ? music.signature : '一支未命名的曲子';
   
-  // 风格限制在精致版支持的3类：tape, netease, cd
-  const style = (music.style && ['tape', 'netease', 'cd'].includes(music.style)) ? music.style : 'tape';
+  // 确保有效的设计风格，默认使用 polaroid
+  const style = (music.style && ['polaroid', 'sonic', 'tape'].includes(music.style)) ? music.style : 'polaroid';
   const playing = !!music.playing;
 
+  const isPolaroidActive = style === 'polaroid' ? 'active' : '';
+  const isSonicActive = style === 'sonic' ? 'active' : '';
   const isTapeActive = style === 'tape' ? 'active' : '';
-  const isNeteaseActive = style === 'netease' ? 'active' : '';
-  const isCdActive = style === 'cd' ? 'active' : '';
 
   return `
     <div class="music-card-immersive ${playing ? 'is-playing' : ''}">
       
-      <!-- 悬浮控制栏（切换风格与开关，隐形自适应） -->
+      <!-- 顶部悬浮隐形控制栏 -->
       <div class="floating-controls">
         <select class="stealth-select music-style-select" id="music-style-select">
-          <option value="tape" ${style === 'tape' ? 'selected' : ''}>复古磁带 (Tape)</option>
-          <option value="netease" ${style === 'netease' ? 'selected' : ''}>一起听 (Together)</option>
-          <option value="cd" ${style === 'cd' ? 'selected' : ''}>CD 播放机 (Crystal CD)</option>
+          <option value="polaroid" ${style === 'polaroid' ? 'selected' : ''}>📸 拍立得 (Polaroid)</option>
+          <option value="sonic" ${style === 'sonic' ? 'selected' : ''}>🎵 灵魂共鸣 (Resonance)</option>
+          <option value="tape" ${style === 'tape' ? 'selected' : ''}>📼 狂热磁带 (Retro Tape)</option>
         </select>
         
         <button class="stealth-play-btn ${playing ? 'is-active' : ''}" id="music-play-toggle" title="虚拟播放开关">
@@ -39,72 +39,116 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
         </button>
       </div>
 
-      <!-- ================== 风格 1: 复古磁带 ================== -->
+      <!-- ================== 风格 1: 拍立得 (Polaroid) ================== -->
+      <div class="style-view view-polaroid ${isPolaroidActive}" id="view-polaroid">
+        <!-- SVG 命运红线 -->
+        <svg class="red-thread-svg" viewBox="0 0 320 160" preserveAspectRatio="none">
+          <path class="path-thread" d="M 85 70 C 130 110, 190 30, 235 70" />
+        </svg>
+
+        <!-- 漂浮爱心/星尘粒子层 -->
+        <div class="particles-layer">
+          <span class="particle p1">♥</span>
+          <span class="particle p2">✦</span>
+          <span class="particle p3">♥</span>
+          <span class="particle p4">✦</span>
+        </div>
+
+        <div class="polaroid-wrapper">
+          <div class="mini-polaroid polaroid-left">
+            <div class="polaroid-photo">${avatarHTML(u?.avatar, u?.name, 60)}</div>
+            <div class="polaroid-label">${escapeHtml(u?.name || 'User')}</div>
+          </div>
+          <div class="mini-polaroid polaroid-right">
+            <div class="polaroid-photo">${avatarHTML(c?.avatar, c?.name, 60)}</div>
+            <div class="polaroid-label">${escapeHtml(c?.name || 'Character')}</div>
+          </div>
+        </div>
+
+        <!-- 签名与距离手写体输入框 -->
+        <div class="polaroid-inputs">
+          <input class="stealth-input polaroid-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="手写一些悄悄话..." maxlength="60">
+          <input class="stealth-input polaroid-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="距离..." maxlength="30">
+        </div>
+      </div>
+
+      <!-- ================== 风格 2: 灵魂共鸣 (Sonic) ================== -->
+      <div class="style-view view-sonic ${isSonicActive}" id="view-sonic">
+        <div class="sonic-ambient-glow"></div>
+        
+        <!-- 漂浮音符粒子层 -->
+        <div class="particles-layer">
+          <span class="particle p1">♪</span>
+          <span class="particle p2">♫</span>
+          <span class="particle p3">✦</span>
+          <span class="particle p4">✧</span>
+        </div>
+
+        <div class="sonic-player-row">
+          <!-- 左侧旋转黑胶 -->
+          <div class="mini-vinyl">
+            <div class="vinyl-record">
+              <div class="vinyl-cover">${avatarHTML(u?.avatar, u?.name, 48)}</div>
+            </div>
+          </div>
+
+          <!-- 中间声波轨道 -->
+          <div class="sonic-connection">
+            <div class="sonic-glow-line"></div>
+            <div class="sonic-visualizer">
+              <div class="s-bar"></div><div class="s-bar"></div><div class="s-bar"></div>
+              <div class="s-bar"></div><div class="s-bar"></div><div class="s-bar"></div>
+              <div class="s-bar"></div>
+            </div>
+          </div>
+
+          <!-- 右侧旋转黑胶 -->
+          <div class="mini-vinyl">
+            <div class="vinyl-record">
+              <div class="vinyl-cover">${avatarHTML(c?.avatar, c?.name, 48)}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 歌曲信息液晶显示屏 -->
+        <div class="sonic-lcd-display">
+          <input class="stealth-input sonic-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="正在播放..." maxlength="60">
+          <input class="stealth-input sonic-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="相距..." maxlength="30">
+        </div>
+      </div>
+
+      <!-- ================== 风格 3: 狂热磁带 (Tape) ================== -->
       <div class="style-view view-tape ${isTapeActive}" id="view-tape">
-        <div class="tape-container">
+        <div class="mini-tape-body">
           <div class="tape-sticker">
-            <!-- 签名写入标签线 -->
-            <input class="stealth-input tape-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="在此处写入签名..." maxlength="60">
+            <!-- 签名直接写在磁带贴纸横线上 -->
+            <input class="stealth-input tape-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="Tape-C90..." maxlength="60">
             
-            <div class="tape-spindles-area">
-              <div class="spindle">${avatarHTML(u?.avatar, u?.name, 20)}</div>
-              <div class="spindle">${avatarHTML(c?.avatar, c?.name, 20)}</div>
+            <div class="tape-spindles">
+              <div class="spindle-gear">
+                <div class="gear-avatar">${avatarHTML(u?.avatar, u?.name, 28)}</div>
+                <div class="gear-teeth"></div>
+              </div>
+              <div class="spindle-gear">
+                <div class="gear-avatar">${avatarHTML(c?.avatar, c?.name, 28)}</div>
+                <div class="gear-teeth"></div>
+              </div>
             </div>
             
-            <div class="tape-eq">
-              <div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div>
-              <div class="eq-bar"></div><div class="eq-bar"></div>
-            </div>
-          </div>
-        </div>
-        <input class="stealth-input tape-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="设定相距距离..." maxlength="30">
-      </div>
-
-      <!-- ================== 风格 2: 一起听 ================== -->
-      <div class="style-view view-netease ${isNeteaseActive}" id="view-netease">
-        <div class="netease-blur-bg"></div>
-        
-        <div class="vinyl-wrapper">
-          <div class="vinyl-record">
-            <div class="vinyl-cover">
-              <!-- 借用人物头像作为精致黑胶封面 -->
-              ${avatarHTML(c?.avatar, c?.name, 60)}
-            </div>
-          </div>
-          <div class="stylus-arm"></div>
-        </div>
-
-        <div class="listen-together-area">
-          <div class="lt-avatar">${avatarHTML(u?.avatar, u?.name, 28)}</div>
-          <div class="lt-connection"><div class="lt-line-glow"></div></div>
-          <div class="lt-avatar">${avatarHTML(c?.avatar, c?.name, 28)}</div>
-        </div>
-
-        <input class="stealth-input netease-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="在此处写入签名..." maxlength="60">
-        <input class="stealth-input netease-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="设定相距距离..." maxlength="30">
-      </div>
-
-      <!-- ================== 风格 3: 透明 CD 机 ================== -->
-      <div class="style-view view-cd ${isCdActive}" id="view-cd">
-        <div class="cd-player-case">
-          <div class="cd-disc">
-            <div class="cd-center-hole">
-              <!-- 头像拼接 -->
-              <div style="width:50%; height:100%; overflow:hidden;">${avatarHTML(u?.avatar, u?.name, 24)}</div>
-              <div style="width:50%; height:100%; overflow:hidden;">${avatarHTML(c?.avatar, c?.name, 24)}</div>
+            <div class="tape-led-row">
+              <div class="led-col"><div class="led-dot"></div><div class="led-dot"></div></div>
+              <div class="led-col"><div class="led-dot"></div><div class="led-dot"></div></div>
+              <div class="led-col"><div class="led-dot"></div><div class="led-dot"></div></div>
             </div>
           </div>
         </div>
         
-        <!-- Y2K 液晶屏融入输入框 -->
-        <div class="cd-lcd-screen">
-          <input class="cd-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="签名..." maxlength="60">
-          <input class="cd-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="距离..." maxlength="30">
-        </div>
+        <!-- 距离输入框 -->
+        <input class="stealth-input tape-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="DISTANCE..." maxlength="30">
       </div>
 
-      <!-- 底部微缩共鸣统计 -->
-      <div class="music-footer-count">今日共鸣: ${todayCount}</div>
+      <!-- 底部右下角精致小巧的统计 -->
+      <div class="music-mini-footer">今日共鸣 ${todayCount}</div>
     </div>
   `;
 }

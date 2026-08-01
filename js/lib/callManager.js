@@ -186,6 +186,10 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function safeCssUrl(value) {
+  return String(value || '').replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+}
+
 export const CallManager = {
   state: 'idle', // 'idle' | 'dialing' | 'incoming' | 'connected'
   conversationId: null,
@@ -200,17 +204,16 @@ export const CallManager = {
   minimized: false,
   particleInterval: null,
 
-  // 最小化挂件位置
   floatingPos: {
     x: null,
     y: null,
   },
 
-  // 拖动状态
   dragState: {
     active: false,
     moved: false,
     suppressClick: false,
+    pointerId: null,
   },
 
   init() {
@@ -346,13 +349,11 @@ export const CallManager = {
           }),
         });
 
-        window.dispatchEvent(
-          new CustomEvent('call-history-updated', {
-            detail: {
-              conversationId: this.conversationId,
-            },
-          })
-        );
+        window.dispatchEvent(new CustomEvent('call-history-updated', {
+          detail: {
+            conversationId: this.conversationId,
+          },
+        }));
       } catch (err) {
         console.error('Failed to log call history', err);
       }
@@ -371,9 +372,16 @@ export const CallManager = {
   },
 
   getStatusText() {
-    if (this.state === 'incoming') return '来电邀请';
-    if (this.state === 'connected') return '正在通话';
-    if (this.state === 'dialing') return '正在呼叫';
+    if (this.state === 'incoming') return '向你发起通话邀请';
+    if (this.state === 'connected') return '正在通话...';
+    if (this.state === 'dialing') return '正在呼叫...';
+    return '';
+  },
+
+  getScreenStatusText() {
+    if (this.state === 'incoming') return 'INCOMING VOICE';
+    if (this.state === 'connected') return 'VOICE CONNECTED';
+    if (this.state === 'dialing') return 'CALLING';
     return '';
   },
 
@@ -386,7 +394,8 @@ export const CallManager = {
   updateTimer() {
     if (!this.overlay) return;
 
-    const timeText = formatDuration(this.getElapsedSeconds());
+    const elapsed = this.getElapsedSeconds();
+    const timeText = formatDuration(elapsed);
 
     const timerEl = this.overlay.querySelector('.global-call-time');
     if (timerEl) {
@@ -395,16 +404,15 @@ export const CallManager = {
 
     const miniTimeEl = this.overlay.querySelector('.global-call-mini-time');
     if (miniTimeEl) {
-      miniTimeEl.textContent = timeText;
+      miniTimeEl.textContent = this.state === 'connected' ? timeText : '00:00';
     }
 
-    const progressFill = this.overlay.querySelector('.music-progress-fill');
-    if (progressFill && this.state === 'connected') {
-      const elapsed = this.getElapsedSeconds();
+    const progressFill = this.overlay.querySelector('.progress-fill');
+    if (progressFill) {
+      const percent = this.state === 'connected'
+        ? Math.max(3, Math.min(100, ((elapsed % 180) / 180) * 100))
+        : 0;
 
-      // 只是视觉进度，不代表真实总时长。
-      // 180 秒循环一次，避免进度条静止。
-      const percent = Math.min(100, ((elapsed % 180) / 180) * 100);
       progressFill.style.width = `${percent}%`;
     }
   },
@@ -416,42 +424,69 @@ export const CallManager = {
     const container = this.overlay.querySelector('#particle-container');
     if (!container) return;
 
-    const phrases = ['思念是链接的钥匙', '跨越时间的爱恋', '倾听微风中的呢喃', '命运的频率在此共鸣'];
-    const allChars = phrases.join('').split('');
+    const phrases = [
+      '你听见了吗',
+      '声音从远处醒来',
+      '思念在空气里浮动',
+      '每一个字都在靠近你',
+      '通话仍在继续',
+      '心跳与电流重叠',
+      '我在这里',
+      '别挂断',
+      '时间正在发光',
+      '沉默也有回音',
+    ];
 
     const createParticle = () => {
       if (this.minimized || this.state === 'idle') return;
 
-      const char = allChars[Math.floor(Math.random() * allChars.length)];
-      const el = document.createElement('div');
+      const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+      const char = phrase[Math.floor(Math.random() * phrase.length)];
 
+      const el = document.createElement('span');
       el.className = 'float-char';
-      el.innerText = char;
+      el.textContent = char;
 
-      const startX = 5 + Math.random() * 90;
-      const fontSize = 14 + Math.random() * 14;
-      const duration = 6 + Math.random() * 6;
-      const moveY = -(40 + Math.random() * 40) + 'vh';
-      const rot = Math.random() * 40 - 20 + 'deg';
+      const x = 8 + Math.random() * 84;
+      const size = 14 + Math.random() * 22;
+      const duration = 5.2 + Math.random() * 4.8;
+      const rise = -(48 + Math.random() * 46);
+      const drift = Math.random() * 120 - 60;
+      const rotate = Math.random() * 36 - 18;
+      const rotateMore = Math.random() * 80 - 40;
+      const alpha = 0.28 + Math.random() * 0.48;
+      const blur = Math.random() > 0.72 ? '1.5px' : '0px';
 
-      el.style.left = `${startX}%`;
-      el.style.fontSize = `${fontSize}px`;
-      el.style.animationDuration = `${duration}s`;
-      el.style.setProperty('--move-y', moveY);
-      el.style.setProperty('--rot', rot);
+      el.style.setProperty('--x', `${x}%`);
+      el.style.setProperty('--size', `${size}px`);
+      el.style.setProperty('--duration', `${duration}s`);
+      el.style.setProperty('--rise', `${rise}vh`);
+      el.style.setProperty('--drift', `${drift}px`);
+      el.style.setProperty('--r', `${rotate}deg`);
+      el.style.setProperty('--rr', `${rotateMore}deg`);
+      el.style.setProperty('--alpha', alpha);
+      el.style.setProperty('--blur', blur);
 
       container.appendChild(el);
 
       setTimeout(() => {
-        if (el.parentNode) el.remove();
+        if (el.parentNode) {
+          el.remove();
+        }
       }, duration * 1000);
     };
 
-    for (let i = 0; i < 5; i++) {
-      setTimeout(createParticle, i * 200);
+    for (let i = 0; i < 38; i++) {
+      setTimeout(createParticle, i * 70);
     }
 
-    this.particleInterval = setInterval(createParticle, 450);
+    this.particleInterval = setInterval(() => {
+      const count = 2 + Math.floor(Math.random() * 3);
+
+      for (let i = 0; i < count; i++) {
+        setTimeout(createParticle, i * 120);
+      }
+    }, 520);
   },
 
   stopParticles() {
@@ -473,9 +508,7 @@ export const CallManager = {
     let startY = 0;
     let initialX = 0;
     let initialY = 0;
-    let pointerId = null;
 
-    // 强制保证挂件可接收事件
     el.style.pointerEvents = 'auto';
     el.style.touchAction = 'none';
     el.style.userSelect = 'none';
@@ -494,6 +527,7 @@ export const CallManager = {
 
     const moveTo = (x, y) => {
       const rect = el.getBoundingClientRect();
+
       const maxX = Math.max(0, window.innerWidth - rect.width);
       const maxY = Math.max(0, window.innerHeight - rect.height);
 
@@ -514,14 +548,12 @@ export const CallManager = {
     applySavedPosition();
 
     const onPointerDown = (e) => {
-      // 只处理鼠标左键
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-
-      pointerId = e.pointerId;
 
       this.dragState.active = true;
       this.dragState.moved = false;
       this.dragState.suppressClick = false;
+      this.dragState.pointerId = e.pointerId;
 
       const rect = el.getBoundingClientRect();
 
@@ -531,7 +563,7 @@ export const CallManager = {
       initialY = rect.top;
 
       try {
-        el.setPointerCapture(pointerId);
+        el.setPointerCapture(e.pointerId);
       } catch (err) {}
 
       e.preventDefault();
@@ -539,7 +571,7 @@ export const CallManager = {
 
     const onPointerMove = (e) => {
       if (!this.dragState.active) return;
-      if (pointerId !== null && e.pointerId !== pointerId) return;
+      if (this.dragState.pointerId !== e.pointerId) return;
 
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
@@ -549,30 +581,30 @@ export const CallManager = {
         this.dragState.suppressClick = true;
       }
 
-      if (this.dragState.moved) {
-        moveTo(initialX + dx, initialY + dy);
-        e.preventDefault();
-      }
+      if (!this.dragState.moved) return;
+
+      moveTo(initialX + dx, initialY + dy);
+
+      e.preventDefault();
     };
 
-    const onPointerUp = (e) => {
+    const onPointerEnd = (e) => {
       if (!this.dragState.active) return;
-      if (pointerId !== null && e.pointerId !== pointerId) return;
+      if (this.dragState.pointerId !== e.pointerId) return;
 
       this.dragState.active = false;
 
       try {
-        el.releasePointerCapture(pointerId);
+        el.releasePointerCapture(e.pointerId);
       } catch (err) {}
 
-      pointerId = null;
+      this.dragState.pointerId = null;
 
-      // 关键：拖动结束后短时间屏蔽 click，防止误触发展开。
       if (this.dragState.suppressClick) {
         setTimeout(() => {
           this.dragState.suppressClick = false;
           this.dragState.moved = false;
-        }, 180);
+        }, 140);
       } else {
         this.dragState.moved = false;
       }
@@ -590,9 +622,9 @@ export const CallManager = {
 
     el.addEventListener('pointerdown', onPointerDown);
     el.addEventListener('pointermove', onPointerMove);
-    el.addEventListener('pointerup', onPointerUp);
-    el.addEventListener('pointercancel', onPointerUp);
-    el.addEventListener('lostpointercapture', onPointerUp);
+    el.addEventListener('pointerup', onPointerEnd);
+    el.addEventListener('pointercancel', onPointerEnd);
+    el.addEventListener('lostpointercapture', onPointerEnd);
     el.addEventListener('click', onClick);
   },
 
@@ -600,39 +632,73 @@ export const CallManager = {
     const statusText = this.getStatusText();
     const timeText = formatDuration(this.getElapsedSeconds());
     const isPlaying = this.state === 'connected' || this.state === 'dialing' || this.state === 'incoming';
+    const progress = this.state === 'connected'
+      ? Math.max(3, Math.min(100, ((this.getElapsedSeconds() % 180) / 180) * 100))
+      : 0;
 
     this.overlay.className = 'global-call-active global-call-minimized';
 
-    const safeName = escapeHtml(this.characterName || 'Unknown');
-
     this.overlay.innerHTML = `
-      <div class="global-call-floating music-style compact-mode" id="call-btn-expand" role="button" aria-label="展开通话">
-        <div class="music-compact-main">
-          <div class="music-cover">
-            ${avatarHTML(this.characterAvatar, this.characterName, 42)}
-          </div>
+      <div class="global-call-floating music-style" id="call-btn-expand" role="button" aria-label="展开通话">
+        <div class="music-player-inner">
+          <div class="music-header">
+            <div class="music-cover">
+              ${avatarHTML(this.characterAvatar, this.characterName, 62)}
+            </div>
 
-          <div class="music-info">
-            <div class="music-title">${safeName}</div>
-            <div class="music-subtitle">${this.state === 'connected' ? '正在通话...' : escapeHtml(statusText)}</div>
-          </div>
+            <div class="music-info">
+              <div class="music-title">${escapeHtml(this.characterName || 'Unknown')}</div>
+              <div class="music-subtitle">${escapeHtml(this.state === 'connected' ? '正在通话...' : statusText)}</div>
+            </div>
 
-          <div class="music-side">
             <div class="music-eq ${isPlaying ? 'playing' : ''}" aria-hidden="true">
               <span class="eq-bar"></span>
               <span class="eq-bar"></span>
               <span class="eq-bar"></span>
               <span class="eq-bar"></span>
             </div>
-
-            <div class="global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</div>
           </div>
-        </div>
 
-        <div class="music-progress-line" aria-hidden="true">
-          <div class="music-progress-fill ${this.state === 'connected' ? 'active' : ''}" style="width: ${
-            this.state === 'connected' ? '3%' : '0%'
-          };"></div>
+          <div class="music-progress">
+            <span class="progress-time global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</span>
+
+            <div class="progress-track">
+              <div class="progress-fill" style="width: ${progress}%;"></div>
+            </div>
+
+            <span class="duration-total">${this.state === 'connected' ? 'LIVE' : '...'}</span>
+          </div>
+
+          <div class="music-actions" aria-hidden="true">
+            <div class="music-action">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M11 18.5 3.5 12 11 5.5v13Zm9 0L12.5 12 20 5.5v13Z"/>
+              </svg>
+            </div>
+
+            <div class="music-action pause">
+              ${
+                isPlaying
+                  ? `
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <rect x="6.2" y="4.2" width="4.7" height="15.6" rx="1.5"/>
+                      <rect x="13.1" y="4.2" width="4.7" height="15.6" rx="1.5"/>
+                    </svg>
+                  `
+                  : `
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M7 4.8v14.4L18.5 12 7 4.8z"/>
+                    </svg>
+                  `
+              }
+            </div>
+
+            <div class="music-action">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M13 5.5 20.5 12 13 18.5v-13Zm-9 0L11.5 12 4 18.5v-13Z"/>
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -649,8 +715,8 @@ export const CallManager = {
   renderFull() {
     this.overlay.className = 'global-call-active global-call-expanded';
 
-    const statusText = this.getStatusText();
-    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 130);
+    const statusText = this.getScreenStatusText();
+    const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 132);
     const timeText = formatDuration(this.getElapsedSeconds());
 
     let actionButtons = '';
@@ -719,11 +785,13 @@ export const CallManager = {
       `;
     }
 
-    const bgImage = this.characterAvatar ? `background-image: url('${String(this.characterAvatar).replaceAll("'", "\\'")}')` : '';
+    const bgStyle = this.characterAvatar
+      ? `background-image: url('${safeCssUrl(this.characterAvatar)}')`
+      : '';
 
     this.overlay.innerHTML = `
       <div class="global-call-container">
-        <div class="global-call-bg" style="${bgImage}"></div>
+        <div class="global-call-bg" style="${bgStyle}"></div>
         <div class="global-call-mask"></div>
 
         <div id="particle-container"></div>
@@ -731,20 +799,6 @@ export const CallManager = {
         <button class="global-call-minimize-btn" id="call-btn-minimize" type="button" aria-label="缩小通话">
           ${SVG_MINIMIZE}
         </button>
-
-        <div class="global-call-visual-layer">
-          ${
-            this.state === 'dialing'
-              ? `
-                <div class="global-call-wave-wrap">
-                  <div class="global-call-wave wave-1"></div>
-                  <div class="global-call-wave wave-2"></div>
-                  <div class="global-call-wave wave-3"></div>
-                </div>
-              `
-              : ''
-          }
-        </div>
 
         <div class="global-call-content">
           <div class="global-call-info-group">

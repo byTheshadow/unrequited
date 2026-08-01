@@ -3440,7 +3440,6 @@
 
 
 
-
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -3448,7 +3447,7 @@
   z-index: 999999 !important;
   pointer-events: none !important;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.3s ease;
   display: block !important;
   width: 100vw !important;
   height: 100vh !important;
@@ -3481,6 +3480,45 @@
   display: none !important;
 }
 
+/* ============ 全局头像样式污染强力重置 ============ */
+#global-call-overlay .avatar {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  float: none !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+  box-shadow: none !important;
+  background: var(--color-bg-tertiary) !important;
+  color: var(--color-text-primary) !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+#global-call-overlay .avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  display: block !important;
+}
+
+#global-call-overlay .avatar-fallback {
+  font-family: inherit !important;
+  line-height: 1 !important;
+  font-weight: 600 !important;
+}
+
 /* ============ 全屏通话态 ============ */
 .global-call-container {
   position: absolute !important;
@@ -3500,9 +3538,9 @@
   z-index: 0 !important;
   background-size: cover !important;
   background-position: center !important;
-  filter: blur(80px) brightness(0.3) saturate(1.3) !important;
+  filter: blur(80px) brightness(0.4) saturate(1.3) !important;
   transform: scale(1.2) !important;
-  opacity: 0.5 !important;
+  opacity: 0.65 !important;
 }
 
 .global-call-mask {
@@ -3528,7 +3566,9 @@
   border: 1px solid var(--color-border) !important;
   border-radius: 50% !important;
   color: var(--color-text-primary) !important;
-  background: var(--color-bg-secondary) !important;
+  background: var(--glass-bg, var(--color-bg-secondary)) !important;
+  backdrop-filter: blur(var(--glass-blur, 10px)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur, 10px)) !important;
   box-shadow: 0 4px 12px var(--color-shadow) !important;
   cursor: pointer !important;
   display: flex !important;
@@ -3565,33 +3605,36 @@
 .float-char {
   position: absolute !important;
   left: var(--fc-x) !important;
-  bottom: -30px !important;
-  font-family: "Noto Serif SC", "Songti SC", "STSong", serif !important;
+  top: var(--fc-y) !important;
+  font-family: "Noto Serif SC", "Songti SC", "STSong", "KaiTi", serif !important;
   font-size: var(--fc-size) !important;
   font-weight: 300 !important;
   color: var(--color-text-primary) !important;
   opacity: 0 !important;
-  text-shadow: 0 0 10px var(--color-accent) !important;
-  animation: floatCharUp var(--fc-dur) ease-out forwards !important;
-  animation-delay: var(--fc-delay) !important;
+  text-shadow: 
+    0 0 8px var(--color-accent),
+    0 0 16px rgba(255, 255, 255, 0.3) !important;
+  transform: translate3d(0, 0, 0) scale(0.8) rotate(var(--fc-r));
+  animation: floatCharUp var(--fc-dur) cubic-bezier(0.22, 0.61, 0.36, 1) forwards !important;
   will-change: transform, opacity !important;
   pointer-events: none !important;
+  z-index: 2 !important;
 }
 
 @keyframes floatCharUp {
   0% {
     opacity: 0;
-    transform: translateY(0) translateX(0) scale(0.7) rotate(var(--fc-r, 0deg));
+    transform: translate3d(0, 0, 0) scale(0.7) rotate(var(--fc-r));
   }
-  12% {
-    opacity: var(--fc-alpha, 0.6);
+  15% {
+    opacity: var(--fc-alpha);
   }
-  40% {
-    opacity: var(--fc-alpha, 0.6);
+  80% {
+    opacity: var(--fc-alpha);
   }
   100% {
     opacity: 0;
-    transform: translateY(var(--fc-rise, -40vh)) translateX(var(--fc-drift, 0px)) scale(1.05) rotate(calc(var(--fc-r, 0deg) + var(--fc-rr, 10deg)));
+    transform: translate3d(var(--fc-drift), var(--fc-rise), 0) scale(1.1) rotate(calc(var(--fc-r) + var(--fc-rr)));
   }
 }
 
@@ -3654,20 +3697,13 @@
   overflow: hidden !important;
   display: block !important;
   box-sizing: border-box !important;
+  box-shadow: 0 12px 36px var(--color-shadow) !important;
 }
 
 .global-call-avatar-wrapper .avatar-inner .avatar {
   width: 140px !important;
   height: 140px !important;
   border-radius: 50% !important;
-  display: block !important;
-}
-
-.global-call-avatar-wrapper .avatar-inner .avatar img {
-  width: 140px !important;
-  height: 140px !important;
-  border-radius: 50% !important;
-  object-fit: cover !important;
   display: block !important;
 }
 
@@ -3747,6 +3783,7 @@
   gap: 8px !important;
 }
 
+/* 通话按钮：强制消除由于 wrapper 及 inline 导致的错位 */
 .call-btn {
   width: 64px !important;
   height: 64px !important;
@@ -3757,15 +3794,20 @@
   color: var(--color-text-primary) !important;
   background: var(--color-bg-secondary) !important;
   box-shadow: 0 6px 16px var(--color-shadow) !important;
-  display: flex !important;
+  
+  /* 强制 Flex 居中 */
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  cursor: pointer !important;
-  transition: transform 0.2s, background 0.2s !important;
+  
+  /* 清除一切内边距和外边距污染 */
   padding: 0 !important;
   margin: 0 !important;
+  outline: none !important;
   box-sizing: border-box !important;
   flex-shrink: 0 !important;
+  cursor: pointer !important;
+  transition: transform 0.2s, background 0.2s !important;
 }
 
 .call-btn:hover {
@@ -3776,28 +3818,17 @@
   transform: scale(0.93) !important;
 }
 
+/* 按钮内 SVG 绝对居中规则 */
 .call-btn svg {
   width: 24px !important;
   height: 24px !important;
+  min-width: 24px !important;
+  min-height: 24px !important;
   display: block !important;
   margin: 0 !important;
   padding: 0 !important;
   flex-shrink: 0 !important;
-}
-
-.call-btn .call-icon-heartbeat {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  width: 24px !important;
-  height: 24px !important;
-  line-height: 0 !important;
-}
-
-.call-btn .call-icon-heartbeat svg {
-  width: 24px !important;
-  height: 24px !important;
-  display: block !important;
+  color: currentColor !important;
 }
 
 .call-btn.btn-accept {
@@ -3866,17 +3897,19 @@
 .call-player-drag-handle {
   display: flex !important;
   align-items: center !important;
-  gap: 10px !important;
+  gap: 12px !important;
   cursor: grab !important;
   touch-action: none !important;
   user-select: none !important;
   -webkit-user-select: none !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 .call-player-drag-handle:active {
   cursor: grabbing !important;
 }
 
-/* 播放器封面（头像）*/
+/* 播放器封面（头像）强制覆写 */
 .call-player-cover {
   width: 48px !important;
   height: 48px !important;
@@ -3896,7 +3929,8 @@
   min-width: 48px !important;
   min-height: 48px !important;
   border-radius: var(--radius-sm, 8px) !important;
-  display: block !important;
+  display: flex !important;
+  overflow: hidden !important;
 }
 
 .call-player-cover .avatar img {
@@ -3911,6 +3945,8 @@
   flex: 1 !important;
   min-width: 0 !important;
   overflow: hidden !important;
+  padding-right: 20px !important;
+  box-sizing: border-box !important;
 }
 
 .call-player-kicker {
@@ -3924,7 +3960,7 @@
   font-size: 9px !important;
   font-weight: 700 !important;
   color: var(--color-accent) !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 2px !important;
   letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
 }
@@ -3940,7 +3976,9 @@
 }
 
 .call-player-name {
-  font-size: 14px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 15px !important;
   font-weight: 700 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
@@ -3950,9 +3988,10 @@
 }
 
 .call-player-subtitle {
+  margin: 2px 0 0 0 !important;
+  padding: 0 !important;
   font-size: 11px !important;
   color: var(--color-text-secondary) !important;
-  margin-top: 2px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
@@ -3990,7 +4029,7 @@
   display: block !important;
 }
 
-/* 音频波形 */
+/* 音频波形进度条 */
 .call-player-progress-bar {
   margin-top: 12px !important;
   display: flex !important;
@@ -4012,26 +4051,21 @@
   height: 24px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 1.5px !important;
+  justify-content: space-between !important;
+  gap: 2px !important;
   overflow: hidden !important;
 }
 
 .call-player-bar {
   flex: 1 !important;
-  min-height: 3px !important;
-  border-radius: 999px !important;
+  height: 4px !important;
+  border-radius: 2px !important;
   background: var(--color-border) !important;
-  transition: height 0.12s ease-out !important;
+  display: block !important;
 }
 
 .call-player-bar.is-active {
   background: var(--color-accent) !important;
-  animation: barJump 0.4s ease-in-out infinite alternate !important;
-}
-
-@keyframes barJump {
-  0% { opacity: 0.7; }
-  100% { opacity: 1; }
 }
 
 .call-player-live-label {
@@ -4052,31 +4086,35 @@
   justify-content: space-between !important;
 }
 
+/* 通话中左下角音频跳动动效 */
 .call-player-eq {
   display: flex !important;
   align-items: flex-end !important;
-  gap: 2px !important;
-  height: 14px !important;
+  gap: 2.5px !important;
+  height: 16px !important;
+  width: 20px !important;
 }
 .call-player-eq span {
+  display: block !important;
   width: 3px !important;
   height: 3px !important;
-  border-radius: 999px !important;
-  background: var(--color-accent) !important;
+  border-radius: 2px !important;
+  background-color: var(--color-accent) !important;
   opacity: 0.4 !important;
+  transition: height 0.1s ease !important;
 }
 .call-player-eq.playing span {
-  animation: eqBounce 0.5s ease-in-out infinite alternate !important;
+  animation: eqBounce 0.8s ease-in-out infinite alternate !important;
   opacity: 1 !important;
 }
-.call-player-eq.playing span:nth-child(1) { animation-duration: 0.4s !important; }
-.call-player-eq.playing span:nth-child(2) { animation-delay: -0.1s !important; animation-duration: 0.55s !important; }
-.call-player-eq.playing span:nth-child(3) { animation-delay: -0.25s !important; animation-duration: 0.35s !important; }
-.call-player-eq.playing span:nth-child(4) { animation-delay: -0.08s !important; animation-duration: 0.58s !important; }
+.call-player-eq.playing span:nth-child(1) { animation-delay: -0.2s !important; animation-duration: 0.7s !important; }
+.call-player-eq.playing span:nth-child(2) { animation-delay: -0.5s !important; animation-duration: 0.9s !important; }
+.call-player-eq.playing span:nth-child(3) { animation-delay: -0.1s !important; animation-duration: 0.6s !important; }
+.call-player-eq.playing span:nth-child(4) { animation-delay: -0.4s !important; animation-duration: 0.8s !important; }
 
 @keyframes eqBounce {
   0% { height: 3px; }
-  100% { height: 14px; }
+  100% { height: 16px; }
 }
 
 .call-player-hint {
@@ -4129,6 +4167,7 @@
   border-radius: 50% !important;
   overflow: hidden !important;
   box-sizing: border-box !important;
+  display: flex !important;
 }
 
 .call-ball-avatar .avatar {
@@ -4137,7 +4176,8 @@
   min-width: 48px !important;
   min-height: 48px !important;
   border-radius: 50% !important;
-  display: block !important;
+  display: flex !important;
+  overflow: hidden !important;
 }
 
 .call-ball-avatar .avatar img {

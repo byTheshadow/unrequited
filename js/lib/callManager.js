@@ -345,10 +345,12 @@ export const CallManager = {
       if (!c) return;
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-      const baseX = 5 + Math.random() * 85;
+      // 控制文字粒子生成在屏幕中下部（50%~80% 之间），避开纯边缘，使得浮动动效更容易被看清
+      const baseX = 10 + Math.random() * 70;
+      const baseY = 55 + Math.random() * 25; 
 
       for (let i = 0; i < phrase.length; i++) {
-        const delay = i * 180; // 每字间隔180ms
+        const delay = i * 220; // 220ms 间隔，形成逐字往上飘散的效果
 
         setTimeout(() => {
           if (this.viewMode !== 'full' || this.state === 'idle') return;
@@ -359,39 +361,38 @@ export const CallManager = {
           el.className = 'float-char';
           el.textContent = phrase[i];
 
-          const x = baseX + (i * 1.8) - (phrase.length * 0.9);
-          const size = 15 + Math.random() * 12;
-          const dur = 5 + Math.random() * 4;
-          const rise = -(35 + Math.random() * 35);
-          const drift = (Math.random() * 40 - 20) + (i * 1.5);
-          const r = Math.random() * 10 - 5;
-          const rr = Math.random() * 15 - 7.5;
-          const alpha = 0.3 + Math.random() * 0.4;
+          const x = baseX + (i * 2.2); 
+          const size = 16 + Math.random() * 14; 
+          const dur = 4.5 + Math.random() * 3.5; 
+          const rise = -(200 + Math.random() * 200); // 浮升高度
+          const drift = Math.random() * 60 - 30; // 飘移宽度
+          const r = Math.random() * 16 - 8; 
+          const rr = Math.random() * 20 - 10; 
+          const alpha = 0.4 + Math.random() * 0.4; 
 
           el.style.cssText = `
-            --fc-x: ${Math.max(2, Math.min(96, x))}%;
+            --fc-x: ${Math.max(5, Math.min(95, x))}%;
+            --fc-y: ${baseY}%;
             --fc-size: ${size}px;
             --fc-dur: ${dur}s;
-            --fc-rise: ${rise}vh;
+            --fc-rise: ${rise}px;
             --fc-drift: ${drift}px;
             --fc-r: ${r}deg;
             --fc-rr: ${rr}deg;
             --fc-alpha: ${alpha};
-            --fc-delay: 0s;
           `;
 
           cont.appendChild(el);
-          setTimeout(() => { if (el.parentNode) el.remove(); }, dur * 1000 + 200);
+          setTimeout(() => { if (el.parentNode) el.remove(); }, (dur + 0.5) * 1000);
         }, delay);
       }
     };
 
-    // 初始填充
+    // 初始发射
     for (let i = 0; i < 4; i++) {
-      setTimeout(emitPhrase, i * 500);
+      setTimeout(emitPhrase, i * 600);
     }
-
-    this.particleInterval = setInterval(emitPhrase, 2800);
+    this.particleInterval = setInterval(emitPhrase, 3000);
   },
 
   stopParticles() {
@@ -400,12 +401,16 @@ export const CallManager = {
     if (c) c.innerHTML = '';
   },
 
-  // ---- 拖动 ----
+  // ---- 拖拽核心功能 ----
   makeElementDraggable(targetEl, handleEl, mode) {
     if (!targetEl) return;
     const dragHandle = handleEl || targetEl;
     let startX = 0, startY = 0, initialX = 0, initialY = 0, hasMoved = false;
     const posStore = this.floatingPos[mode] || this.floatingPos.player;
+
+    // 强制设置 touch-action 行为，这是移动端端拖拽不被打断的绝对保证
+    targetEl.style.touchAction = 'none';
+    dragHandle.style.touchAction = 'none';
 
     if (posStore.x !== null && posStore.y !== null) {
       targetEl.style.left = posStore.x + 'px';
@@ -440,7 +445,6 @@ export const CallManager = {
       targetEl.style.margin = '0';
 
       try { dragHandle.setPointerCapture(e.pointerId); } catch (err) {}
-      if (e.cancelable) e.preventDefault();
     };
 
     const onMove = (e) => {
@@ -458,7 +462,7 @@ export const CallManager = {
       if (!hasMoved) return;
 
       const rect = targetEl.getBoundingClientRect();
-      const m = 8;
+      const m = 16;
       const maxX = Math.max(m, window.innerWidth - rect.width - m);
       const maxY = Math.max(m, window.innerHeight - rect.height - m);
       const nx = Math.max(m, Math.min(initialX + dx, maxX));
@@ -482,15 +486,16 @@ export const CallManager = {
 
       if (hasMoved) {
         const rect = targetEl.getBoundingClientRect();
-        const m = 8;
+        const m = 16;
         let tx, ty = Math.max(m, Math.min(rect.top, window.innerHeight - rect.height - m));
+        // 靠边贴合机制
         if (rect.left + rect.width / 2 < window.innerWidth / 2) {
           tx = m;
         } else {
           tx = window.innerWidth - rect.width - m;
         }
 
-        targetEl.style.transition = 'left 0.3s ease, top 0.3s ease';
+        targetEl.style.transition = 'left 0.3s cubic-bezier(0.25, 1, 0.5, 1), top 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
         targetEl.style.left = tx + 'px';
         targetEl.style.top = ty + 'px';
         posStore.x = tx;
@@ -601,15 +606,16 @@ export const CallManager = {
     const timeText = formatDuration(this.getElapsedSeconds());
 
     let actionButtons = '';
+    // 渲染动作按钮，剥离无用的 span 包裹，将 SVG 直接放在 call-btn 节点下
     if (this.state === 'incoming') {
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
-            <button class="call-btn btn-decline" id="call-btn-decline" type="button"><span class="call-icon-heartbeat">${ICON.phoneHangup}</span></button>
+            <button class="call-btn btn-decline" id="call-btn-decline" type="button">${ICON.phoneHangup}</button>
             <span class="call-action-label">拒接</span>
           </div>
           <div class="call-action-col">
-            <button class="call-btn btn-accept" id="call-btn-accept" type="button"><span class="call-icon-heartbeat">${ICON.phone}</span></button>
+            <button class="call-btn btn-accept" id="call-btn-accept" type="button">${ICON.phone}</button>
             <span class="call-action-label">接听</span>
           </div>
         </div>`;
@@ -617,7 +623,7 @@ export const CallManager = {
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
-            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button"><span class="call-icon-heartbeat">${ICON.phoneHangup}</span></button>
+            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button">${ICON.phoneHangup}</button>
             <span class="call-action-label">挂断</span>
           </div>
         </div>`;
@@ -631,7 +637,7 @@ export const CallManager = {
             <span class="call-action-label">静音</span>
           </div>
           <div class="call-action-col">
-            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button"><span class="call-icon-heartbeat">${ICON.phoneHangup}</span></button>
+            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button">${ICON.phoneHangup}</button>
             <span class="call-action-label">挂断</span>
           </div>
           <div class="call-action-col">

@@ -29,11 +29,102 @@ function dedup(arr) {
   return out;
 }
 
+/**
+ * 检查指定内容在哪些其他字卡库中已存在（跨库排重扫描）
+ * @param {string} text 要检查的字卡内容
+ * @param {number} excludeDeckId 排除的当前字卡库ID
+ * @returns {Promise<string[]>} 包含此内容的字卡库名称列表
+ */
+async function checkDuplicateInDecks(text, excludeDeckId = null) {
+  try {
+    const allDecks = await db.decks.toArray();
+    const duplicateDecks = [];
+    for (const d of allDecks) {
+      if (excludeDeckId && d.id === excludeDeckId) continue;
+      if ((d.fragments || []).includes(text)) {
+        duplicateDecks.push(d.name);
+      }
+    }
+    return duplicateDecks;
+  } catch (e) {
+    return [];
+  }
+}
+
 // 刷新主逻辑
 async function refresh(root) {
   if (activeDeckId) {
     await renderDetailView(root, activeDeckId);
   } else {
+    // 修复返回列表按钮失效的问题：如果主 DOM 容器被覆盖了，需重新构建列表页基本骨架
+    if (!document.getElementById('deck-list-wrap')) {
+      root.innerHTML = `
+        <div class="page deck-page">
+          <div class="top-bar">
+            <button class="top-bar-btn" data-act="back" aria-label="返回">${ICON.back}</button>
+            <div class="top-bar-title">字 卡 库</div>
+            <span style="width:40px;"></span>
+          </div>
+          <div id="deck-filter-wrap"></div>
+          <div id="deck-list-wrap"></div>
+          <button class="fab" data-act="new" aria-label="新建字卡库">${ICON.plus}</button>
+          <style>
+            .deck-page { min-height: 100vh; padding-bottom: 100px; }
+            .deck-list { list-style: none; }
+            .deck-icon {
+              width: 46px; height: 46px; border-radius: 50%;
+              background: var(--color-bg-secondary);
+              color: var(--color-accent);
+              display: inline-flex; align-items: center; justify-content: center;
+              flex-shrink: 0;
+            }
+            .list-row-aside { flex-direction: row; gap: 4px; }
+            
+            .deck-filter-bar {
+              display: flex;
+              gap: 8px;
+              padding: 12px 16px 4px 16px;
+              overflow-x: auto;
+              white-space: nowrap;
+              scrollbar-width: none;
+            }
+            .deck-filter-bar::-webkit-scrollbar {
+              display: none;
+            }
+            .filter-chip {
+              display: inline-block;
+              padding: 6px 12px;
+              border-radius: 16px;
+              font-size: 13px;
+              background: var(--color-bg-secondary);
+              color: var(--color-text-secondary);
+              border: none;
+              cursor: pointer;
+              transition: all 0.2s;
+            }
+            .filter-chip.active {
+              background: var(--color-accent);
+              color: var(--color-bg-primary);
+              font-weight: 500;
+            }
+            .deck-category-tag {
+              display: inline-block;
+              padding: 1px 5px;
+              border-radius: 4px;
+              font-size: 10px;
+              background: var(--color-bg-secondary);
+              color: var(--color-accent);
+              border: 1px solid var(--color-border);
+              vertical-align: middle;
+              margin-right: 6px;
+            }
+          </style>
+        </div>
+      `;
+      // 重新绑定一级页面的基本事件
+      root.querySelector('[data-act=back]').onclick = () => { haptic(6); goBack('/cards'); };
+      root.querySelector('[data-act=new]').onclick = () => { haptic(8); openNewDeckCreator(root); };
+    }
     await renderListView(root);
   }
 }
@@ -358,8 +449,16 @@ function openSingleWriteSheet(root, deckId) {
     const deck = await db.decks.get(deckId);
     if (!deck) return;
 
+    // 1. 检查当前库是否有重复
     if (deck.fragments.includes(text)) {
-      toast('此碎片已在字卡库中');
+      toast('此碎片已在当前字卡库中，已自动跳过');
+      return;
+    }
+
+    // 2. 检查其他字卡库是否有重复，若存在则跳过写入
+    const otherDecks = await checkDuplicateInDecks(text, deckId);
+    if (otherDecks.length > 0) {
+      toast(`此字卡在字卡库 [${otherDecks.join(', ')}] 中已存在，已自动跳过`);
       return;
     }
 
@@ -401,7 +500,7 @@ function openSingleEditSheet(root, deckId, originalText) {
   sheetRoot.querySelector('[data-act=cancel]').onclick = () => close();
 
   // 删除单条
-  sheetRoot.querySelector('[data-act=delete-single]').onclick = async () => {
+  sheetRoot.querySelector('[data-act="delete-single"]').onclick = async () => {
     close();
     const ok = await confirmSheet('删除此条碎片？', { danger: true, okText: '删除' });
     if (!ok) return;
@@ -423,7 +522,7 @@ function openSingleEditSheet(root, deckId, originalText) {
   };
 
   // 修改单条
-  sheetRoot.querySelector('[data-act=save]').onclick = async () => {
+  sheetRoot.querySelector('[data-act="save"]').onclick = async () => {
     const text = sheetRoot.querySelector('#s-edit-text').value.trim();
     if (!text) { toast('内容不能为空'); return; }
 
@@ -434,10 +533,19 @@ function openSingleEditSheet(root, deckId, originalText) {
     const stats = deck.fragmentStats || {};
 
     if (originalText !== text) {
+      // 1. 检查当前库重复
       if (deck.fragments.includes(text)) {
-        toast('新内容与已有碎片重复');
+        toast('新内容与当前库已有碎片重复，已自动跳过');
         return;
       }
+      
+      // 2. 检查其他库重复并跳过
+      const otherDecks = await checkDuplicateInDecks(text, deckId);
+      if (otherDecks.length > 0) {
+        toast(`此内容在字卡库 [${otherDecks.join(', ')}] 中已存在，已自动跳过修改`);
+        return;
+      }
+
       // 替换原项
       const idx = newFrags.indexOf(originalText);
       if (idx !== -1) {
@@ -574,9 +682,50 @@ async function openDeckSettingSheet(root, deckId) {
       } else {
         incoming = textToFragments(text);
       }
-      const merged = dedup([...textToFragments(fragEl.value), ...incoming.map((s) => String(s).trim()).filter(Boolean)]);
+
+      // 获取当前文本框中的字卡
+      const currentFrags = textToFragments(fragEl.value);
+      const currentFragsSet = new Set(currentFrags);
+      const cleanIncoming = incoming.map((s) => String(s).trim()).filter(Boolean);
+      const uniqueIncoming = dedup(cleanIncoming);
+
+      // 查询系统中所有其他库的内容以做跨库去重
+      const allDecks = await db.decks.toArray();
+      const otherDecksFrags = new Set();
+      for (const d of allDecks) {
+        if (d.id === deckId) continue;
+        (d.fragments || []).forEach(item => otherDecksFrags.add(item));
+      }
+
+      const kept = [];
+      let skippedThisDeck = 0;
+      let skippedOtherDecks = 0;
+
+      for (const item of uniqueIncoming) {
+        if (currentFragsSet.has(item)) {
+          skippedThisDeck++;
+        } else if (otherDecksFrags.has(item)) {
+          skippedOtherDecks++;
+        } else {
+          kept.push(item);
+        }
+      }
+
+      if (skippedThisDeck > 0 || skippedOtherDecks > 0) {
+        let msg = `已自动跳过 ${skippedThisDeck + skippedOtherDecks} 条重复字卡`;
+        if (skippedThisDeck > 0 && skippedOtherDecks > 0) {
+          msg += `（其中 ${skippedThisDeck} 条与当前库重复，${skippedOtherDecks} 条与其它库重复）`;
+        } else if (skippedThisDeck > 0) {
+          msg += `（与当前编辑内容重复）`;
+        } else {
+          msg += `（与系统内其它库重复）`;
+        }
+        toast(msg);
+      }
+
+      const merged = dedup([...currentFrags, ...kept]);
       fragEl.value = merged.join('\n');
-      toast(`成功导入并合并了 ${incoming.length} 条碎片`);
+      toast(`成功导入并合并了 ${kept.length} 条新碎片`);
     } catch (e) {
       toast('导入失败：' + e.message);
     } finally {
@@ -589,14 +738,44 @@ async function openDeckSettingSheet(root, deckId) {
     const name = nameEl.value.trim();
     if (!name) { toast('请填写名称'); return; }
     
-    const inputFrags = dedup(textToFragments(fragEl.value));
+    const rawLines = textToFragments(fragEl.value);
+    const inputFrags = dedup(rawLines);
     const bindCharacterId = bindEl.value ? Number(bindEl.value) : null;
     const category = categoryEl.value.trim() || null;
+
+    // 1. 扫描自重复行（自重复的会在 dedup 中自动过滤）
+    const selfDupCount = rawLines.length - inputFrags.length;
+    if (selfDupCount > 0) {
+      toast(`已自动过滤文本框内 ${selfDupCount} 条自带的重复内容`);
+    }
+
+    // 2. 扫描并自动过滤掉与其他库冲突的内容
+    const allDecks = await db.decks.toArray();
+    const otherDecksFrags = new Set();
+    for (const d of allDecks) {
+      if (d.id === deckId) continue;
+      (d.fragments || []).forEach(f => otherDecksFrags.add(f));
+    }
+
+    const finalFrags = [];
+    const skippedOtherDecks = [];
+
+    for (const frag of inputFrags) {
+      if (otherDecksFrags.has(frag)) {
+        skippedOtherDecks.push(frag);
+      } else {
+        finalFrags.push(frag);
+      }
+    }
+
+    if (skippedOtherDecks.length > 0) {
+      toast(`已自动跳过 ${skippedOtherDecks.length} 条与其他字卡库重复的内容`);
+    }
 
     // 精细合并统计信息
     const oldStats = deck.fragmentStats || {};
     const newStats = {};
-    inputFrags.forEach(f => {
+    finalFrags.forEach(f => {
       newStats[f] = oldStats[f] || { usageCount: 0, createdAt: Date.now() };
     });
 
@@ -604,7 +783,7 @@ async function openDeckSettingSheet(root, deckId) {
       name,
       bindCharacterId,
       category,
-      fragments: inputFrags,
+      fragments: finalFrags,
       fragmentStats: newStats
     });
 

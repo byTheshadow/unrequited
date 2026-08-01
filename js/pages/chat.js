@@ -890,13 +890,26 @@ function renderDraftListHTML() {
   `;
 }
 
-
 function openDraftSheet() {
+  const renderDraftListOnly = () => {
+    if (!state.draftMessages.length) {
+      return `<div style="text-align:center;color:var(--color-text-tertiary);padding:20px;font-size:12px;">暂无草稿内容，在下方输入后点击添加</div>`;
+    }
+    return state.draftMessages.map((msg, index) => `
+      <div class="draft-item" style="display:flex; justify-content:space-between; align-items:center; background:var(--color-bg-secondary); padding:8px 12px; border-radius:8px; margin-bottom:6px; font-size:13px;">
+        <span style="word-break:break-all; flex:1; padding-right:8px;">${escapeHtml(msg)}</span>
+        <button class="draft-item-delete" data-idx="${index}" style="color:#dc2626; border:none; background:none; cursor:pointer;">${ICON.trash}</button>
+      </div>
+    `).join('');
+  };
+
   const body = `
     <div id="draft-container">
-      ${renderDraftListHTML()}
+      <div id="draft-list-subwrap" style="max-height: 200px; overflow-y: auto; margin-bottom: 12px;">
+        ${renderDraftListOnly()}
+      </div>
       <div class="field" style="margin-top:10px;">
-        <textarea class="textarea" id="draft-input" placeholder="输入你想暂存的消息..." rows="2" style="min-height:70px;"></textarea>
+        <textarea class="textarea" id="draft-input" placeholder="输入你想发送的消息碎片..." rows="2" style="min-height:70px;"></textarea>
       </div>
     </div>
   `;
@@ -911,63 +924,65 @@ function openDraftSheet() {
   });
 
   const root = document.querySelector('.sheet-backdrop:last-of-type');
-  if (!root) return;
-
+  const listSubwrap = root.querySelector('#draft-list-subwrap');
   const input = root.querySelector('#draft-input');
-  const renderDraftList = () => renderDraftListHTML();
 
+  const rebindDeleteEvents = () => {
+    root.querySelectorAll('.draft-item-delete').forEach(btn => {
+      btn.onclick = () => {
+        const idx = Number(btn.getAttribute('data-idx'));
+        state.draftMessages.splice(idx, 1);
+        listSubwrap.innerHTML = renderDraftListOnly();
+        rebindDeleteEvents();
+      };
+    });
+  };
+
+  // 绑定“添加”按钮
   root.querySelector('[data-act=add-draft]').addEventListener('click', () => {
     const val = input.value.trim();
     if (!val) return;
     state.draftMessages.push(val);
-    input.value = '';
-    const container = root.querySelector('#draft-container');
-    if (container) container.innerHTML = `
-      ${renderDraftList()}
-      <div class="field" style="margin-top:10px;">
-        <textarea class="textarea" id="draft-input" placeholder="输入你想暂存的消息..." rows="2" style="min-height:70px;"></textarea>
-      </div>
-    `;
-    bindDraftEvents(root, renderDraftList);
-    const newInput = root.querySelector('#draft-input');
-    if (newInput) newInput.focus();
+    input.value = ''; // 仅清空文本，不销毁 DOM 节点
+    listSubwrap.innerHTML = renderDraftListOnly();
+    rebindDeleteEvents();
   });
 
+  // 绑定“发送”按钮
   root.querySelector('[data-act=send-all-draft]').addEventListener('click', async () => {
     if (!state.draftMessages.length) {
       toast('暂存箱是空的');
       return;
     }
-
     const msgs = [...state.draftMessages];
     state.draftMessages = [];
     close();
 
     for (const content of msgs) {
-      const msg = {
+      await db.messages.add({
         conversationId: state.convId,
-        sender: 'user',
-        content,
-        type: 'text',
-        status: 'sent',
-        quotedMessageId: null,
         timestamp: Date.now(),
-        isRead: false,
-      };
-      const id = await db.messages.add(msg);
-      msg.id = id;
-      appendMessage(msg);
-      playUserSound();
+        sender: 'user',
+        content: content,
+        type: 'text',
+        status: 'sent'
+      });
       await sleep(50);
     }
+    
+    await db.conversations.update(state.convId, {
+      lastMessage: msgs[msgs.length - 1],
+      lastMessageTime: Date.now()
+    });
 
-    await persistConvSummary();
-    updateSendBtn();
+    state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
+    renderMessages();
     await schedulePendingReply();
   });
 
-  bindDraftEvents(root, renderDraftList);
+  rebindDeleteEvents();
 }
+
 
 
 function showTyping(customHint) {

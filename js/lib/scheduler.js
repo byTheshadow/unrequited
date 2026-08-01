@@ -81,16 +81,53 @@ async function checkActiveMessages() {
           continue;
         }
 
-        // 开始生成主动消息内容（调用已有的字卡引擎 generateForCharacter）
-        const { messages, reason } = await generateForCharacter(char.id);
-        // 如果因为字卡库均空而没能生成内容，直接顺延，不产生空消息
-        if (reason !== 'ok' || !messages || messages.length === 0) {
-          const nextTime = calculateNextTime(minVal, maxVal);
-          await db.conversations.update(conv.id, {
-            nextActiveMsgAt: nextTime,
-            lastActiveMsgScheduledTime: currentLastMsgTime
-          });
-          continue;
+        // 开始生成主动消息内容（优先调用已有的字卡引擎 generateForCharacter）
+        let { messages, reason } = await generateForCharacter(char.id);
+        
+        // 检查引擎是否成功返回了有效且非空的消息内容
+        const hasContent = reason === 'ok' && messages && messages.length > 0 && messages.every(m => m && m.content && m.content.trim() !== '');
+
+        if (!hasContent) {
+          // 备用机制：从绑定了该角色的字卡库以及通用字卡库（没有绑定角色的库）中手动提取字卡
+          const decks = await db.decks.toArray();
+          const targetDecks = decks.filter(d => d.bindCharacterId === char.id || !d.bindCharacterId);
+          
+          let allFrags = []; // 存储所有可用碎片的 { text, deckId, deck }
+          for (const d of targetDecks) {
+            const frags = d.fragments || [];
+            frags.forEach(text => {
+              if (text && text.trim() !== '') {
+                allFrags.push({ text, deckId: d.id, deck: d });
+              }
+            });
+          }
+
+          if (allFrags.length > 0) {
+            // 随机抽取一条字卡
+            const chosen = allFrags[Math.floor(Math.random() * allFrags.length)];
+            messages = [{ content: chosen.text }];
+
+            // 更新该备用字卡的共鸣频次 (usageCount)
+            try {
+              const deck = chosen.deck;
+              const stats = deck.fragmentStats || {};
+              if (!stats[chosen.text]) {
+                stats[chosen.text] = { usageCount: 0, createdAt: Date.now() };
+              }
+              stats[chosen.text].usageCount = (stats[chosen.text].usageCount || 0) + 1;
+              await db.decks.update(chosen.deckId, { fragmentStats: stats });
+            } catch (e) {
+              console.warn('更新备用字卡共鸣频次失败:', e);
+            }
+          } else {
+            // 字卡库均为空时，随机发送提示语
+            const hints = [
+              "(对方想来找你，但没有找到合适的字卡)",
+              "（对方想说的话似乎更多，需要给对方扩展字卡库吗？）"
+            ];
+            const randomHint = hints[Math.floor(Math.random() * hints.length)];
+            messages = [{ content: randomHint }];
+          }
         }
 
         // 保存消息到数据库，连发消息合并为单次发送的事务或分批写入

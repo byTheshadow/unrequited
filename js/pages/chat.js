@@ -626,7 +626,7 @@ async function sendUserMessage() {
   // 优先使用 cardEngine 内置解析；如果失败，则使用本文件的 ??问题|选项1|选项2 兜底解析
   const choice = parseChoiceFragment(text) || parseManualChoiceText(text);
 
-  const msg = {
+   const msg = {
     conversationId: state.convId,
     sender: 'user',
     content: choice ? choiceToContent(choice) : text,
@@ -637,8 +637,23 @@ async function sendUserMessage() {
     isRead: false,
   };
 
+  const id = await db.messages.add(msg);
+  msg.id = id;
+
+  if (quotedId) await clearPendingQuote();
+
+  appendMessage(msg);
+  playUserSound();
+  input.value = '';
+  autoGrow(input);
+  updateSendBtn();
+
+  await persistConvSummary();
+  await schedulePendingReply();
+}
 
 function openChoiceCreatorSheet() {
+
   let options = ['', '']; // 默认两个空选项
 
   const renderBody = () => {

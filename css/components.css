@@ -3440,7 +3440,6 @@
 
 
 
-
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -3482,9 +3481,9 @@
   color: #fff !important;
   pointer-events: auto !important;
   background: 
-    radial-gradient(circle at 50% 25%, rgba(99, 102, 241, 0.15), transparent 35%),
-    radial-gradient(circle at 15% 75%, rgba(236, 72, 153, 0.1), transparent 30%),
-    radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.1), transparent 30%),
+    radial-gradient(circle at 50% 28%, rgba(99, 102, 241, 0.18), transparent 38%),
+    radial-gradient(circle at 15% 75%, rgba(236, 72, 153, 0.12), transparent 32%),
+    radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.12), transparent 32%),
     linear-gradient(180deg, #07090e 0%, #020306 100%) !important;
 }
 
@@ -3494,7 +3493,7 @@
   z-index: 0 !important;
   background-size: cover !important;
   background-position: center !important;
-  filter: blur(80px) brightness(0.3) saturate(1.2) !important;
+  filter: blur(80px) brightness(0.28) saturate(1.25) !important;
   transform: scale(1.15) !important;
   opacity: 0.65 !important;
 }
@@ -3505,8 +3504,8 @@
   z-index: 1 !important;
   pointer-events: none !important;
   background: 
-    radial-gradient(circle at 50% 40%, rgba(99, 102, 241, 0.1), transparent 40%),
-    linear-gradient(180deg, rgba(7, 9, 14, 0.2), rgba(7, 9, 14, 0.7) 60%, rgba(2, 3, 6, 0.95)) !important;
+    radial-gradient(circle at 50% 35%, rgba(99, 102, 241, 0.08), transparent 35%),
+    linear-gradient(180deg, rgba(7, 9, 14, 0.15), rgba(7, 9, 14, 0.65) 55%, rgba(2, 3, 6, 0.96)) !important;
 }
 
 /* 左上角缩小按钮 */
@@ -3515,9 +3514,9 @@
   top: calc(28px + env(safe-area-inset-top, 0px)) !important;
   left: 28px !important;
   z-index: 20 !important;
-  width: 48px !important;
-  height: 48px !important;
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  width: 46px !important;
+  height: 46px !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   border-radius: 50% !important;
   color: #fff !important;
   background: rgba(255, 255, 255, 0.08) !important;
@@ -3525,7 +3524,7 @@
   -webkit-backdrop-filter: blur(20px) !important;
   box-shadow: 
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 12px 24px rgba(0, 0, 0, 0.3) !important;
+    0 10px 24px rgba(0, 0, 0, 0.35) !important;
   cursor: pointer !important;
   display: flex !important;
   align-items: center !important;
@@ -3541,8 +3540,8 @@
   transform: scale(0.95) !important;
 }
 .global-call-minimize-btn svg {
-  width: 20px !important;
-  height: 20px !important;
+  width: 18px !important;
+  height: 18px !important;
 }
 
 /* 漂浮单字文字层 */
@@ -3563,8 +3562,8 @@
   font-weight: 300 !important;
   color: rgba(255, 255, 255, var(--alpha)) !important;
   text-shadow: 
-    0 0 12px rgba(255, 255, 255, 0.3),
-    0 0 24px rgba(99, 102, 241, 0.2) !important;
+    0 0 14px rgba(255, 255, 255, 0.45),
+    0 0 28px rgba(99, 102, 241, 0.25) !important;
   transform: translate3d(0, 0, 0) scale(0.8) rotate(var(--r)) !important;
   animation: globalCallFloatWord var(--duration) cubic-bezier(0.1, 0.8, 0.25, 1) forwards !important;
   filter: blur(var(--blur)) !important;
@@ -3588,7 +3587,7 @@
     opacity: 0;
     transform: 
       translate3d(var(--drift), var(--rise), 0) 
-      scale(1.2) 
+      scale(1.22) 
       rotate(calc(var(--r) + var(--rr)));
     filter: blur(8px);
   }
@@ -3598,7 +3597,7 @@
 .global-call-content {
   position: relative !important;
   z-index: 4 !important;
-  min-height: 100% !important;
+  height: 100% !important;
   width: 100% !important;
   padding: 80px 24px calc(140px + env(safe-area-inset-bottom, 0px)) !important;
   display: flex !important;
@@ -3620,7 +3619,7 @@
   position: relative !important;
   width: 140px !important;
   height: 140px !important;
-  margin-bottom: 28px !important;
+  margin-bottom: 30px !important;
   border-radius: 50% !important;
 }
 
@@ -3652,7 +3651,7 @@
   }
 }
 
-.global-call-avatar-wrapper > * {
+.global-call-avatar-wrapper .avatar-inner {
   position: relative !important;
   z-index: 2 !important;
   width: 140px !important;
@@ -3666,12 +3665,12 @@
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  border: none !important;
 }
 .global-call-avatar-wrapper img {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+  border-radius: 50% !important;
 }
 
 .global-call-name {
@@ -3683,12 +3682,13 @@
 }
 
 .global-call-status {
-  margin: 12px 0 0 !important;
+  margin: 14px 0 0 !important;
   font-size: 13px !important;
   color: rgba(255, 255, 255, 0.5) !important;
   letter-spacing: 0.18em !important;
   display: flex !important;
   align-items: center !important;
+  justify-content: center !important;
   gap: 6px !important;
   font-weight: 600 !important;
 }
@@ -3699,10 +3699,11 @@
   border-radius: 50% !important;
   background: #10b981 !important;
   box-shadow: 0 0 12px #10b981 !important;
+  display: inline-block !important;
 }
 
 .global-call-time {
-  margin-top: 18px !important;
+  margin-top: 20px !important;
   font-size: 20px !important;
   font-weight: 500 !important;
   color: rgba(255, 255, 255, 0.85) !important;
@@ -3716,7 +3717,7 @@
   justify-content: center !important;
 }
 
-/* 底部控制区 */
+/* 底部控制区 - 校准对准 */
 .global-call-actions {
   position: absolute !important;
   z-index: 10 !important;
@@ -3726,19 +3727,25 @@
   display: flex !important;
   justify-content: center !important;
   pointer-events: auto !important;
+  width: 100% !important;
 }
 
 .call-action-grid {
   display: flex !important;
+  flex-direction: row !important;
   align-items: center !important;
-  gap: 32px !important;
+  justify-content: center !important;
+  gap: 36px !important;
+  width: auto !important;
 }
 
 .call-action-col {
   display: flex !important;
   flex-direction: column !important;
   align-items: center !important;
-  gap: 8px !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  width: 76px !important;
 }
 
 .call-btn {
@@ -3757,7 +3764,9 @@
   cursor: pointer !important;
   transition: all 0.2s !important;
   padding: 0 !important;
+  margin: 0 !important;
   box-sizing: border-box !important;
+  flex-shrink: 0 !important;
 }
 
 .call-btn:hover {
@@ -3771,6 +3780,7 @@
   width: 26px !important;
   height: 26px !important;
   fill: currentColor !important;
+  display: block !important;
 }
 
 .call-btn.btn-accept {
@@ -3796,6 +3806,8 @@
   font-size: 12px !important;
   color: rgba(255, 255, 255, 0.6) !important;
   font-weight: 500 !important;
+  white-space: nowrap !important;
+  text-align: center !important;
 }
 
 /* ============ 音乐播放器形态悬浮窗 ============ */
@@ -3803,7 +3815,6 @@
   position: fixed;
   top: 40px;
   right: 40px;
-  /* 允许拖拽 JS 覆写 top/left，不写 !important */
   width: 340px;
   padding: 16px;
   border-radius: 28px;
@@ -3850,6 +3861,7 @@
   align-items: center !important;
   justify-content: center !important;
 }
+.call-player-cover img,
 .call-player-cover > * {
   width: 100% !important;
   height: 100% !important;
@@ -4017,14 +4029,14 @@
   color: rgba(255, 255, 255, 0.35) !important;
 }
 
-/* ============ 悬浮球形态 ============ */
+/* ============ 绝对圆形的悬浮球 ============ */
 .global-call-floating.call-ball-widget {
   position: fixed;
   top: 40px;
   right: 40px;
   width: 72px;
   height: 72px;
-  border-radius: 50%;
+  border-radius: 50% !important;
   cursor: grab;
   z-index: 9999999;
   background: 
@@ -4051,6 +4063,7 @@
   align-items: center !important;
   justify-content: center !important;
 }
+.call-ball-avatar img,
 .call-ball-avatar > * {
   width: 100% !important;
   height: 100% !important;

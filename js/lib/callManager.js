@@ -190,7 +190,7 @@ function safeCssUrl(value) {
   return String(value || '').replaceAll('\\', '\\\\').replaceAll("'", "\\'");
 }
 
-// 渲染音乐波形跳动条
+// 音频跳动频谱高度渲染器
 function renderWaveBarsHTML(elapsedSeconds, isConnected) {
   const totalBars = 18;
   const progressPercent = isConnected ? Math.min(100, (elapsedSeconds % 60) / 60 * 100) : 0;
@@ -199,8 +199,8 @@ function renderWaveBarsHTML(elapsedSeconds, isConnected) {
   let html = '';
   for (let i = 0; i < totalBars; i++) {
     const isActive = i < activeCount ? ' is-active' : '';
-    // 如果已连接，随机设定高度产生动态跳动频谱，如果未连接则是最低静态条
-    const height = isConnected ? Math.floor(Math.random() * 20) + 6 : 6;
+    // 若在通话状态，实时给予不同的随机跳跃高度，打造动态音乐预览频谱
+    const height = isConnected ? Math.floor(Math.random() * 18) + 6 : 6;
     html += `<span class="call-player-bar${isActive}" style="height: ${height}px;"></span>`;
   }
   return html;
@@ -531,7 +531,7 @@ export const CallManager = {
       }, duration * 1000);
     };
 
-    // 初始密集粒子
+    // 首次载入生成一波，铺满天空
     for (let i = 0; i < 25; i++) {
       setTimeout(createParticle, i * 150);
     }
@@ -622,7 +622,6 @@ export const CallManager = {
       initialX = rect.left;
       initialY = rect.top;
 
-      // 覆盖 CSS 的初始固定定位
       targetEl.style.left = `${initialX}px`;
       targetEl.style.top = `${initialY}px`;
       targetEl.style.right = 'auto';
@@ -670,21 +669,19 @@ export const CallManager = {
       this.dragState.pointerId = null;
       this.dragState.mode = null;
 
-      // 拖拽释放吸附逻辑
+      // 释放吸附边界
       if (this.dragState.moved) {
         const rect = targetEl.getBoundingClientRect();
         const margin = 16;
         let targetX = rect.left;
         let targetY = rect.top;
 
-        // 左右边缘智能吸附
         if (rect.left + rect.width / 2 < window.innerWidth / 2) {
           targetX = margin;
         } else {
           targetX = window.innerWidth - rect.width - margin;
         }
 
-        // 越界校验保护
         targetY = Math.max(margin, Math.min(targetY, window.innerHeight - rect.height - margin));
 
         targetEl.style.transition = 'left 0.3s cubic-bezier(0.25, 1, 0.5, 1), top 0.3s cubic-bezier(0.25, 1, 0.5, 1)';
@@ -729,9 +726,10 @@ export const CallManager = {
 
     this.overlay.className = 'global-call-active global-call-player';
 
+    // 重新设计成美观的音乐卡片
     this.overlay.innerHTML = `
       <div class="global-call-floating call-player-widget" id="global-call-player" role="button" aria-label="展开通话">
-        <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="最小化为悬浮球">
+        <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="收缩为悬浮球">
           <span></span>
         </button>
 
@@ -783,7 +781,6 @@ export const CallManager = {
       this.makeElementDraggable(player, handle || player, 'player');
 
       player.addEventListener('click', (e) => {
-        // 防止拖拽完成后触发点击展开全屏
         if (player.style.transition !== '' && player.style.transition !== 'none') return;
         if (this.wasJustDragged()) {
           e.preventDefault();
@@ -816,6 +813,7 @@ export const CallManager = {
 
     this.overlay.className = 'global-call-active global-call-ball';
 
+    // 绝对正圆形悬浮球
     this.overlay.innerHTML = `
       <div class="global-call-floating call-ball-widget" id="global-call-ball" role="button" aria-label="展开音乐通话窗口">
         <div class="call-ball-ring"></div>
@@ -825,12 +823,6 @@ export const CallManager = {
         </div>
 
         <div class="call-ball-status-dot"></div>
-
-        <div class="call-ball-eq ${isPlaying ? 'playing' : ''}" aria-hidden="true">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
       </div>
     `;
 
@@ -861,19 +853,20 @@ export const CallManager = {
 
     let actionButtons = '';
 
+    // 校正网格布局歪斜，对齐到 call-action-grid 容器
     if (this.state === 'incoming') {
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
             <button class="call-btn btn-decline" id="call-btn-decline" type="button" aria-label="拒接">
-              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+              <span>${ICON.phoneHangup}</span>
             </button>
             <span class="call-action-label">拒接</span>
           </div>
 
           <div class="call-action-col">
             <button class="call-btn btn-accept" id="call-btn-accept" type="button" aria-label="接听">
-              <span class="call-icon-heartbeat">${ICON.phone}</span>
+              <span>${ICON.phone}</span>
             </button>
             <span class="call-action-label">接听</span>
           </div>
@@ -884,7 +877,7 @@ export const CallManager = {
         <div class="call-action-grid">
           <div class="call-action-col">
             <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
-              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+              <span>${ICON.phoneHangup}</span>
             </button>
             <span class="call-action-label">挂断</span>
           </div>
@@ -906,7 +899,7 @@ export const CallManager = {
 
           <div class="call-action-col">
             <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
-              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+              <span>${ICON.phoneHangup}</span>
             </button>
             <span class="call-action-label">挂断</span>
           </div>

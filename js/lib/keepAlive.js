@@ -44,8 +44,7 @@ function makeSilentWavBlob(seconds = 600) {
   setStr(36, 'data');
   view.setUint32(40, numSamples, true);
 
-  // 性能优化：使用 TypedArray.fill 高效初始化静音字节，避免大循环阻塞主线程
-  // 8位无符号 WAV 文件的静音中心值（中值）是 128
+  // 性能优化：使用 TypedArray.fill 高效初始化静音字节
   const samples = new Uint8Array(buffer, 44, numSamples);
   samples.fill(128);
 
@@ -70,6 +69,10 @@ function setupMediaSession() {
       title: 'Unrequited',
       artist: '恋恋不忘',
       album: '静默陪伴',
+      // 添加封面图片有助于手机系统正常渲染锁屏播放小工具
+      artwork: [
+        { src: './icons/icon.svg', sizes: '512x512', type: 'image/svg+xml' }
+      ]
     });
     navigator.mediaSession.playbackState = 'playing';
     navigator.mediaSession.setActionHandler('play', () => { tryPlay(); });
@@ -83,29 +86,26 @@ function setupMediaSession() {
 
 async function tryPlay() {
   if (!audio) return false;
-  try { await audio.play(); return true; }
+  try { 
+    await audio.play(); 
+    // 成功播放后，明确将系统媒体会话设为播放状态
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = 'playing';
+    }
+    return true; 
+  }
   catch (e) { return false; }
 }
 
 async function startAudioElement() {
   if (!audio) {
-    // 1. 为什么改成 10 分钟（600 秒）？
-    //    当网页退到后台时，JS 引擎和事件循环会被浏览器严重限流或暂停。如果音频太短（比如 1 秒），
-    //    音频频繁地在“结束-重新播放”之间循环（Loop），这种循环切换极易因为后台限流而中断挂起。
-    //    生成 10 分钟的音频后，10分钟内只需要正常播放即可，不需要频繁触发循环重播，大大降低了后台中断的概率。
-    //
-    // 2. 内存开销大吗？
-    //    在 8000Hz 采样率、单声道、8位深度下，10分钟的文件仅约 4.8 MB，在现代手机内存中几乎可以忽略不计。
     objectUrl = URL.createObjectURL(makeSilentWavBlob(600));
     audio = new Audio(objectUrl);
     audio.loop = true;
     
-    // 3. 为什么 volume 设置为 0.01 而不是 0？
-    //    部分浏览器（如 iOS Safari 或部分安卓系统）一旦检测到 <audio> 标签音量设为 0，
-    //    会为了省电而触发静音优化，从而将该音频进程挂起或杀掉。
-    //    由于我们生成的 WAV 物理波形数据本身就是纯静音的（全为 128 振幅），即使你把系统音量开到最大，
-    //    它也完全不会发出任何声响，因此将 volume 设为 0.01 可以绕过浏览器的“零音量挂起检测”，更加安全。
-    audio.volume = 0.01;
+    // 【关键修改点】：音量改回 1.0 (最大音量)
+    // 物理音频数据是 100% 静音波形，用户听不到声音，但系统会正常显示锁屏卡片
+    audio.volume = 1.0; 
     audio.preload = 'auto';
     audio.setAttribute('playsinline', '');
   }
@@ -170,7 +170,7 @@ export function stop() {
     onVisibility = null;
   }
   if ('mediaSession' in navigator) {
-    try { navigator.mediaSession.playbackState = 'none'; } catch (e) {}
+    try { navigator.mediaSession.playbackState = 'paused'; } catch (e) {}
   }
   started = false;
 }
@@ -180,3 +180,4 @@ export function dispose() {
   if (objectUrl) { try { URL.revokeObjectURL(objectUrl); } catch (e) {} objectUrl = null; }
   audio = null;
 }
+

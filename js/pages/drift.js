@@ -332,9 +332,10 @@ async function generateDriftReply(sentContent, charId) {
 }
 
 // ----------------- [视图渲染：收件箱] -----------------
+// ----------------- [视图渲染：收件箱] -----------------
 async function renderMailboxView(container) {
   const letters = await db.driftLetters.orderBy('timestamp').reverse().toArray();
-  
+
   if (letters.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
@@ -347,29 +348,28 @@ async function renderMailboxView(container) {
   }
 
   // 获取所有角色方便渲染名字
-  const charMap = new Map(characters.map(c => [c.id, c]));
+  const charMap = new Map(characters.map((c) => [c.id, c]));
 
-  // 按发送和回信成组聚合，或者单条时间线展现
-  // 我们采用优雅的时间轴瀑布流
-  const listHtml = letters.map(let => {
-    const isSent = let.type === 'sent';
-    const timeStr = formatTime(let.timestamp);
-    
+  // 按时间线展示所有发出信件和收到回信
+  const listHtml = letters.map((letter) => {
+    const isSent = letter.type === 'sent';
+    const timeStr = formatTime(letter.timestamp);
+
     let senderName = '我';
     if (!isSent) {
-      if (let.characterId === 'unknown') {
+      if (letter.characterId === 'unknown') {
         senderName = '未知存在';
       } else {
-        const c = charMap.get(let.characterId);
+        const c = charMap.get(letter.characterId);
         senderName = c ? c.name : '未知存在';
       }
     }
 
-    const unreadDot = (!isSent && !let.isRead) ? '<span class="drift-unread-dot"></span>' : '';
+    const unreadDot = (!isSent && !letter.isRead) ? '<span class="drift-unread-dot"></span>' : '';
     const bubbleClass = isSent ? 'sent-bubble' : 'received-bubble';
 
     return `
-      <div class="drift-timeline-item ${isSent ? 'item-sent' : 'item-received'}" data-id="${let.id}">
+      <div class="drift-timeline-item ${isSent ? 'item-sent' : 'item-received'}" data-id="${letter.id}">
         <div class="drift-timeline-badge">${isSent ? '写' : '回'}</div>
         <div class="drift-timeline-card ${bubbleClass}">
           <div class="drift-letter-meta">
@@ -377,13 +377,14 @@ async function renderMailboxView(container) {
             <span class="drift-letter-time">${timeStr}</span>
           </div>
           <div class="drift-letter-body-container">
-            <!-- 已读直接显示，未读且为回信则点击后打字机输出 -->
-            <div class="drift-letter-text" id="text-body-${let.id}">
-              ${(!isSent && !let.isRead) ? '<span class="tap-to-read">✦ 点击拆封阅读此信 ✦</span>' : escapeHtml(let.content).replace(/\n/g, '<br>')}
+            <div class="drift-letter-text" id="text-body-${letter.id}">
+              ${(!isSent && !letter.isRead)
+                ? '<span class="tap-to-read">点击拆封阅读此信</span>'
+                : escapeHtml(letter.content).replace(/\n/g, '<br>')}
             </div>
           </div>
           <div class="drift-letter-actions">
-            <button class="drift-text-btn-danger" data-act="delete-letter" data-id="${let.id}">
+            <button class="drift-text-btn-danger" data-act="delete-letter" data-id="${letter.id}">
               ${ICON.trash}
               <span>销毁</span>
             </button>
@@ -400,9 +401,9 @@ async function renderMailboxView(container) {
   `;
 
   // 绑定点击拆阅及删除事件
-  container.querySelectorAll('.drift-timeline-card').forEach(card => {
+  container.querySelectorAll('.drift-timeline-card').forEach((card) => {
     const itemId = Number(card.closest('.drift-timeline-item').getAttribute('data-id'));
-    
+
     card.addEventListener('click', async (e) => {
       // 如果点击的是删除按钮，则不触发拆封阅读
       if (e.target.closest('[data-act="delete-letter"]')) return;
@@ -410,8 +411,10 @@ async function renderMailboxView(container) {
       const letterObj = await db.driftLetters.get(itemId);
       if (letterObj && letterObj.type === 'received' && !letterObj.isRead) {
         haptic(10);
+
         // 标记已读
         await db.driftLetters.update(itemId, { isRead: 1 });
+
         // 去除未读红点
         const dot = card.querySelector('.drift-unread-dot');
         if (dot) dot.remove();
@@ -421,16 +424,22 @@ async function renderMailboxView(container) {
         if (textContainer) {
           triggerTypewriter(textContainer, letterObj.content);
         }
+
         updateUnreadAlert();
       }
     });
   });
 
-  container.querySelectorAll('[data-act="delete-letter"]').forEach(btn => {
+  container.querySelectorAll('[data-act="delete-letter"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
+
       const id = Number(btn.getAttribute('data-id'));
-      const ok = await confirmSheet('确定销毁这封信吗？消逝的思绪将不可挽回。', { okText: '销毁', danger: true });
+      const ok = await confirmSheet('确定销毁这封信吗？消逝的思绪将不可挽回。', {
+        okText: '销毁',
+        danger: true
+      });
+
       if (ok) {
         haptic(8);
         await db.driftLetters.delete(id);
@@ -440,6 +449,7 @@ async function renderMailboxView(container) {
     });
   });
 }
+
 
 // ----------------- [打字机输出特效] -----------------
 function triggerTypewriter(element, text) {

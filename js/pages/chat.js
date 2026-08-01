@@ -220,7 +220,6 @@ async function markChoiceAnswered(msgId, answer, answeredBy) {
   await db.messages.update(msgId, { content: nextContent });
   msg.content = nextContent;
 }
-
 function choiceBubbleHTML(msg) {
   const choice = parseChoiceContent(msg.content);
   if (!choice) {
@@ -229,38 +228,30 @@ function choiceBubbleHTML(msg) {
 
   const canAnswer = msg.sender === 'character' && !choice.answered;
   const opts = choice.options || [];
-  const leftOpt = opts[0] || '';
-  const rightOpt = opts[1] || '';
 
   return `
     <div class="choice-card">
       <div class="choice-card-title">${escapeHtml(choice.prompt)}</div>
 
       <div class="choice-card-grid">
-        <button
-          class="choice-option choice-option-left ${choice.answered && choice.answer === leftOpt ? 'selected' : ''}"
-          data-choice-msg="${msg.id}"
-          data-choice-idx="0"
-          ${!canAnswer ? 'disabled' : ''}
-          type="button"
-        >
-          ${escapeHtml(leftOpt)}
-        </button>
-
-        <button
-          class="choice-option choice-option-right ${choice.answered && choice.answer === rightOpt ? 'selected' : ''}"
-          data-choice-msg="${msg.id}"
-          data-choice-idx="1"
-          ${!canAnswer ? 'disabled' : ''}
-          type="button"
-        >
-          ${escapeHtml(rightOpt)}
-        </button>
+        ${opts.map((opt, idx) => {
+          const isSelected = choice.answered && choice.answer === opt;
+          return `
+            <button
+              class="choice-card-option ${isSelected ? 'selected' : ''}"
+              data-choice-msg="${msg.id}"
+              data-choice-idx="${idx}"
+              ${!canAnswer ? 'disabled' : ''}
+              type="button"
+            >
+              ${escapeHtml(opt)}
+            </button>
+          `;
+        }).join('')}
       </div>
     </div>
   `;
 }
-
 
 
 
@@ -756,19 +747,27 @@ function openChoiceCreatorSheet() {
       return;
     }
 
-    const formattedContent = `??${prompt}|${finalOptions.join('|')}`;
-    close();
+    const choicePayload = {
+  prompt,
+  options: finalOptions,
+  answered: false,
+  answer: '',
+  answeredBy: '',
+};
 
-    const userMsg = {
-      conversationId: state.convId,
-      sender: 'user',
-      content: formattedContent,
-      type: 'choice',
-      status: 'sent',
-      quotedMessageId: null,
-      timestamp: Date.now(),
-      isRead: false,
-    };
+close();
+
+const userMsg = {
+  conversationId: state.convId,
+  sender: 'user',
+  content: choiceToContent(choicePayload),
+  type: 'choice',
+  status: 'sent',
+  quotedMessageId: null,
+  timestamp: Date.now(),
+  isRead: false,
+};
+
 
     const id = await db.messages.add(userMsg);
     userMsg.id = id;
@@ -4171,32 +4170,35 @@ export async function render(root, params = {}) {
   cursor: pointer;
   flex-shrink: 0;
 }
-  .choice-card {
-  min-width: 220px;
+  
+.choice-card {
+  min-width: 210px;
   max-width: 320px;
-  padding: 10px;
-  border-radius: 18px;
-  background: var(--color-bg-secondary);
+  padding: 12px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--color-bg-secondary) 92%, white);
   border: 1px solid var(--color-border);
-  box-shadow: 0 6px 18px var(--color-shadow);
+  box-shadow: 0 8px 24px var(--color-shadow);
 }
 
 .choice-card-title {
   font-size: 14px;
-  line-height: 1.4;
+  font-weight: 600;
   color: var(--color-text-primary);
+  line-height: 1.4;
   margin-bottom: 10px;
+  text-align: center;
   word-break: break-word;
 }
 
 .choice-card-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
 
-.choice-option {
-  min-height: 36px;
+.choice-card-option {
+  min-height: 38px;
   padding: 8px 10px;
   border-radius: 14px;
   border: 1px solid var(--color-border);
@@ -4204,17 +4206,23 @@ export async function render(root, params = {}) {
   color: var(--color-text-primary);
   font-size: 13px;
   line-height: 1.2;
+  font-family: inherit;
 }
 
-.choice-option.selected {
-  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-bg-tertiary));
+.choice-card-option.selected {
+  background: color-mix(in srgb, var(--color-accent) 22%, var(--color-bg-tertiary));
   border-color: var(--color-accent);
 }
 
-.choice-option:disabled {
+.choice-card-option:disabled {
   opacity: 1;
   cursor: default;
 }
+
+.choice-card-grid .choice-card-option:only-child {
+  grid-column: 1 / -1;
+}
+
 
 
       </style>

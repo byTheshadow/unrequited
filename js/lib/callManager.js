@@ -98,7 +98,7 @@ function playIncomingRing() {
   soundGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.2);
 }
 
-// 拨号音
+// 拨号音 (嘟——嘟——)
 function playDialingTone() {
   stopSound();
 
@@ -106,43 +106,42 @@ function playDialingTone() {
   if (!ctx) return;
 
   soundGain = ctx.createGain();
-  soundGain.connect(ctx.destination);
   soundGain.gain.setValueAtTime(0, ctx.currentTime);
-
-  let isBeeping = false;
+  soundGain.connect(ctx.destination);
 
   soundInterval = setInterval(() => {
     try {
       const now = ctx.currentTime;
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const localGain = ctx.createGain();
 
-      if (!isBeeping) {
-        soundOsc = ctx.createOscillator();
-        soundOsc.type = 'sine';
-        soundOsc.frequency.setValueAtTime(450, now);
+      osc1.type = 'sine';
+      osc2.type = 'sine';
 
-        soundGain.gain.cancelScheduledValues(now);
-        soundGain.gain.setValueAtTime(0, now);
-        soundGain.gain.linearRampToValueAtTime(0.1, now + 0.05);
-        soundGain.gain.setValueAtTime(0.1, now + 0.8);
-        soundGain.gain.linearRampToValueAtTime(0, now + 0.85);
+      osc1.frequency.setValueAtTime(425, now);
+      osc2.frequency.setValueAtTime(425, now);
 
-        soundOsc.connect(soundGain);
-        soundOsc.start(now);
-        soundOsc.stop(now + 0.9);
+      localGain.gain.setValueAtTime(0, now);
+      localGain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+      localGain.gain.setValueAtTime(0.1, now + 1.0);
+      localGain.gain.linearRampToValueAtTime(0, now + 1.05);
 
-        soundOsc.onended = () => {
-          try { soundOsc.disconnect(); } catch (e) {}
-          soundOsc = null;
-        };
+      osc1.connect(localGain);
+      osc2.connect(localGain);
+      localGain.connect(soundGain);
 
-        isBeeping = true;
-      } else {
-        isBeeping = false;
-      }
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + 1.05);
+      osc2.stop(now + 1.05);
     } catch (err) {
       console.warn('playDialingTone error:', err);
     }
-  }, 1000);
+  }, 2000);
+
+  soundGain.gain.setValueAtTime(0, ctx.currentTime);
+  soundGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.2);
 }
 
 function stopSound() {
@@ -150,43 +149,42 @@ function stopSound() {
     clearInterval(soundInterval);
     soundInterval = null;
   }
-
-  if (soundOsc) {
-    try { soundOsc.stop(); } catch (e) {}
-    try { soundOsc.disconnect(); } catch (e) {}
-    soundOsc = null;
-  }
-
   if (soundGain) {
     try {
-      if (audioCtx) {
-        soundGain.gain.cancelScheduledValues(audioCtx.currentTime);
-      }
-    } catch (e) {}
-
-    try { soundGain.disconnect(); } catch (e) {}
-    soundGain = null;
+      soundGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+      setTimeout(() => {
+        if (soundGain) {
+          soundGain.disconnect();
+          soundGain = null;
+        }
+      }, 150);
+    } catch (e) {
+      soundGain.disconnect();
+      soundGain = null;
+    }
   }
 }
 
 function formatDuration(seconds) {
-  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-  const ss = String(seconds % 60).padStart(2, '0');
-  return `${mm}:${ss}`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
-export const CallManager = {
+export const callManager = {
+  overlay: null,
   state: 'idle', // 'idle' | 'dialing' | 'incoming' | 'connected'
+  minimized: false,
+
   conversationId: null,
   characterId: null,
   characterName: '',
   characterAvatar: '',
   isUserInitiator: false,
+
   startTime: null,
   timerInterval: null,
   autoAnswerTimeout: null,
-  overlay: null,
-  minimized: false,
   particleInterval: null,
   
   // 存储拖拽后的位置
@@ -493,10 +491,17 @@ export const CallManager = {
       document.removeEventListener('mouseup', dragEnd);
       document.removeEventListener('touchmove', dragMove);
       document.removeEventListener('touchend', dragEnd);
+      
+      // 添加极短延迟确保 click 事件能读取到 wasDragged 状态
+      setTimeout(() => {
+        if (!isDragging) {
+          this.wasDragged = false;
+        }
+      }, 50);
     };
 
     el.addEventListener('mousedown', dragStart);
-    el.addEventListener('touchstart', dragStart, { passive: true });
+    el.addEventListener('touchstart', dragStart, { passive: false });
   },
 
   renderMinimized() {
@@ -510,7 +515,7 @@ export const CallManager = {
       <div class="global-call-floating music-style" id="call-btn-expand" role="button" aria-label="展开通话">
         <div class="music-header">
           <div class="music-cover">
-            ${avatarHTML(this.characterAvatar, this.characterName, 48)}
+            ${avatarHTML(this.characterAvatar, this.characterName, 54)}
           </div>
           <div class="music-info">
             <div class="music-title">${this.characterName || 'Unknown'}</div>
@@ -522,16 +527,26 @@ export const CallManager = {
             <span class="eq-bar"></span>
             <span class="eq-bar"></span>
             <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
           </div>
         </div>
         
-        <div class="music-progress">
-          <span class="progress-time global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</span>
+        <div class="music-controls">
+          <span class="progress-time left global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</span>
           <div class="progress-track">
             <div class="progress-fill ${this.state === 'connected' ? 'active' : ''}"></div>
           </div>
-          <span class="progress-time duration-total">${this.state === 'connected' ? 'Live' : '...'}</span>
+          <span class="progress-time right duration-total">${this.state === 'connected' ? '-Live' : '--:--'}</span>
+        </div>
+
+        <div class="music-actions">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>
+          <div class="play-btn">
+            ${isPlaying ? 
+              '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' : 
+              '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>'
+            }
+          </div>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>
         </div>
       </div>
     `;

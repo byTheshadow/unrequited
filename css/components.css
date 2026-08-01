@@ -3471,3 +3471,239 @@
   opacity: 1;
   color: #dc2626;
 }
+/* ==========================================================================
+   五、 星图指引 (Tutorial) 特有样式与星座动效
+   ========================================================================== */
+
+.tutorial-container {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  padding-bottom: 60px;
+}
+
+/* 星图背景与动效容器 */
+.star-grid-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.constellation-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* --- 星座移动动效机制 --- */
+
+/* 星群1：缓慢做椭圆轨迹漂浮 */
+.constellation-group.group-1 {
+  animation: driftStarGroup1 35s ease-in-out infinite alternate;
+  transform-origin: 200px 150px;
+}
+
+/* 星群2：反向漂浮并伴随极慢的自转 */
+.constellation-group.group-2 {
+  animation: driftStarGroup2 40s ease-in-out infinite alternate;
+  transform-origin: 200px 500px;
+}
+
+/* 轨道虚线流动动效 */
+.orbit-path {
+  stroke-dasharray: 4, 8;
+  animation: orbitFlow 60s linear infinite;
+}
+.orbit-path.path-2 {
+  animation-direction: reverse;
+  animation-duration: 80s;
+}
+
+/* 单个星子的独立呼吸闪烁 */
+.twinkle-star {
+  animation: starTwinkle 4s ease-in-out infinite;
+}
+.twinkle-star:nth-child(2) { animation-delay: 1.5s; animation-duration: 5s; }
+.twinkle-star:nth-child(3) { animation-delay: 3s; animation-duration: 3.5s; }
+
+/* 星座连线的呼吸淡入淡出 */
+.constellation-line {
+  animation: linePulse 6s ease-in-out infinite alternate;
+}
+
+/* 动效关键帧 */
+@keyframes driftStarGroup1 {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(15px, -20px) rotate(1deg); }
+  100% { transform: translate(-10px, 15px) rotate(-1.5deg); }
+}
+
+@keyframes driftStarGroup2 {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(-20px, 15px) rotate(-1.5deg); }
+  100% { transform: translate(12px, -15px) rotate(1deg); }
+}
+
+@keyframes orbitFlow {
+  to {
+    stroke-dashoffset: -500;
+  }
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes linePulse {
+  0% { opacity: 0.15; }
+  100% { opacity: 0.45; }
+}
+
+/* --- 静态手账排版样式 --- */
+.tutorial-top-bar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
+}
+.tut-btn-circle {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-text-secondary);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.tut-btn-circle:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+.tut-title {
+  font-size: 13px;
+  letter-spacing: 6px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.tutorial-scroll-body {
+  position: relative;
+  z-index: 4;
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 24px 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tut-header {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 40px;
+}
+.tut-main-title {
+  font-family: serif, system-ui;
+  font-size: 20px;
+  font-weight: 300;
+  letter-spacing: 5px;
+  color: var(--color-text-primary);
+  margin-bottom: 8px;
+}
+.tut-subtitle {
+  font-size: 11px;
+  letter-spacing: 6px;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+.tut-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+}
+.tut-divider::before, .tut-divider::after {
+  content: '';
+  width: 40px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-border));
+}
+.tut-divider::after {
+  background: linear-gradient(270deg, transparent, var(--color-border));
+}
+.divider-diamond {
+  font-size: 10px;
+  color: var(--color-accent);
+  margin: 0 8px;
+  opacity: 0.7;
+}
+
+.tut-section {
+  position: relative;
+  margin-bottom: 40px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.section-number {
+  position: absolute;
+  top: -14px; left: 20px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  color: var(--color-accent);
+  font-weight: 500;
+  z-index: 2;
+}
+.section-title {
+  font-size: 13px;
+  letter-spacing: 3px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 14px;
+  border-left: 2px solid var(--color-accent);
+  padding-left: 8px;
+}
+.section-content {
+  font-size: 12px;
+  line-height: 1.8;
+  letter-spacing: 2px;
+  color: var(--color-text-secondary);
+  text-align: justify;
+}
+.section-content p {
+  margin-bottom: 10px;
+}
+.section-content p:last-child {
+  margin-bottom: 0;
+}
+.tut-highlight {
+  color: var(--color-accent);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.05);
+  font-weight: 500;
+}
+
+.tut-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--color-text-tertiary);
+  line-height: 2;
+}
+.star-cluster {
+  margin-top: 10px;
+  color: var(--color-accent);
+  opacity: 0.5;
+  letter-spacing: 6px;
+}

@@ -8,22 +8,31 @@ export function render(root) {
       <!-- 星图网格背景 -->
       <div class="star-grid-bg">
         <svg class="constellation-svg" viewBox="0 0 400 800" xmlns="http://www.w3.org/2000/svg">
-          <!-- 星座线装饰 -->
-          <circle cx="80" cy="180" r="2" fill="var(--color-accent)" opacity="0.6"/>
-          <circle cx="200" cy="120" r="3" fill="var(--color-accent)" opacity="0.8"/>
-          <circle cx="320" cy="220" r="1.5" fill="var(--color-accent)" opacity="0.5"/>
-          <line x1="80" y1="180" x2="200" y2="120" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3" stroke-dasharray="2,4" />
-          <line x1="200" y1="120" x2="320" y2="220" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3" stroke-dasharray="2,4" />
+          <!-- 星轨线 1 -->
+          <path class="orbit-path path-1" d="M-50,300 Q150,250 450,400" fill="none" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.15" />
           
-          <circle cx="100" cy="450" r="2" fill="var(--color-accent)" opacity="0.7"/>
-          <circle cx="180" cy="520" r="2.5" fill="var(--color-accent)" opacity="0.9"/>
-          <circle cx="300" cy="480" r="2" fill="var(--color-accent)" opacity="0.6"/>
-          <line x1="100" y1="450" x2="180" y2="520" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3"/>
-          <line x1="180" y1="520" x2="300" y2="480" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3"/>
+          <!-- 星群 1 (顶部) -->
+          <g class="constellation-group group-1">
+            <line class="constellation-line" x1="80" y1="180" x2="200" y2="120" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3" stroke-dasharray="2,4" />
+            <line class="constellation-line" x1="200" y1="120" x2="320" y2="220" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3" stroke-dasharray="2,4" />
+            
+            <circle class="twinkle-star" cx="80" cy="180" r="2" fill="var(--color-accent)" opacity="0.6"/>
+            <circle class="twinkle-star" cx="200" cy="120" r="3" fill="var(--color-accent)" opacity="0.8"/>
+            <circle class="twinkle-star" cx="320" cy="220" r="1.5" fill="var(--color-accent)" opacity="0.5"/>
+          </g>
 
-          <!-- 轨线 -->
-          <path d="M-50,300 Q150,250 450,400" fill="none" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.15" />
-          <path d="M-50,600 Q250,650 450,550" fill="none" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.15" />
+          <!-- 星轨线 2 -->
+          <path class="orbit-path path-2" d="M-50,600 Q250,650 450,550" fill="none" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.15" />
+          
+          <!-- 星群 2 (底部) -->
+          <g class="constellation-group group-2">
+            <line class="constellation-line" x1="100" y1="450" x2="180" y2="520" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3"/>
+            <line class="constellation-line" x1="180" y1="520" x2="300" y2="480" stroke="var(--color-accent)" stroke-width="0.5" opacity="0.3"/>
+            
+            <circle class="twinkle-star" cx="100" cy="450" r="2" fill="var(--color-accent)" opacity="0.7"/>
+            <circle class="twinkle-star" cx="180" cy="520" r="2.5" fill="var(--color-accent)" opacity="0.9"/>
+            <circle class="twinkle-star" cx="300" cy="480" r="2" fill="var(--color-accent)" opacity="0.6"/>
+          </g>
         </svg>
       </div>
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unrequited-shell-v15';
+const CACHE_NAME = 'unrequited-shell-v16';
 const CORE = [
   './',
   './index.html',
@@ -26,6 +26,8 @@ const CORE = [
   './js/pages/decks.js',
   './js/pages/settings/index.js',
   './js/pages/divination/index.js',
+  './js/pages/drift.js',
+  './js/pages/tutorial.js',
   './data/healingQuotes.json',
   './data/tarot.json',
   './data/lenormand.json',

@@ -7,6 +7,8 @@ const routes = {
   '/decks': () => import('./pages/decks.js'),
   '/settings': () => import('./pages/settings/index.js'),
   '/divination': () => import('./pages/divination/index.js'),
+  '/drift': () => import('./pages/drift.js'),
+  '/tutorial': () => import('./pages/tutorial.js')
 };
 
 let currentPage = null;

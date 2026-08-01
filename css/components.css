@@ -3439,7 +3439,6 @@
 .long-item-del:active { opacity: 1; color: #dc2626; }
 
 
-
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -3480,7 +3479,7 @@
   display: none !important;
 }
 
-/* ============ 全局头像样式污染强力重置 ============ */
+/* ============ 强力隔离全局头像样式污染 ============ */
 #global-call-overlay .avatar {
   position: relative !important;
   display: flex !important;
@@ -3593,7 +3592,7 @@
   display: block !important;
 }
 
-/* ---- 漂浮文字粒子 ---- */
+/* ---- 漂浮文字粒子（修复动画不起作用的问题） ---- */
 #particle-container {
   position: absolute !important;
   inset: 0 !important;
@@ -3610,15 +3609,18 @@
   font-size: var(--fc-size) !important;
   font-weight: 300 !important;
   color: var(--color-text-primary) !important;
-  opacity: 0 !important;
   text-shadow: 
     0 0 8px var(--color-accent),
-    0 0 16px rgba(255, 255, 255, 0.3) !important;
-  transform: translate3d(0, 0, 0) scale(0.8) rotate(var(--fc-r));
-  animation: floatCharUp var(--fc-dur) cubic-bezier(0.22, 0.61, 0.36, 1) forwards !important;
-  will-change: transform, opacity !important;
+    0 0 16px rgba(255, 255, 255, 0.4) !important;
   pointer-events: none !important;
   z-index: 2 !important;
+  will-change: transform, opacity !important;
+  
+  /* 注意：此处绝对不能加 !important，否则会强行覆盖动画中的值 */
+  opacity: 0;
+  transform: translate3d(0, 0, 0) scale(0.8) rotate(var(--fc-r));
+  
+  animation: floatCharUp var(--fc-dur) cubic-bezier(0.22, 0.61, 0.36, 1) forwards !important;
 }
 
 @keyframes floatCharUp {
@@ -3634,7 +3636,7 @@
   }
   100% {
     opacity: 0;
-    transform: translate3d(var(--fc-drift), var(--fc-rise), 0) scale(1.1) rotate(calc(var(--fc-r) + var(--fc-rr)));
+    transform: translate3d(var(--fc-drift), var(--fc-rise), 0) scale(1.15) rotate(calc(var(--fc-r) + var(--fc-rr)));
   }
 }
 
@@ -3783,8 +3785,9 @@
   gap: 8px !important;
 }
 
-/* 通话按钮：强制消除由于 wrapper 及 inline 导致的错位 */
+/* 通话按钮：强力对齐 & 重置全局 SVG */
 .call-btn {
+  position: relative !important;
   width: 64px !important;
   height: 64px !important;
   min-width: 64px !important;
@@ -3794,13 +3797,6 @@
   color: var(--color-text-primary) !important;
   background: var(--color-bg-secondary) !important;
   box-shadow: 0 6px 16px var(--color-shadow) !important;
-  
-  /* 强制 Flex 居中 */
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  
-  /* 清除一切内边距和外边距污染 */
   padding: 0 !important;
   margin: 0 !important;
   outline: none !important;
@@ -3818,16 +3814,19 @@
   transform: scale(0.93) !important;
 }
 
-/* 按钮内 SVG 绝对居中规则 */
-.call-btn svg {
+/* 用绝对定位强制使图标在按钮中央，防止被全局 flex、基线、margin 等污染 */
+#global-call-overlay .call-btn svg {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
   width: 24px !important;
   height: 24px !important;
   min-width: 24px !important;
   min-height: 24px !important;
-  display: block !important;
   margin: 0 !important;
   padding: 0 !important;
-  flex-shrink: 0 !important;
+  display: block !important;
   color: currentColor !important;
 }
 
@@ -3863,15 +3862,17 @@
 }
 
 /* ============ 音乐播放器悬浮窗 ============ */
-.global-call-floating.call-player-widget {
+#global-call-overlay .call-player-widget {
   position: fixed !important;
   top: 40px !important;
   right: 16px !important;
   left: auto !important;
   bottom: auto !important;
-  width: 280px !important;
+  width: 320px !important;
   max-width: calc(100vw - 32px) !important;
-  padding: 14px !important;
+  height: auto !important;
+  min-height: 140px !important;
+  padding: 16px !important;
   border-radius: var(--radius-lg, 22px) !important;
   color: var(--color-text-primary) !important;
   box-sizing: border-box !important;
@@ -3889,12 +3890,14 @@
   transform: none !important;
 }
 
-.call-player-inner {
+#global-call-overlay .call-player-inner {
   position: relative !important;
-  display: block !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
 }
 
-.call-player-drag-handle {
+#global-call-overlay .call-player-drag-handle {
   display: flex !important;
   align-items: center !important;
   gap: 12px !important;
@@ -3905,51 +3908,67 @@
   width: 100% !important;
   box-sizing: border-box !important;
 }
-.call-player-drag-handle:active {
+#global-call-overlay .call-player-drag-handle:active {
   cursor: grabbing !important;
 }
 
-/* 播放器封面（头像）强制覆写 */
-.call-player-cover {
+/* 播放器头像框：隔绝全局 avatar 大小干扰 */
+#global-call-overlay .call-player-cover {
   width: 48px !important;
   height: 48px !important;
   min-width: 48px !important;
   min-height: 48px !important;
+  max-width: 48px !important;
+  max-height: 48px !important;
   border-radius: var(--radius-sm, 8px) !important;
   overflow: hidden !important;
   background: var(--color-bg-tertiary) !important;
   flex-shrink: 0 !important;
   display: block !important;
-  box-sizing: border-box !important;
+  position: relative !important;
 }
 
-.call-player-cover .avatar {
-  width: 48px !important;
-  height: 48px !important;
-  min-width: 48px !important;
-  min-height: 48px !important;
-  border-radius: var(--radius-sm, 8px) !important;
-  display: flex !important;
-  overflow: hidden !important;
+#global-call-overlay .call-player-cover .avatar {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  border-radius: 0 !important;
 }
 
-.call-player-cover .avatar img {
-  width: 48px !important;
-  height: 48px !important;
+#global-call-overlay .call-player-cover .avatar img {
+  width: 100% !important;
+  height: 100% !important;
   object-fit: cover !important;
-  border-radius: var(--radius-sm, 8px) !important;
-  display: block !important;
 }
 
-.call-player-meta {
+/* 播放器 Meta 文字排版 */
+#global-call-overlay .call-player-meta {
   flex: 1 !important;
   min-width: 0 !important;
   overflow: hidden !important;
-  padding-right: 20px !important;
+  padding-right: 24px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  align-items: flex-start !important;
+  justify-content: center !important;
   box-sizing: border-box !important;
 }
 
-.call-player-kicker {
+/* 彻底清除 meta 内部全局继承的 margins 和 paddings */
+#global-call-overlay .call-player-meta * {
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  line-height: 1.2 !important;
+}
+
+#global-call-overlay .call-player-kicker {
   display: inline-flex !important;
   align-items: center !important;
   gap: 4px !important;
@@ -3960,12 +3979,11 @@
   font-size: 9px !important;
   font-weight: 700 !important;
   color: var(--color-accent) !important;
-  margin-bottom: 2px !important;
   letter-spacing: 0.06em !important;
   text-transform: uppercase !important;
 }
 
-.call-player-live-dot {
+#global-call-overlay .call-player-live-dot {
   width: 5px !important;
   height: 5px !important;
   border-radius: 50% !important;
@@ -3975,30 +3993,27 @@
   flex-shrink: 0 !important;
 }
 
-.call-player-name {
-  margin: 0 !important;
-  padding: 0 !important;
+#global-call-overlay .call-player-name {
   font-size: 15px !important;
   font-weight: 700 !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   color: var(--color-text-primary) !important;
-  line-height: 1.3 !important;
+  width: 100% !important;
 }
 
-.call-player-subtitle {
-  margin: 2px 0 0 0 !important;
-  padding: 0 !important;
+#global-call-overlay .call-player-subtitle {
   font-size: 11px !important;
   color: var(--color-text-secondary) !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
-  line-height: 1.3 !important;
+  width: 100% !important;
 }
 
-.call-player-mini-btn {
+/* 缩小按钮 */
+#global-call-overlay .call-player-mini-btn {
   position: absolute !important;
   top: 0 !important;
   right: 0 !important;
@@ -4016,11 +4031,11 @@
   padding: 0 !important;
   z-index: 5 !important;
 }
-.call-player-mini-btn:hover {
+#global-call-overlay .call-player-mini-btn:hover {
   background: var(--color-bg-primary) !important;
   color: var(--color-text-primary) !important;
 }
-.call-player-mini-btn span {
+#global-call-overlay .call-player-mini-btn span {
   width: 3px !important;
   height: 3px !important;
   border-radius: 50% !important;
@@ -4030,14 +4045,14 @@
 }
 
 /* 音频波形进度条 */
-.call-player-progress-bar {
-  margin-top: 12px !important;
+#global-call-overlay .call-player-progress-bar {
+  margin-top: 2px !important;
   display: flex !important;
   align-items: center !important;
   gap: 8px !important;
 }
 
-.call-player-time {
+#global-call-overlay .call-player-time {
   font-size: 10px !important;
   font-weight: 600 !important;
   color: var(--color-text-secondary) !important;
@@ -4046,29 +4061,30 @@
   flex-shrink: 0 !important;
 }
 
-.call-player-track {
+#global-call-overlay .call-player-track {
   flex: 1 !important;
   height: 24px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 2px !important;
+  gap: 2.5px !important;
   overflow: hidden !important;
 }
 
-.call-player-bar {
+#global-call-overlay .call-player-bar {
   flex: 1 !important;
   height: 4px !important;
   border-radius: 2px !important;
   background: var(--color-border) !important;
   display: block !important;
+  transition: height 0.1s ease !important;
 }
 
-.call-player-bar.is-active {
+#global-call-overlay .call-player-bar.is-active {
   background: var(--color-accent) !important;
 }
 
-.call-player-live-label {
+#global-call-overlay .call-player-live-label {
   font-size: 9px !important;
   font-weight: 800 !important;
   background: var(--color-accent) !important;
@@ -4079,22 +4095,21 @@
   flex-shrink: 0 !important;
 }
 
-.call-player-bottom {
-  margin-top: 10px !important;
+#global-call-overlay .call-player-bottom {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
 }
 
-/* 通话中左下角音频跳动动效 */
-.call-player-eq {
+/* 通话中左下角音频跳动 */
+#global-call-overlay .call-player-eq {
   display: flex !important;
   align-items: flex-end !important;
   gap: 2.5px !important;
   height: 16px !important;
   width: 20px !important;
 }
-.call-player-eq span {
+#global-call-overlay .call-player-eq span {
   display: block !important;
   width: 3px !important;
   height: 3px !important;
@@ -4103,27 +4118,27 @@
   opacity: 0.4 !important;
   transition: height 0.1s ease !important;
 }
-.call-player-eq.playing span {
+#global-call-overlay .call-player-eq.playing span {
   animation: eqBounce 0.8s ease-in-out infinite alternate !important;
   opacity: 1 !important;
 }
-.call-player-eq.playing span:nth-child(1) { animation-delay: -0.2s !important; animation-duration: 0.7s !important; }
-.call-player-eq.playing span:nth-child(2) { animation-delay: -0.5s !important; animation-duration: 0.9s !important; }
-.call-player-eq.playing span:nth-child(3) { animation-delay: -0.1s !important; animation-duration: 0.6s !important; }
-.call-player-eq.playing span:nth-child(4) { animation-delay: -0.4s !important; animation-duration: 0.8s !important; }
+#global-call-overlay .call-player-eq.playing span:nth-child(1) { animation-delay: -0.2s !important; animation-duration: 0.7s !important; }
+#global-call-overlay .call-player-eq.playing span:nth-child(2) { animation-delay: -0.5s !important; animation-duration: 0.9s !important; }
+#global-call-overlay .call-player-eq.playing span:nth-child(3) { animation-delay: -0.1s !important; animation-duration: 0.6s !important; }
+#global-call-overlay .call-player-eq.playing span:nth-child(4) { animation-delay: -0.4s !important; animation-duration: 0.8s !important; }
 
 @keyframes eqBounce {
   0% { height: 3px; }
   100% { height: 16px; }
 }
 
-.call-player-hint {
+#global-call-overlay .call-player-hint {
   font-size: 10px !important;
   color: var(--color-text-tertiary) !important;
 }
 
 /* ============ 悬浮球 ============ */
-.global-call-floating.call-ball-widget {
+#global-call-overlay .call-ball-widget {
   position: fixed !important;
   top: 40px !important;
   right: 16px !important;
@@ -4154,11 +4169,11 @@
   transform: none !important;
   aspect-ratio: 1 / 1 !important;
 }
-.global-call-floating.call-ball-widget:active {
+#global-call-overlay .call-ball-widget:active {
   cursor: grabbing !important;
 }
 
-.call-ball-avatar {
+#global-call-overlay .call-ball-avatar {
   position: absolute !important;
   top: 5px !important;
   left: 5px !important;
@@ -4170,25 +4185,29 @@
   display: flex !important;
 }
 
-.call-ball-avatar .avatar {
-  width: 48px !important;
-  height: 48px !important;
-  min-width: 48px !important;
-  min-height: 48px !important;
+#global-call-overlay .call-ball-avatar .avatar {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 100% !important;
+  min-height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
   border-radius: 50% !important;
   display: flex !important;
   overflow: hidden !important;
 }
 
-.call-ball-avatar .avatar img {
-  width: 48px !important;
-  height: 48px !important;
+#global-call-overlay .call-ball-avatar .avatar img {
+  width: 100% !important;
+  height: 100% !important;
   border-radius: 50% !important;
   object-fit: cover !important;
   display: block !important;
 }
 
-.call-ball-ring {
+#global-call-overlay .call-ball-ring {
   position: absolute !important;
   inset: -4px !important;
   border-radius: 50% !important;
@@ -4203,7 +4222,7 @@
   100% { transform: scale(1.3); opacity: 0; }
 }
 
-.call-ball-status-dot {
+#global-call-overlay .call-ball-status-dot {
   position: absolute !important;
   bottom: 2px !important;
   right: 2px !important;

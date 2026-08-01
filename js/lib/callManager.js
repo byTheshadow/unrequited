@@ -345,12 +345,13 @@ export const CallManager = {
       if (!c) return;
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-      // 控制文字粒子生成在屏幕中下部（50%~80% 之间），避开纯边缘，使得浮动动效更容易被看清
+      
+      // 改为在屏幕中下部（50vh 到 75vh 之间）安全区域生成，避免被最底部的动作按钮遮挡
       const baseX = 10 + Math.random() * 70;
-      const baseY = 55 + Math.random() * 25; 
+      const baseY = 50 + Math.random() * 25; 
 
       for (let i = 0; i < phrase.length; i++) {
-        const delay = i * 220; // 220ms 间隔，形成逐字往上飘散的效果
+        const delay = i * 220; // 逐字飘浮间隔
 
         setTimeout(() => {
           if (this.viewMode !== 'full' || this.state === 'idle') return;
@@ -364,12 +365,13 @@ export const CallManager = {
           const x = baseX + (i * 2.2); 
           const size = 16 + Math.random() * 14; 
           const dur = 4.5 + Math.random() * 3.5; 
-          const rise = -(200 + Math.random() * 200); // 浮升高度
-          const drift = Math.random() * 60 - 30; // 飘移宽度
+          const rise = -(200 + Math.random() * 200); // 往上飘的像素距离
+          const drift = Math.random() * 60 - 30; // 左右飘移扰动
           const r = Math.random() * 16 - 8; 
           const rr = Math.random() * 20 - 10; 
           const alpha = 0.4 + Math.random() * 0.4; 
 
+          // 将变量传入 CSS
           el.style.cssText = `
             --fc-x: ${Math.max(5, Math.min(95, x))}%;
             --fc-y: ${baseY}%;
@@ -388,9 +390,9 @@ export const CallManager = {
       }
     };
 
-    // 初始发射
-    for (let i = 0; i < 4; i++) {
-      setTimeout(emitPhrase, i * 600);
+    // 初始化即发射几组文字
+    for (let i = 0; i < 3; i++) {
+      setTimeout(emitPhrase, i * 800);
     }
     this.particleInterval = setInterval(emitPhrase, 3000);
   },
@@ -401,14 +403,12 @@ export const CallManager = {
     if (c) c.innerHTML = '';
   },
 
-  // ---- 拖拽核心功能 ----
+  // ---- 拖拽核心功能（重构绑定在 document，防止移动端断连） ----
   makeElementDraggable(targetEl, handleEl, mode) {
     if (!targetEl) return;
     const dragHandle = handleEl || targetEl;
-    let startX = 0, startY = 0, initialX = 0, initialY = 0, hasMoved = false;
     const posStore = this.floatingPos[mode] || this.floatingPos.player;
 
-    // 强制设置 touch-action 行为，这是移动端端拖拽不被打断的绝对保证
     targetEl.style.touchAction = 'none';
     dragHandle.style.touchAction = 'none';
 
@@ -421,35 +421,12 @@ export const CallManager = {
       targetEl.style.margin = '0';
     }
 
-    const onDown = (e) => {
-      if (e.button !== undefined && e.button !== 0) return;
-      this.dragState.active = true;
-      this.dragState.moved = false;
-      this.dragState.suppressClick = false;
-      this.dragState.pointerId = e.pointerId;
-      this.dragState.mode = mode;
-      hasMoved = false;
+    let startX = 0, startY = 0;
+    let initialX = 0, initialY = 0;
+    let hasMoved = false;
 
-      const rect = targetEl.getBoundingClientRect();
-      startX = e.clientX;
-      startY = e.clientY;
-      initialX = rect.left;
-      initialY = rect.top;
-
-      targetEl.style.left = initialX + 'px';
-      targetEl.style.top = initialY + 'px';
-      targetEl.style.right = 'auto';
-      targetEl.style.bottom = 'auto';
-      targetEl.style.transition = 'none';
-      targetEl.style.transform = 'none';
-      targetEl.style.margin = '0';
-
-      try { dragHandle.setPointerCapture(e.pointerId); } catch (err) {}
-    };
-
-    const onMove = (e) => {
+    const onPointerMove = (e) => {
       if (!this.dragState.active || this.dragState.mode !== mode) return;
-      if (this.dragState.pointerId !== null && e.pointerId !== this.dragState.pointerId) return;
 
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
@@ -476,9 +453,13 @@ export const CallManager = {
       if (e.cancelable) e.preventDefault();
     };
 
-    const onEnd = (e) => {
+    const onPointerUp = (e) => {
+      // 结束拖拽后卸载全局监听器
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerUp);
+
       if (!this.dragState.active || this.dragState.mode !== mode) return;
-      try { dragHandle.releasePointerCapture(e.pointerId); } catch (err) {}
 
       this.dragState.active = false;
       this.dragState.pointerId = null;
@@ -488,7 +469,8 @@ export const CallManager = {
         const rect = targetEl.getBoundingClientRect();
         const m = 16;
         let tx, ty = Math.max(m, Math.min(rect.top, window.innerHeight - rect.height - m));
-        // 靠边贴合机制
+        
+        // 磁吸贴边
         if (rect.left + rect.width / 2 < window.innerWidth / 2) {
           tx = m;
         } else {
@@ -511,10 +493,39 @@ export const CallManager = {
       }
     };
 
-    dragHandle.addEventListener('pointerdown', onDown, { passive: false });
-    dragHandle.addEventListener('pointermove', onMove, { passive: false });
-    dragHandle.addEventListener('pointerup', onEnd);
-    dragHandle.addEventListener('pointercancel', onEnd);
+    const onPointerDown = (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+
+      this.dragState.active = true;
+      this.dragState.moved = false;
+      this.dragState.suppressClick = false;
+      this.dragState.pointerId = e.pointerId;
+      this.dragState.mode = mode;
+      hasMoved = false;
+
+      const rect = targetEl.getBoundingClientRect();
+      startX = e.clientX;
+      startY = e.clientY;
+      initialX = rect.left;
+      initialY = rect.top;
+
+      targetEl.style.left = initialX + 'px';
+      targetEl.style.top = initialY + 'px';
+      targetEl.style.right = 'auto';
+      targetEl.style.bottom = 'auto';
+      targetEl.style.transition = 'none';
+      targetEl.style.transform = 'none';
+      targetEl.style.margin = '0';
+
+      // 绑定全局 document 级别监听器，防止滑动过快移出元素丢失追踪
+      document.addEventListener('pointermove', onPointerMove, { passive: false });
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
+
+      if (e.cancelable) e.preventDefault();
+    };
+
+    dragHandle.addEventListener('pointerdown', onPointerDown, { passive: false });
   },
 
   wasJustDragged() {

@@ -192,21 +192,27 @@ function safeCssUrl(value) {
 
 export const CallManager = {
   state: 'idle', // 'idle' | 'dialing' | 'incoming' | 'connected'
+  viewMode: 'full', // 'full' | 'player' | 'ball'
+
   conversationId: null,
   characterId: null,
   characterName: '',
   characterAvatar: '',
   isUserInitiator: false,
+
   startTime: null,
   timerInterval: null,
   autoAnswerTimeout: null,
-  overlay: null,
-  minimized: false,
   particleInterval: null,
 
+  overlay: null,
+
+  // 兼容你原先可能用到的 minimized 字段
+  minimized: false,
+
   floatingPos: {
-    x: null,
-    y: null,
+    player: { x: null, y: null },
+    ball: { x: null, y: null },
   },
 
   dragState: {
@@ -214,6 +220,7 @@ export const CallManager = {
     moved: false,
     suppressClick: false,
     pointerId: null,
+    mode: null,
   },
 
   init() {
@@ -236,6 +243,8 @@ export const CallManager = {
     this.characterName = characterName;
     this.characterAvatar = characterAvatar;
     this.isUserInitiator = isUserInitiator;
+
+    this.viewMode = 'full';
     this.minimized = false;
 
     if (isUserInitiator) {
@@ -253,6 +262,7 @@ export const CallManager = {
   minimize() {
     if (this.state === 'idle') return;
 
+    this.viewMode = 'player';
     this.minimized = true;
     this.render();
   },
@@ -260,15 +270,32 @@ export const CallManager = {
   expand() {
     if (this.state === 'idle') return;
 
+    this.viewMode = 'full';
     this.minimized = false;
     this.render();
   },
 
+  showPlayer() {
+    if (this.state === 'idle') return;
+
+    this.viewMode = 'player';
+    this.minimized = true;
+    this.render();
+  },
+
+  showBall() {
+    if (this.state === 'idle') return;
+
+    this.viewMode = 'ball';
+    this.minimized = true;
+    this.render();
+  },
+
   toggleMinimize() {
-    if (this.minimized) {
-      this.expand();
+    if (this.viewMode === 'full') {
+      this.showPlayer();
     } else {
-      this.minimize();
+      this.expand();
     }
   },
 
@@ -360,6 +387,7 @@ export const CallManager = {
     }
 
     this.state = 'idle';
+    this.viewMode = 'full';
     this.conversationId = null;
     this.characterId = null;
     this.characterName = '';
@@ -397,17 +425,17 @@ export const CallManager = {
     const elapsed = this.getElapsedSeconds();
     const timeText = formatDuration(elapsed);
 
-    const timerEl = this.overlay.querySelector('.global-call-time');
-    if (timerEl) {
-      timerEl.textContent = timeText;
+    const fullTimerEl = this.overlay.querySelector('.global-call-time');
+    if (fullTimerEl) {
+      fullTimerEl.textContent = timeText;
     }
 
-    const miniTimeEl = this.overlay.querySelector('.global-call-mini-time');
-    if (miniTimeEl) {
-      miniTimeEl.textContent = this.state === 'connected' ? timeText : '00:00';
+    const playerTimeEl = this.overlay.querySelector('.call-player-time');
+    if (playerTimeEl) {
+      playerTimeEl.textContent = this.state === 'connected' ? timeText : '00:00';
     }
 
-    const progressFill = this.overlay.querySelector('.progress-fill');
+    const progressFill = this.overlay.querySelector('.call-player-fill');
     if (progressFill) {
       const percent = this.state === 'connected'
         ? Math.max(3, Math.min(100, ((elapsed % 180) / 180) * 100))
@@ -435,10 +463,15 @@ export const CallManager = {
       '别挂断',
       '时间正在发光',
       '沉默也有回音',
+      '频率正在靠近',
+      '别让声音熄灭',
     ];
 
     const createParticle = () => {
-      if (this.minimized || this.state === 'idle') return;
+      if (this.viewMode !== 'full' || this.state === 'idle') return;
+
+      const currentContainer = this.overlay.querySelector('#particle-container');
+      if (!currentContainer) return;
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
       const char = phrase[Math.floor(Math.random() * phrase.length)];
@@ -467,7 +500,7 @@ export const CallManager = {
       el.style.setProperty('--alpha', alpha);
       el.style.setProperty('--blur', blur);
 
-      container.appendChild(el);
+      currentContainer.appendChild(el);
 
       setTimeout(() => {
         if (el.parentNode) {
@@ -501,32 +534,37 @@ export const CallManager = {
     }
   },
 
-  makeElementDraggable(el) {
-    if (!el) return;
+  makeElementDraggable(targetEl, handleEl, mode) {
+    if (!targetEl) return;
 
+    const dragHandle = handleEl || targetEl;
     let startX = 0;
     let startY = 0;
     let initialX = 0;
     let initialY = 0;
 
-    el.style.pointerEvents = 'auto';
-    el.style.touchAction = 'none';
-    el.style.userSelect = 'none';
-    el.style.webkitUserSelect = 'none';
+    const posStore = this.floatingPos[mode] || this.floatingPos.player;
 
-    const applySavedPosition = () => {
-      if (this.floatingPos.x !== null && this.floatingPos.y !== null) {
-        el.style.left = `${this.floatingPos.x}px`;
-        el.style.top = `${this.floatingPos.y}px`;
-        el.style.right = 'auto';
-        el.style.bottom = 'auto';
-        el.style.transform = 'none';
-        el.style.margin = '0';
-      }
-    };
+    targetEl.style.pointerEvents = 'auto';
+    targetEl.style.touchAction = 'none';
+    targetEl.style.userSelect = 'none';
+    targetEl.style.webkitUserSelect = 'none';
+
+    dragHandle.style.touchAction = 'none';
+    dragHandle.style.userSelect = 'none';
+    dragHandle.style.webkitUserSelect = 'none';
+
+    if (posStore.x !== null && posStore.y !== null) {
+      targetEl.style.left = `${posStore.x}px`;
+      targetEl.style.top = `${posStore.y}px`;
+      targetEl.style.right = 'auto';
+      targetEl.style.bottom = 'auto';
+      targetEl.style.transform = 'none';
+      targetEl.style.margin = '0';
+    }
 
     const moveTo = (x, y) => {
-      const rect = el.getBoundingClientRect();
+      const rect = targetEl.getBoundingClientRect();
 
       const maxX = Math.max(0, window.innerWidth - rect.width);
       const maxY = Math.max(0, window.innerHeight - rect.height);
@@ -534,47 +572,71 @@ export const CallManager = {
       const nextX = Math.max(0, Math.min(x, maxX));
       const nextY = Math.max(0, Math.min(y, maxY));
 
-      el.style.left = `${nextX}px`;
-      el.style.top = `${nextY}px`;
-      el.style.right = 'auto';
-      el.style.bottom = 'auto';
-      el.style.transform = 'none';
-      el.style.margin = '0';
+      targetEl.style.left = `${nextX}px`;
+      targetEl.style.top = `${nextY}px`;
+      targetEl.style.right = 'auto';
+      targetEl.style.bottom = 'auto';
+      targetEl.style.transform = 'none';
+      targetEl.style.margin = '0';
 
-      this.floatingPos.x = nextX;
-      this.floatingPos.y = nextY;
+      posStore.x = nextX;
+      posStore.y = nextY;
     };
 
-    applySavedPosition();
+    const getPoint = (e) => {
+      if (e.touches && e.touches[0]) {
+        return {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+        };
+      }
 
-    const onPointerDown = (e) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.changedTouches && e.changedTouches[0]) {
+        return {
+          x: e.changedTouches[0].clientX,
+          y: e.changedTouches[0].clientY,
+        };
+      }
+
+      return {
+        x: e.clientX,
+        y: e.clientY,
+      };
+    };
+
+    const onStart = (e) => {
+      if (e.type === 'mousedown' && e.button !== 0) return;
 
       this.dragState.active = true;
       this.dragState.moved = false;
       this.dragState.suppressClick = false;
-      this.dragState.pointerId = e.pointerId;
+      this.dragState.mode = mode;
 
-      const rect = el.getBoundingClientRect();
+      const point = getPoint(e);
+      const rect = targetEl.getBoundingClientRect();
 
-      startX = e.clientX;
-      startY = e.clientY;
+      startX = point.x;
+      startY = point.y;
       initialX = rect.left;
       initialY = rect.top;
 
-      try {
-        el.setPointerCapture(e.pointerId);
-      } catch (err) {}
+      document.addEventListener('mousemove', onMove, { passive: false });
+      document.addEventListener('mouseup', onEnd, { passive: false });
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('touchend', onEnd, { passive: false });
+      document.addEventListener('touchcancel', onEnd, { passive: false });
 
-      e.preventDefault();
+      if (e.cancelable) {
+        e.preventDefault();
+      }
     };
 
-    const onPointerMove = (e) => {
-      if (!this.dragState.active) return;
-      if (this.dragState.pointerId !== e.pointerId) return;
+    const onMove = (e) => {
+      if (!this.dragState.active || this.dragState.mode !== mode) return;
 
-      const dx = e.clientX - startX;
-      const dy = e.clientY - startY;
+      const point = getPoint(e);
+      const dx = point.x - startX;
+      const dy = point.y - startY;
 
       if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
         this.dragState.moved = true;
@@ -585,50 +647,44 @@ export const CallManager = {
 
       moveTo(initialX + dx, initialY + dy);
 
-      e.preventDefault();
+      if (e.cancelable) {
+        e.preventDefault();
+      }
     };
 
-    const onPointerEnd = (e) => {
-      if (!this.dragState.active) return;
-      if (this.dragState.pointerId !== e.pointerId) return;
+    const onEnd = () => {
+      if (!this.dragState.active || this.dragState.mode !== mode) return;
 
       this.dragState.active = false;
+      this.dragState.mode = null;
 
-      try {
-        el.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-
-      this.dragState.pointerId = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onEnd);
 
       if (this.dragState.suppressClick) {
         setTimeout(() => {
           this.dragState.suppressClick = false;
           this.dragState.moved = false;
-        }, 140);
+        }, 160);
       } else {
         this.dragState.moved = false;
       }
     };
 
-    const onClick = (e) => {
-      if (this.dragState.suppressClick || this.dragState.moved) {
-        e.preventDefault();
-        e.stopPropagation();
-        return;
-      }
-
-      this.expand();
-    };
-
-    el.addEventListener('pointerdown', onPointerDown);
-    el.addEventListener('pointermove', onPointerMove);
-    el.addEventListener('pointerup', onPointerEnd);
-    el.addEventListener('pointercancel', onPointerEnd);
-    el.addEventListener('lostpointercapture', onPointerEnd);
-    el.addEventListener('click', onClick);
+    dragHandle.addEventListener('mousedown', onStart);
+    dragHandle.addEventListener('touchstart', onStart, { passive: false });
   },
 
-  renderMinimized() {
+  wasJustDragged() {
+    return this.dragState.suppressClick || this.dragState.moved;
+  },
+
+  renderPlayer() {
+    this.stopParticles();
+
     const statusText = this.getStatusText();
     const timeText = formatDuration(this.getElapsedSeconds());
     const isPlaying = this.state === 'connected' || this.state === 'dialing' || this.state === 'incoming';
@@ -636,47 +692,51 @@ export const CallManager = {
       ? Math.max(3, Math.min(100, ((this.getElapsedSeconds() % 180) / 180) * 100))
       : 0;
 
-    this.overlay.className = 'global-call-active global-call-minimized';
+    this.overlay.className = 'global-call-active global-call-player';
 
     this.overlay.innerHTML = `
-      <div class="global-call-floating music-style" id="call-btn-expand" role="button" aria-label="展开通话">
-        <div class="music-player-inner">
-          <div class="music-header">
-            <div class="music-cover">
+      <div class="global-call-floating call-player-widget" id="global-call-player" role="button" aria-label="展开通话">
+        <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="最小化为悬浮球">
+          <span></span>
+        </button>
+
+        <div class="call-player-inner">
+          <div class="call-player-drag-handle" id="call-player-drag-handle">
+            <div class="call-player-cover">
               ${avatarHTML(this.characterAvatar, this.characterName, 62)}
             </div>
 
-            <div class="music-info">
-              <div class="music-title">${escapeHtml(this.characterName || 'Unknown')}</div>
-              <div class="music-subtitle">${escapeHtml(this.state === 'connected' ? '正在通话...' : statusText)}</div>
+            <div class="call-player-meta">
+              <div class="call-player-name">${escapeHtml(this.characterName || 'Unknown')}</div>
+              <div class="call-player-subtitle">${escapeHtml(this.state === 'connected' ? '正在通话...' : statusText)}</div>
             </div>
 
-            <div class="music-eq ${isPlaying ? 'playing' : ''}" aria-hidden="true">
-              <span class="eq-bar"></span>
-              <span class="eq-bar"></span>
-              <span class="eq-bar"></span>
-              <span class="eq-bar"></span>
+            <div class="call-player-eq ${isPlaying ? 'playing' : ''}" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
           </div>
 
-          <div class="music-progress">
-            <span class="progress-time global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</span>
+          <div class="call-player-progress">
+            <span class="call-player-time">${this.state === 'connected' ? timeText : '00:00'}</span>
 
-            <div class="progress-track">
-              <div class="progress-fill" style="width: ${progress}%;"></div>
+            <div class="call-player-track">
+              <div class="call-player-fill" style="width: ${progress}%;"></div>
             </div>
 
-            <span class="duration-total">${this.state === 'connected' ? 'LIVE' : '...'}</span>
+            <span class="call-player-live">${this.state === 'connected' ? 'LIVE' : '...'}</span>
           </div>
 
-          <div class="music-actions" aria-hidden="true">
-            <div class="music-action">
+          <div class="call-player-controls" aria-hidden="true">
+            <div class="call-player-control">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M11 18.5 3.5 12 11 5.5v13Zm9 0L12.5 12 20 5.5v13Z"/>
               </svg>
             </div>
 
-            <div class="music-action pause">
+            <div class="call-player-control pause">
               ${
                 isPlaying
                   ? `
@@ -693,7 +753,7 @@ export const CallManager = {
               }
             </div>
 
-            <div class="music-action">
+            <div class="call-player-control">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M13 5.5 20.5 12 13 18.5v-13Zm-9 0L11.5 12 4 18.5v-13Z"/>
               </svg>
@@ -703,17 +763,82 @@ export const CallManager = {
       </div>
     `;
 
-    const expandBtn = this.overlay.querySelector('#call-btn-expand');
+    const player = this.overlay.querySelector('#global-call-player');
+    const handle = this.overlay.querySelector('#call-player-drag-handle');
+    const toBallBtn = this.overlay.querySelector('#call-btn-to-ball');
 
-    if (expandBtn) {
-      this.makeElementDraggable(expandBtn);
+    if (player) {
+      this.makeElementDraggable(player, handle || player, 'player');
+
+      player.addEventListener('click', (e) => {
+        if (this.wasJustDragged()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
+        this.expand();
+      });
+    }
+
+    if (toBallBtn) {
+      toBallBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.wasJustDragged()) return;
+
+        this.showBall();
+      });
     }
 
     this.updateTimer();
   },
 
+  renderBall() {
+    this.stopParticles();
+
+    const isPlaying = this.state === 'connected' || this.state === 'dialing' || this.state === 'incoming';
+
+    this.overlay.className = 'global-call-active global-call-ball';
+
+    this.overlay.innerHTML = `
+      <div class="global-call-floating call-ball-widget" id="global-call-ball" role="button" aria-label="展开音乐通话窗口">
+        <div class="call-ball-ring"></div>
+
+        <div class="call-ball-avatar">
+          ${avatarHTML(this.characterAvatar, this.characterName, 58)}
+        </div>
+
+        <div class="call-ball-status-dot"></div>
+
+        <div class="call-ball-eq ${isPlaying ? 'playing' : ''}" aria-hidden="true">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
+    `;
+
+    const ball = this.overlay.querySelector('#global-call-ball');
+
+    if (ball) {
+      this.makeElementDraggable(ball, ball, 'ball');
+
+      ball.addEventListener('click', (e) => {
+        if (this.wasJustDragged()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+
+        this.showPlayer();
+      });
+    }
+  },
+
   renderFull() {
-    this.overlay.className = 'global-call-active global-call-expanded';
+    this.overlay.className = 'global-call-active global-call-full';
 
     const statusText = this.getScreenStatusText();
     const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 132);
@@ -802,7 +927,7 @@ export const CallManager = {
 
         <div class="global-call-content">
           <div class="global-call-info-group">
-            <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
+            <div class="global-call-avatar-wrapper">
               ${avatarHtmlStr}
             </div>
 
@@ -829,7 +954,7 @@ export const CallManager = {
     const hangupBtn = this.overlay.querySelector('#call-btn-hangup');
 
     if (minimizeBtn) {
-      minimizeBtn.onclick = () => this.minimize();
+      minimizeBtn.onclick = () => this.showPlayer();
     }
 
     if (acceptBtn) {
@@ -845,6 +970,7 @@ export const CallManager = {
     }
 
     this.startParticles();
+    this.updateTimer();
   },
 
   render() {
@@ -857,11 +983,16 @@ export const CallManager = {
       return;
     }
 
-    if (this.minimized) {
-      this.stopParticles();
-      this.renderMinimized();
-    } else {
-      this.renderFull();
+    if (this.viewMode === 'ball') {
+      this.renderBall();
+      return;
     }
+
+    if (this.viewMode === 'player') {
+      this.renderPlayer();
+      return;
+    }
+
+    this.renderFull();
   },
 };

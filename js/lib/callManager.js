@@ -16,18 +16,9 @@ const SVG_MINIMIZE = `
   </svg>
 `;
 
-const SVG_EXPAND = `
-  <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
-    stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <polyline points="15 3 21 3 21 9"/>
-    <polyline points="9 21 3 21 3 15"/>
-    <line x1="21" y1="3" x2="14" y2="10"/>
-    <line x1="3" y1="21" x2="10" y2="14"/>
-  </svg>
-`;
-
 function getAudioContext() {
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+
   if (!AudioContextClass) {
     console.warn('Web Audio API is not supported in this browser.');
     return null;
@@ -98,7 +89,7 @@ function playIncomingRing() {
   soundGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.2);
 }
 
-// 拨号音 (嘟——嘟——)
+// 拨号音
 function playDialingTone() {
   stopSound();
 
@@ -106,42 +97,45 @@ function playDialingTone() {
   if (!ctx) return;
 
   soundGain = ctx.createGain();
-  soundGain.gain.setValueAtTime(0, ctx.currentTime);
   soundGain.connect(ctx.destination);
+  soundGain.gain.setValueAtTime(0, ctx.currentTime);
+
+  let isBeeping = false;
 
   soundInterval = setInterval(() => {
     try {
       const now = ctx.currentTime;
-      const osc1 = ctx.createOscillator();
-      const osc2 = ctx.createOscillator();
-      const localGain = ctx.createGain();
 
-      osc1.type = 'sine';
-      osc2.type = 'sine';
+      if (!isBeeping) {
+        soundOsc = ctx.createOscillator();
+        soundOsc.type = 'sine';
+        soundOsc.frequency.setValueAtTime(450, now);
 
-      osc1.frequency.setValueAtTime(425, now);
-      osc2.frequency.setValueAtTime(425, now);
+        soundGain.gain.cancelScheduledValues(now);
+        soundGain.gain.setValueAtTime(0, now);
+        soundGain.gain.linearRampToValueAtTime(0.1, now + 0.05);
+        soundGain.gain.setValueAtTime(0.1, now + 0.8);
+        soundGain.gain.linearRampToValueAtTime(0, now + 0.85);
 
-      localGain.gain.setValueAtTime(0, now);
-      localGain.gain.linearRampToValueAtTime(0.1, now + 0.05);
-      localGain.gain.setValueAtTime(0.1, now + 1.0);
-      localGain.gain.linearRampToValueAtTime(0, now + 1.05);
+        soundOsc.connect(soundGain);
+        soundOsc.start(now);
+        soundOsc.stop(now + 0.9);
 
-      osc1.connect(localGain);
-      osc2.connect(localGain);
-      localGain.connect(soundGain);
+        soundOsc.onended = () => {
+          try {
+            soundOsc.disconnect();
+          } catch (e) {}
+          soundOsc = null;
+        };
 
-      osc1.start(now);
-      osc2.start(now);
-      osc1.stop(now + 1.05);
-      osc2.stop(now + 1.05);
+        isBeeping = true;
+      } else {
+        isBeeping = false;
+      }
     } catch (err) {
       console.warn('playDialingTone error:', err);
     }
-  }, 2000);
-
-  soundGain.gain.setValueAtTime(0, ctx.currentTime);
-  soundGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.2);
+  }, 1000);
 }
 
 function stopSound() {
@@ -149,47 +143,75 @@ function stopSound() {
     clearInterval(soundInterval);
     soundInterval = null;
   }
+
+  if (soundOsc) {
+    try {
+      soundOsc.stop();
+    } catch (e) {}
+
+    try {
+      soundOsc.disconnect();
+    } catch (e) {}
+
+    soundOsc = null;
+  }
+
   if (soundGain) {
     try {
-      soundGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
-      setTimeout(() => {
-        if (soundGain) {
-          soundGain.disconnect();
-          soundGain = null;
-        }
-      }, 150);
-    } catch (e) {
+      if (audioCtx) {
+        soundGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      }
+    } catch (e) {}
+
+    try {
       soundGain.disconnect();
-      soundGain = null;
-    }
+    } catch (e) {}
+
+    soundGain = null;
   }
 }
 
 function formatDuration(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const ss = String(seconds % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 export const CallManager = {
-  overlay: null,
   state: 'idle', // 'idle' | 'dialing' | 'incoming' | 'connected'
-  minimized: false,
-
   conversationId: null,
   characterId: null,
   characterName: '',
   characterAvatar: '',
   isUserInitiator: false,
-
   startTime: null,
   timerInterval: null,
   autoAnswerTimeout: null,
+  overlay: null,
+  minimized: false,
   particleInterval: null,
-  
-  // 存储拖拽后的位置
-  floatingPos: { x: null, y: null },
-  wasDragged: false,
+
+  // 最小化挂件位置
+  floatingPos: {
+    x: null,
+    y: null,
+  },
+
+  // 拖动状态
+  dragState: {
+    active: false,
+    moved: false,
+    suppressClick: false,
+  },
 
   init() {
     this.overlay = document.getElementById('global-call-overlay');
@@ -227,12 +249,14 @@ export const CallManager = {
 
   minimize() {
     if (this.state === 'idle') return;
+
     this.minimized = true;
     this.render();
   },
 
   expand() {
     if (this.state === 'idle') return;
+
     this.minimized = false;
     this.render();
   },
@@ -270,6 +294,7 @@ export const CallManager = {
 
     this.state = 'connected';
     this.startTime = Date.now();
+
     this.render();
 
     if (this.timerInterval) {
@@ -283,6 +308,7 @@ export const CallManager = {
 
   async declineCall() {
     if (this.state !== 'incoming') return;
+
     await this.endCall('declined');
   },
 
@@ -300,6 +326,7 @@ export const CallManager = {
     }
 
     let duration = 0;
+
     if (this.startTime && this.state === 'connected') {
       duration = Math.floor((Date.now() - this.startTime) / 1000);
     }
@@ -319,11 +346,13 @@ export const CallManager = {
           }),
         });
 
-        window.dispatchEvent(new CustomEvent('call-history-updated', {
-          detail: {
-            conversationId: this.conversationId,
-          },
-        }));
+        window.dispatchEvent(
+          new CustomEvent('call-history-updated', {
+            detail: {
+              conversationId: this.conversationId,
+            },
+          })
+        );
       } catch (err) {
         console.error('Failed to log call history', err);
       }
@@ -342,14 +371,15 @@ export const CallManager = {
   },
 
   getStatusText() {
-    if (this.state === 'incoming') return '向你发起通话邀请';
-    if (this.state === 'connected') return '通话中';
-    if (this.state === 'dialing') return '正在呼叫...';
+    if (this.state === 'incoming') return '来电邀请';
+    if (this.state === 'connected') return '正在通话';
+    if (this.state === 'dialing') return '正在呼叫';
     return '';
   },
 
   getElapsedSeconds() {
     if (!this.startTime || this.state !== 'connected') return 0;
+
     return Math.floor((Date.now() - this.startTime) / 1000);
   },
 
@@ -367,29 +397,42 @@ export const CallManager = {
     if (miniTimeEl) {
       miniTimeEl.textContent = timeText;
     }
+
+    const progressFill = this.overlay.querySelector('.music-progress-fill');
+    if (progressFill && this.state === 'connected') {
+      const elapsed = this.getElapsedSeconds();
+
+      // 只是视觉进度，不代表真实总时长。
+      // 180 秒循环一次，避免进度条静止。
+      const percent = Math.min(100, ((elapsed % 180) / 180) * 100);
+      progressFill.style.width = `${percent}%`;
+    }
   },
 
-  // 粒子动画生成器
   startParticles() {
     if (this.particleInterval) return;
+    if (!this.overlay) return;
+
     const container = this.overlay.querySelector('#particle-container');
     if (!container) return;
 
-    const phrases = ["思念是链接的钥匙", "跨越时间的爱恋", "倾听微风中的呢喃", "命运的频率在此共鸣"];
+    const phrases = ['思念是链接的钥匙', '跨越时间的爱恋', '倾听微风中的呢喃', '命运的频率在此共鸣'];
     const allChars = phrases.join('').split('');
 
     const createParticle = () => {
       if (this.minimized || this.state === 'idle') return;
+
       const char = allChars[Math.floor(Math.random() * allChars.length)];
       const el = document.createElement('div');
+
       el.className = 'float-char';
       el.innerText = char;
 
       const startX = 5 + Math.random() * 90;
       const fontSize = 14 + Math.random() * 14;
       const duration = 6 + Math.random() * 6;
-      const moveY = - (40 + Math.random() * 40) + 'vh';
-      const rot = (Math.random() * 40 - 20) + 'deg';
+      const moveY = -(40 + Math.random() * 40) + 'vh';
+      const rot = Math.random() * 40 - 20 + 'deg';
 
       el.style.left = `${startX}%`;
       el.style.fontSize = `${fontSize}px`;
@@ -407,6 +450,7 @@ export const CallManager = {
     for (let i = 0; i < 5; i++) {
       setTimeout(createParticle, i * 200);
     }
+
     this.particleInterval = setInterval(createParticle, 450);
   },
 
@@ -415,93 +459,141 @@ export const CallManager = {
       clearInterval(this.particleInterval);
       this.particleInterval = null;
     }
+
     const container = this.overlay ? this.overlay.querySelector('#particle-container') : null;
     if (container) {
       container.innerHTML = '';
     }
   },
 
-  // 拖动监听实现
   makeElementDraggable(el) {
-    let isDragging = false;
-    let startX, startY, initialX, initialY;
+    if (!el) return;
 
-    // 如果存有之前的拖动坐标，直接应用
-    if (this.floatingPos.x !== null && this.floatingPos.y !== null) {
-      el.style.left = this.floatingPos.x + 'px';
-      el.style.top = this.floatingPos.y + 'px';
-      el.style.right = 'auto';
-      el.style.bottom = 'auto';
-      el.style.transform = 'none';
-    }
+    let startX = 0;
+    let startY = 0;
+    let initialX = 0;
+    let initialY = 0;
+    let pointerId = null;
 
-    const dragStart = (e) => {
-      this.wasDragged = false;
-      isDragging = false;
+    // 强制保证挂件可接收事件
+    el.style.pointerEvents = 'auto';
+    el.style.touchAction = 'none';
+    el.style.userSelect = 'none';
+    el.style.webkitUserSelect = 'none';
 
-      const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
-      const rect = el.getBoundingClientRect();
-
-      startX = clientX;
-      startY = clientY;
-      initialX = rect.left;
-      initialY = rect.top;
-
-      document.addEventListener('mousemove', dragMove, { passive: false });
-      document.addEventListener('mouseup', dragEnd);
-      document.addEventListener('touchmove', dragMove, { passive: false });
-      document.addEventListener('touchend', dragEnd);
-    };
-
-    const dragMove = (e) => {
-      const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
-      const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
-      const dx = clientX - startX;
-      const dy = clientY - startY;
-
-      // 判定移动位移，防止防抖误触
-      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
-        isDragging = true;
-        this.wasDragged = true;
-        if (e.cancelable) e.preventDefault();
-      }
-
-      if (isDragging) {
-        let newX = initialX + dx;
-        let newY = initialY + dy;
-
-        const rect = el.getBoundingClientRect();
-        newX = Math.max(0, Math.min(newX, window.innerWidth - rect.width));
-        newY = Math.max(0, Math.min(newY, window.innerHeight - rect.height));
-
-        el.style.left = newX + 'px';
-        el.style.top = newY + 'px';
+    const applySavedPosition = () => {
+      if (this.floatingPos.x !== null && this.floatingPos.y !== null) {
+        el.style.left = `${this.floatingPos.x}px`;
+        el.style.top = `${this.floatingPos.y}px`;
         el.style.right = 'auto';
         el.style.bottom = 'auto';
         el.style.transform = 'none';
-
-        this.floatingPos.x = newX;
-        this.floatingPos.y = newY;
+        el.style.margin = '0';
       }
     };
 
-    const dragEnd = () => {
-      document.removeEventListener('mousemove', dragMove);
-      document.removeEventListener('mouseup', dragEnd);
-      document.removeEventListener('touchmove', dragMove);
-      document.removeEventListener('touchend', dragEnd);
-      
-      // 添加极短延迟确保 click 事件能读取到 wasDragged 状态
-      setTimeout(() => {
-        if (!isDragging) {
-          this.wasDragged = false;
-        }
-      }, 50);
+    const moveTo = (x, y) => {
+      const rect = el.getBoundingClientRect();
+      const maxX = Math.max(0, window.innerWidth - rect.width);
+      const maxY = Math.max(0, window.innerHeight - rect.height);
+
+      const nextX = Math.max(0, Math.min(x, maxX));
+      const nextY = Math.max(0, Math.min(y, maxY));
+
+      el.style.left = `${nextX}px`;
+      el.style.top = `${nextY}px`;
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.transform = 'none';
+      el.style.margin = '0';
+
+      this.floatingPos.x = nextX;
+      this.floatingPos.y = nextY;
     };
 
-    el.addEventListener('mousedown', dragStart);
-    el.addEventListener('touchstart', dragStart, { passive: false });
+    applySavedPosition();
+
+    const onPointerDown = (e) => {
+      // 只处理鼠标左键
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+
+      pointerId = e.pointerId;
+
+      this.dragState.active = true;
+      this.dragState.moved = false;
+      this.dragState.suppressClick = false;
+
+      const rect = el.getBoundingClientRect();
+
+      startX = e.clientX;
+      startY = e.clientY;
+      initialX = rect.left;
+      initialY = rect.top;
+
+      try {
+        el.setPointerCapture(pointerId);
+      } catch (err) {}
+
+      e.preventDefault();
+    };
+
+    const onPointerMove = (e) => {
+      if (!this.dragState.active) return;
+      if (pointerId !== null && e.pointerId !== pointerId) return;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+        this.dragState.moved = true;
+        this.dragState.suppressClick = true;
+      }
+
+      if (this.dragState.moved) {
+        moveTo(initialX + dx, initialY + dy);
+        e.preventDefault();
+      }
+    };
+
+    const onPointerUp = (e) => {
+      if (!this.dragState.active) return;
+      if (pointerId !== null && e.pointerId !== pointerId) return;
+
+      this.dragState.active = false;
+
+      try {
+        el.releasePointerCapture(pointerId);
+      } catch (err) {}
+
+      pointerId = null;
+
+      // 关键：拖动结束后短时间屏蔽 click，防止误触发展开。
+      if (this.dragState.suppressClick) {
+        setTimeout(() => {
+          this.dragState.suppressClick = false;
+          this.dragState.moved = false;
+        }, 180);
+      } else {
+        this.dragState.moved = false;
+      }
+    };
+
+    const onClick = (e) => {
+      if (this.dragState.suppressClick || this.dragState.moved) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      this.expand();
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', onPointerUp);
+    el.addEventListener('pointercancel', onPointerUp);
+    el.addEventListener('lostpointercapture', onPointerUp);
+    el.addEventListener('click', onClick);
   },
 
   renderMinimized() {
@@ -511,59 +603,47 @@ export const CallManager = {
 
     this.overlay.className = 'global-call-active global-call-minimized';
 
+    const safeName = escapeHtml(this.characterName || 'Unknown');
+
     this.overlay.innerHTML = `
-      <div class="global-call-floating music-style" id="call-btn-expand" role="button" aria-label="展开通话">
-        <div class="music-header">
+      <div class="global-call-floating music-style compact-mode" id="call-btn-expand" role="button" aria-label="展开通话">
+        <div class="music-compact-main">
           <div class="music-cover">
-            ${avatarHTML(this.characterAvatar, this.characterName, 54)}
+            ${avatarHTML(this.characterAvatar, this.characterName, 42)}
           </div>
+
           <div class="music-info">
-            <div class="music-title">${this.characterName || 'Unknown'}</div>
-            <div class="music-subtitle">${this.state === 'connected' ? '正在通话...' : statusText}</div>
+            <div class="music-title">${safeName}</div>
+            <div class="music-subtitle">${this.state === 'connected' ? '正在通话...' : escapeHtml(statusText)}</div>
           </div>
-          <div class="music-eq ${isPlaying ? 'playing' : ''}">
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
-            <span class="eq-bar"></span>
+
+          <div class="music-side">
+            <div class="music-eq ${isPlaying ? 'playing' : ''}" aria-hidden="true">
+              <span class="eq-bar"></span>
+              <span class="eq-bar"></span>
+              <span class="eq-bar"></span>
+              <span class="eq-bar"></span>
+            </div>
+
+            <div class="global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</div>
           </div>
-        </div>
-        
-        <div class="music-controls">
-          <span class="progress-time left global-call-mini-time">${this.state === 'connected' ? timeText : '00:00'}</span>
-          <div class="progress-track">
-            <div class="progress-fill ${this.state === 'connected' ? 'active' : ''}"></div>
-          </div>
-          <span class="progress-time right duration-total">${this.state === 'connected' ? '-Live' : '--:--'}</span>
         </div>
 
-        <div class="music-actions">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>
-          <div class="play-btn">
-            ${isPlaying ? 
-              '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' : 
-              '<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>'
-            }
-          </div>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>
+        <div class="music-progress-line" aria-hidden="true">
+          <div class="music-progress-fill ${this.state === 'connected' ? 'active' : ''}" style="width: ${
+            this.state === 'connected' ? '3%' : '0%'
+          };"></div>
         </div>
       </div>
     `;
 
     const expandBtn = this.overlay.querySelector('#call-btn-expand');
-    if (expandBtn) {
-      // 开启挂件拖动逻辑
-      this.makeElementDraggable(expandBtn);
 
-      expandBtn.onclick = (e) => {
-        if (this.wasDragged) {
-          this.wasDragged = false;
-          return; // 若是拖拽手势，打断点击展开逻辑
-        }
-        this.expand();
-      };
+    if (expandBtn) {
+      this.makeElementDraggable(expandBtn);
     }
+
+    this.updateTimer();
   },
 
   renderFull() {
@@ -584,6 +664,7 @@ export const CallManager = {
             </button>
             <span class="call-action-label">拒接</span>
           </div>
+
           <div class="call-action-col">
             <button class="call-btn btn-accept" id="call-btn-accept" type="button" aria-label="接听">
               <span class="call-icon-heartbeat">${ICON.phone}</span>
@@ -593,7 +674,6 @@ export const CallManager = {
         </div>
       `;
     } else if (this.state === 'dialing') {
-      // 用户拨打给角色时，仅保留单挂断按钮
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
@@ -605,29 +685,30 @@ export const CallManager = {
         </div>
       `;
     } else {
-      // 正常通话中
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
             <button class="call-btn btn-utility" type="button" aria-label="静音">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
                 <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8"/>
               </svg>
             </button>
             <span class="call-action-label">静音</span>
           </div>
-          
+
           <div class="call-action-col">
             <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
               <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
             </button>
             <span class="call-action-label">挂断</span>
           </div>
-          
+
           <div class="call-action-col">
             <button class="call-btn btn-utility" type="button" aria-label="免提">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                 <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
               </svg>
@@ -638,12 +719,13 @@ export const CallManager = {
       `;
     }
 
+    const bgImage = this.characterAvatar ? `background-image: url('${String(this.characterAvatar).replaceAll("'", "\\'")}')` : '';
+
     this.overlay.innerHTML = `
       <div class="global-call-container">
-        <div class="global-call-bg" style="background-image: url('${this.characterAvatar || ''}')"></div>
+        <div class="global-call-bg" style="${bgImage}"></div>
         <div class="global-call-mask"></div>
 
-        <!-- 逐字漂浮特效容器 -->
         <div id="particle-container"></div>
 
         <button class="global-call-minimize-btn" id="call-btn-minimize" type="button" aria-label="缩小通话">
@@ -651,13 +733,17 @@ export const CallManager = {
         </button>
 
         <div class="global-call-visual-layer">
-          ${this.state === 'dialing' ? `
-            <div class="global-call-wave-wrap">
-              <div class="global-call-wave wave-1"></div>
-              <div class="global-call-wave wave-2"></div>
-              <div class="global-call-wave wave-3"></div>
-            </div>
-          ` : ''}
+          ${
+            this.state === 'dialing'
+              ? `
+                <div class="global-call-wave-wrap">
+                  <div class="global-call-wave wave-1"></div>
+                  <div class="global-call-wave wave-2"></div>
+                  <div class="global-call-wave wave-3"></div>
+                </div>
+              `
+              : ''
+          }
         </div>
 
         <div class="global-call-content">
@@ -666,10 +752,11 @@ export const CallManager = {
               ${avatarHtmlStr}
             </div>
 
-            <h2 class="global-call-name">${this.characterName || ''}</h2>
+            <h2 class="global-call-name">${escapeHtml(this.characterName || '')}</h2>
+
             <p class="global-call-status">
               ${this.state === 'connected' ? '<span class="status-dot"></span>' : ''}
-              ${statusText}
+              ${escapeHtml(statusText)}
             </p>
 
             ${this.state === 'connected' ? `<div class="global-call-time">${timeText}</div>` : ''}
@@ -687,10 +774,21 @@ export const CallManager = {
     const declineBtn = this.overlay.querySelector('#call-btn-decline');
     const hangupBtn = this.overlay.querySelector('#call-btn-hangup');
 
-    if (minimizeBtn) minimizeBtn.onclick = () => this.minimize();
-    if (acceptBtn) acceptBtn.onclick = () => this.acceptCall();
-    if (declineBtn) declineBtn.onclick = () => this.declineCall();
-    if (hangupBtn) hangupBtn.onclick = () => this.endCall();
+    if (minimizeBtn) {
+      minimizeBtn.onclick = () => this.minimize();
+    }
+
+    if (acceptBtn) {
+      acceptBtn.onclick = () => this.acceptCall();
+    }
+
+    if (declineBtn) {
+      declineBtn.onclick = () => this.declineCall();
+    }
+
+    if (hangupBtn) {
+      hangupBtn.onclick = () => this.endCall();
+    }
 
     this.startParticles();
   },

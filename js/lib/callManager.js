@@ -188,6 +188,10 @@ export const CallManager = {
   overlay: null,
   minimized: false,
   particleInterval: null,
+  
+  // 存储拖拽后的位置
+  floatingPos: { x: null, y: null },
+  wasDragged: false,
 
   init() {
     this.overlay = document.getElementById('global-call-overlay');
@@ -402,7 +406,6 @@ export const CallManager = {
       }, duration * 1000);
     };
 
-    // 初始快速产生 5 个粒子
     for (let i = 0; i < 5; i++) {
       setTimeout(createParticle, i * 200);
     }
@@ -418,6 +421,82 @@ export const CallManager = {
     if (container) {
       container.innerHTML = '';
     }
+  },
+
+  // 拖动监听实现
+  makeElementDraggable(el) {
+    let isDragging = false;
+    let startX, startY, initialX, initialY;
+
+    // 如果存有之前的拖动坐标，直接应用
+    if (this.floatingPos.x !== null && this.floatingPos.y !== null) {
+      el.style.left = this.floatingPos.x + 'px';
+      el.style.top = this.floatingPos.y + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.transform = 'none';
+    }
+
+    const dragStart = (e) => {
+      this.wasDragged = false;
+      isDragging = false;
+
+      const clientX = e.type === 'touchstart' ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type === 'touchstart' ? e.touches[0].clientY : e.clientY;
+      const rect = el.getBoundingClientRect();
+
+      startX = clientX;
+      startY = clientY;
+      initialX = rect.left;
+      initialY = rect.top;
+
+      document.addEventListener('mousemove', dragMove, { passive: false });
+      document.addEventListener('mouseup', dragEnd);
+      document.addEventListener('touchmove', dragMove, { passive: false });
+      document.addEventListener('touchend', dragEnd);
+    };
+
+    const dragMove = (e) => {
+      const clientX = e.type === 'touchmove' ? e.touches[0].clientX : e.clientX;
+      const clientY = e.type === 'touchmove' ? e.touches[0].clientY : e.clientY;
+      const dx = clientX - startX;
+      const dy = clientY - startY;
+
+      // 判定移动位移，防止防抖误触
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+        isDragging = true;
+        this.wasDragged = true;
+        if (e.cancelable) e.preventDefault();
+      }
+
+      if (isDragging) {
+        let newX = initialX + dx;
+        let newY = initialY + dy;
+
+        const rect = el.getBoundingClientRect();
+        newX = Math.max(0, Math.min(newX, window.innerWidth - rect.width));
+        newY = Math.max(0, Math.min(newY, window.innerHeight - rect.height));
+
+        el.style.left = newX + 'px';
+        el.style.top = newY + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+        el.style.transform = 'none';
+
+        this.floatingPos.x = newX;
+        this.floatingPos.y = newY;
+      }
+    };
+
+    const dragEnd = () => {
+      document.removeEventListener('mousemove', dragMove);
+      document.removeEventListener('mouseup', dragEnd);
+      document.removeEventListener('touchmove', dragMove);
+      document.removeEventListener('touchend', dragEnd);
+    };
+
+    el.addEventListener('mousedown', dragStart);
+    el.addEventListener('touchstart', dragStart, { passive: true });
   },
 
   renderMinimized() {
@@ -459,7 +538,16 @@ export const CallManager = {
 
     const expandBtn = this.overlay.querySelector('#call-btn-expand');
     if (expandBtn) {
-      expandBtn.onclick = () => this.expand();
+      // 开启挂件拖动逻辑
+      this.makeElementDraggable(expandBtn);
+
+      expandBtn.onclick = (e) => {
+        if (this.wasDragged) {
+          this.wasDragged = false;
+          return; // 若是拖拽手势，打断点击展开逻辑
+        }
+        this.expand();
+      };
     }
   },
 
@@ -490,7 +578,7 @@ export const CallManager = {
         </div>
       `;
     } else if (this.state === 'dialing') {
-      // 拨号中：只显示挂断按钮
+      // 用户拨打给角色时，仅保留单挂断按钮
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
@@ -502,7 +590,7 @@ export const CallManager = {
         </div>
       `;
     } else {
-      // 通话中：显示静音、挂断、免提
+      // 正常通话中
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
@@ -559,7 +647,6 @@ export const CallManager = {
 
         <div class="global-call-content">
           <div class="global-call-info-group">
-            <!-- 样式中已重塑层级，使扩散波纹严格生成在头像的正后方 -->
             <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
               ${avatarHtmlStr}
             </div>
@@ -590,7 +677,6 @@ export const CallManager = {
     if (declineBtn) declineBtn.onclick = () => this.declineCall();
     if (hangupBtn) hangupBtn.onclick = () => this.endCall();
 
-    // 启动文字粒子漂浮
     this.startParticles();
   },
 

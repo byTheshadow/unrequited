@@ -2202,7 +2202,6 @@
     transform: scale(1.18);
   }
 }
-
 /* ==========================================================================
    精致装饰型 - 自适应沉浸式共鸣卡片 (Immersive Mini MusicBar)
    ========================================================================== */
@@ -2281,22 +2280,29 @@
   box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
-/* 风格视图的基础定义 */
+/* ==========================================================
+   强制隔离显示机制：只展示当前选择的风格，完全杜绝堆叠 bug
+   ========================================================== */
 .style-view {
-  display: none;
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  inset: 0;
-  padding: 34px 12px 12px 12px;
-  box-sizing: border-box;
+  display: none !important; /* 强制全部默认隐藏 */
+  width: 100% !important;
+  height: 100% !important;
+  position: absolute !important;
+  inset: 0 !important;
+  padding: 34px 12px 12px 12px !important;
+  box-sizing: border-box !important;
 }
-.style-view.active {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  animation: fadeInStyle 0.4s ease-out;
+
+/* 当最外层卡片被标记或包含对应 class 时，激活指定风格视图，其余全部强力隐藏 */
+.music-card-immersive.style-polaroid .view-polaroid,
+.music-card-immersive.style-sonic .view-sonic,
+.music-card-immersive.style-tape .view-tape {
+  display: flex !important; /* 激活对应的子视图 */
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  animation: fadeInStyle 0.4s ease-out forwards;
 }
+
 @keyframes fadeInStyle {
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
@@ -2330,7 +2336,7 @@
 }
 
 /* ==========================================
-   一、 风格 1：拍立得 (Polaroid)
+   一、 风格 1：拍立得 (Polaroid) 样式
    ========================================== */
 .view-polaroid {
   background: radial-gradient(circle at center, color-mix(in srgb, var(--color-accent) 4%, var(--color-bg-secondary)) 0%, var(--color-bg-secondary) 100%);
@@ -2720,7 +2726,7 @@
 }
 
 /* ==========================================
-   四、 粒子音符飘浮机制
+   四5. 粒子音符飘浮机制
    ========================================== */
 .particles-layer {
   position: absolute;

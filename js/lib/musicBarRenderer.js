@@ -5,7 +5,7 @@ const SVG_PLAY = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentC
 const SVG_PAUSE = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
 
 /**
- * 渲染共鸣卡片的 HTML 字符串 (精致自适应版)
+ * 渲染共鸣卡片的 HTML 字符串 (绝对防止堆叠版)
  * @param {Object} u - User 对象
  * @param {Object} c - Character 对象
  * @param {Object} music - 音乐舱参数对象 { signature, distance, style, playing }
@@ -15,16 +15,15 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
   const distance = music.distance != null ? music.distance : '相距 1024 光年';
   const signature = music.signature != null ? music.signature : '一支未命名的曲子';
   
-  // 默认使用 polaroid 风格
+  // 确保有效的设计风格，默认使用 polaroid 风格
   const style = (music.style && ['polaroid', 'sonic', 'tape'].includes(music.style)) ? music.style : 'polaroid';
   const playing = !!music.playing;
 
-  const isPolaroidActive = style === 'polaroid' ? 'active' : '';
-  const isSonicActive = style === 'sonic' ? 'active' : '';
-  const isTapeActive = style === 'tape' ? 'active' : '';
+  // 根据当前选择的风格，动态渲染最外层卡片的 class
+  const styleClass = `style-${style}`;
 
   return `
-    <div class="music-card-immersive ${playing ? 'is-playing' : ''}">
+    <div class="music-card-immersive ${styleClass} ${playing ? 'is-playing' : ''}">
       
       <!-- 顶部隐形悬浮控制栏 -->
       <div class="floating-controls">
@@ -40,7 +39,7 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
       </div>
 
       <!-- ================== 风格 1: 拍立得 ================== -->
-      <div class="style-view view-polaroid ${isPolaroidActive}" id="view-polaroid">
+      <div class="style-view view-polaroid" id="view-polaroid">
         <!-- SVG 命运红线 -->
         <svg class="red-thread-svg" viewBox="0 0 320 100" preserveAspectRatio="none">
           <path class="path-thread" d="M 75 48 C 115 88, 205 8, 245 48" />
@@ -65,15 +64,15 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
           </div>
         </div>
 
-        <!-- 完美的隐形手写手势签名/距离 -->
+        <!-- 签名与距离手写体输入框 -->
         <div class="polaroid-inputs">
-          <input class="stealth-input polaroid-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="写下你们的心动密语..." maxlength="60">
+          <input class="stealth-input polaroid-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="写下一些悄悄话..." maxlength="60">
           <input class="stealth-input polaroid-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="距离..." maxlength="30">
         </div>
       </div>
 
       <!-- ================== 风格 2: 灵魂共鸣 ================== -->
-      <div class="style-view view-sonic ${isSonicActive}" id="view-sonic">
+      <div class="style-view view-sonic" id="view-sonic">
         <div class="sonic-ambient-glow"></div>
         
         <!-- 漂浮音符粒子 -->
@@ -107,7 +106,7 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
           </div>
         </div>
 
-        <!-- 歌曲名液晶屏 -->
+        <!-- 歌曲信息液晶显示屏 -->
         <div class="sonic-lcd-display">
           <input class="stealth-input sonic-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="正在播放..." maxlength="60">
           <input class="stealth-input sonic-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="相距..." maxlength="30">
@@ -115,7 +114,7 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
       </div>
 
       <!-- ================== 风格 3: 狂热磁带 ================== -->
-      <div class="style-view view-tape ${isTapeActive}" id="view-tape">
+      <div class="style-view view-tape" id="view-tape">
         <div class="mini-tape-body">
           <div class="tape-sticker">
             <input class="stealth-input tape-input-sig music-signature" data-target="music" data-field="signature" value="${escapeAttr(signature)}" placeholder="Tape-C90..." maxlength="60">
@@ -140,7 +139,7 @@ export function renderMusicCardHTML(u, c, music, todayCount) {
         <input class="stealth-input tape-input-dist music-distance" data-target="music" data-field="distance" value="${escapeAttr(distance)}" placeholder="DISTANCE..." maxlength="30">
       </div>
 
-      <!-- 右下角极度微缩不抢眼的共鸣度 -->
+      <!-- 底部微小统计 -->
       <div class="music-mini-footer">今日共鸣 ${todayCount}</div>
     </div>
   `;

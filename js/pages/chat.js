@@ -166,6 +166,33 @@ async function checkAndRotateCharacterStatus(character) {
   return character;
 }
 
+function parseManualChoiceText(text) {
+  const raw = String(text || '').trim();
+  if (!raw.startsWith('??')) return null;
+
+  const body = raw.slice(2).trim();
+  if (!body) return null;
+
+  const parts = body
+    .split('|')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const prompt = parts.shift();
+  const options = parts;
+
+  if (!prompt || options.length < 2) return null;
+
+  return {
+    prompt,
+    options,
+    answered: false,
+    answer: '',
+    answeredBy: '',
+  };
+}
+
+
 
 /* ---------- 选择题 ---------- */
 function findLatestUnansweredUserChoice() {
@@ -200,13 +227,13 @@ function choiceBubbleHTML(msg) {
     return `<div class="msg-body">${escapeHtml(msg.content)}</div>`;
   }
 
-  // 角色发的且未被回答时，User 才可以点击回答
+  // 仅在“角色发送给 User”且“未回答”时，User 才可以点按选项按钮
   const canAnswer = msg.sender === 'character' && !choice.answered;
 
   let opts = '';
   if (choice.options && choice.options.length) {
     opts = `
-      <div class="choice-options">
+      <div class="choice-options" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
         ${choice.options.map((opt, idx) => {
           const isSelected = choice.answered && choice.answer === opt;
           const btnClass = isSelected ? 'choice-option selected' : 'choice-option';
@@ -227,6 +254,7 @@ function choiceBubbleHTML(msg) {
     ${opts}
   `;
 }
+
 
 
 async function answerCharacterChoice(msgId, idx) {
@@ -587,7 +615,9 @@ async function sendUserMessage() {
   if (dock) { dock.classList.remove('sent-pulse'); void dock.offsetWidth; dock.classList.add('sent-pulse'); }
 
   const quotedId = state.pendingQuoteId || null;
-  const choice = parseChoiceFragment(text);
+
+  // 优先使用 cardEngine 内置解析；如果失败，则使用本文件的 ??问题|选项1|选项2 兜底解析
+  const choice = parseChoiceFragment(text) || parseManualChoiceText(text);
 
   const msg = {
     conversationId: state.convId,
@@ -599,20 +629,7 @@ async function sendUserMessage() {
     timestamp: Date.now(),
     isRead: false,
   };
-  const id = await db.messages.add(msg);
-  msg.id = id;
 
-  if (quotedId) await clearPendingQuote();
-
-  appendMessage(msg);
-  playUserSound();
-  input.value = '';
-  autoGrow(input);
-  await persistConvSummary();
-  updateSendBtn();
-
-  await schedulePendingReply();
-}
 
 function openChoiceCreatorSheet() {
   let options = ['', '']; // 默认两个空选项

@@ -3437,6 +3437,7 @@
 .long-item-content { flex: 1; font-size: 12px; line-height: 1.5; word-break: break-all; color: var(--color-text-primary); }
 .long-item-del { background: transparent; border: none; color: var(--color-text-secondary); opacity: 0.5; padding: 2px; transition: opacity 0.2s; }
 .long-item-del:active { opacity: 1; color: #dc2626; }
+
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -3450,7 +3451,10 @@
   opacity: 1 !important;
 }
 
-/* 最小化挂件状态：允许点击穿透，仅挂件本身可点击 */
+/* 核心：只在展开时允许点击全屏，最小化时只允许点击音乐挂件本身 */
+#global-call-overlay.global-call-active:not(.global-call-minimized) {
+  pointer-events: auto !important;
+}
 #global-call-overlay.global-call-minimized {
   pointer-events: none !important;
 }
@@ -3458,10 +3462,7 @@
   display: none !important;
 }
 
-/* 展开全屏状态：挂件隐藏，全屏接管 */
-#global-call-overlay.global-call-expanded {
-  pointer-events: auto !important;
-}
+/* 展开全屏状态下隐藏小挂件 */
 #global-call-overlay.global-call-expanded .global-call-floating.music-style {
   display: none !important;
 }
@@ -3501,7 +3502,7 @@
   box-sizing: border-box !important;
 }
 
-/* 头像专辑封面（隔离外部 avatar 污染） */
+/* 专辑封面头像框 (完全重置全局 .avatar 的破坏性样式) */
 #global-call-overlay .music-cover {
   width: 48px !important;
   height: 48px !important;
@@ -3540,7 +3541,7 @@
   box-sizing: border-box !important;
 }
 
-/* 挂件文本区 */
+/* 文本区域 */
 #global-call-overlay .music-info {
   flex: 1 !important;
   display: flex !important;
@@ -3604,7 +3605,7 @@
 @keyframes eq-bounce-3 { 0% { height: 15%; } 100% { height: 60%; } }
 @keyframes eq-bounce-4 { 0% { height: 25%; } 100% { height: 90%; } }
 
-/* 进度条与微调时间 */
+/* 进度条区域 */
 #global-call-overlay .music-progress {
   display: flex !important;
   align-items: center !important;
@@ -3778,8 +3779,11 @@
   justify-content: center;
 }
 
+/* 强制使头像层级在最上面，本身不产生任何形变和晃动 */
 .global-call-avatar-wrapper .avatar,
 .global-call-avatar-wrapper img {
+  position: relative !important;
+  z-index: 5 !important; /* 头像置于上方 */
   width: 130px !important;
   height: 130px !important;
   border-radius: 50% !important;
@@ -3796,21 +3800,45 @@
   box-sizing: border-box !important;
 }
 
+/* ★ 头像背后的扩散广播波纹 ★ */
+.global-call-avatar-wrapper::before,
 .global-call-avatar-wrapper::after {
   content: '';
   position: absolute;
-  inset: -8px;
+  inset: 0;
   border-radius: 50%;
-  border: 2px solid rgba(10, 132, 255, 0.2);
+  z-index: 1; /* 渲染在头像背后 */
   pointer-events: none;
+  background: rgba(10, 132, 255, 0.18);
+  transform: scale(1);
 }
-.global-call-avatar-wrapper.breath::after {
-  animation: callAvatarBreath 2s infinite ease-in-out;
-  border-color: rgba(255, 255, 255, 0.2);
+
+/* 通话中（静止头像，波纹向外扩散） */
+.global-call-avatar-wrapper.pulse::before {
+  animation: avatarRipple 3s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
 }
 .global-call-avatar-wrapper.pulse::after {
-  animation: callAvatarPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
-  border-color: rgba(10, 132, 255, 0.4);
+  animation: avatarRipple 3s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
+  animation-delay: 1.5s;
+}
+
+/* 呼叫中背后呼吸声波 */
+.global-call-avatar-wrapper.breath::before {
+  background: rgba(255, 255, 255, 0.08);
+  animation: avatarBreath 2.5s infinite ease-in-out;
+}
+.global-call-avatar-wrapper.breath::after {
+  display: none;
+}
+
+@keyframes avatarRipple {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.85); opacity: 0; }
+}
+
+@keyframes avatarBreath {
+  0%, 100% { transform: scale(1); opacity: 0.2; }
+  50% { transform: scale(1.28); opacity: 0.6; }
 }
 
 .global-call-info-group {
@@ -3839,7 +3867,6 @@
   text-shadow: 0 1px 5px rgba(0,0,0,0.4);
 }
 
-/* 状态呼吸指示灯 */
 .status-dot {
   width: 8px;
   height: 8px;
@@ -3863,7 +3890,7 @@
   letter-spacing: 1px;
 }
 
-/* 微信/iOS 控制底栏 */
+/* 控制底栏 */
 .call-action-grid {
   display: flex;
   justify-content: center;
@@ -3934,15 +3961,6 @@
 .call-btn svg {
   width: 24px;
   height: 24px;
-}
-
-@keyframes callAvatarBreath {
-  0%, 100% { transform: scale(1); opacity: 0.3; }
-  50% { transform: scale(1.12); opacity: 0.7; }
-}
-@keyframes callAvatarPulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(1.35); opacity: 0; }
 }
 
 /* 呼叫雷达动效 */

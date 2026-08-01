@@ -187,7 +187,7 @@ export const CallManager = {
   autoAnswerTimeout: null,
   overlay: null,
   minimized: false,
-  particleInterval: null, // 文字粒子计时器
+  particleInterval: null,
 
   init() {
     this.overlay = document.getElementById('global-call-overlay');
@@ -367,7 +367,7 @@ export const CallManager = {
     }
   },
 
-  // 粒子动画控制器
+  // 粒子动画生成器
   startParticles() {
     if (this.particleInterval) return;
     const container = this.overlay.querySelector('#particle-container');
@@ -402,7 +402,7 @@ export const CallManager = {
       }, duration * 1000);
     };
 
-    // 初始快速产生 5 个粒子防空缺
+    // 初始快速产生 5 个粒子
     for (let i = 0; i < 5; i++) {
       setTimeout(createParticle, i * 200);
     }
@@ -464,7 +464,7 @@ export const CallManager = {
   },
 
   renderFull() {
-    this.overlay.className = 'global-call-active';
+    this.overlay.className = 'global-call-active global-call-expanded';
 
     const statusText = this.getStatusText();
     const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 130);
@@ -489,7 +489,20 @@ export const CallManager = {
           </div>
         </div>
       `;
+    } else if (this.state === 'dialing') {
+      // 拨号中：只显示挂断按钮
+      actionButtons = `
+        <div class="call-action-grid">
+          <div class="call-action-col">
+            <button class="call-btn btn-hangup" id="call-btn-hangup" type="button" aria-label="挂断">
+              <span class="call-icon-heartbeat">${ICON.phoneHangup}</span>
+            </button>
+            <span class="call-action-label">挂断</span>
+          </div>
+        </div>
+      `;
     } else {
+      // 通话中：显示静音、挂断、免提
       actionButtons = `
         <div class="call-action-grid">
           <div class="call-action-col">
@@ -527,7 +540,7 @@ export const CallManager = {
         <div class="global-call-bg" style="background-image: url('${this.characterAvatar || ''}')"></div>
         <div class="global-call-mask"></div>
 
-        <!-- 逐字漂浮的粒子渲染层 -->
+        <!-- 逐字漂浮特效容器 -->
         <div id="particle-container"></div>
 
         <button class="global-call-minimize-btn" id="call-btn-minimize" type="button" aria-label="缩小通话">
@@ -546,6 +559,7 @@ export const CallManager = {
 
         <div class="global-call-content">
           <div class="global-call-info-group">
+            <!-- 样式中已重塑层级，使扩散波纹严格生成在头像的正后方 -->
             <div class="global-call-avatar-wrapper ${this.state === 'connected' ? 'pulse' : 'breath'}">
               ${avatarHtmlStr}
             </div>
@@ -576,7 +590,7 @@ export const CallManager = {
     if (declineBtn) declineBtn.onclick = () => this.declineCall();
     if (hangupBtn) hangupBtn.onclick = () => this.endCall();
 
-    // 启动文字粒子飘落
+    // 启动文字粒子漂浮
     this.startParticles();
   },
 

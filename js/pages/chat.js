@@ -227,33 +227,40 @@ function choiceBubbleHTML(msg) {
     return `<div class="msg-body">${escapeHtml(msg.content)}</div>`;
   }
 
-  // 仅在“角色发送给 User”且“未回答”时，User 才可以点按选项按钮
   const canAnswer = msg.sender === 'character' && !choice.answered;
-
-  let opts = '';
-  if (choice.options && choice.options.length) {
-    opts = `
-      <div class="choice-options" style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
-        ${choice.options.map((opt, idx) => {
-          const isSelected = choice.answered && choice.answer === opt;
-          const btnClass = isSelected ? 'choice-option selected' : 'choice-option';
-          const disabledAttr = !canAnswer ? 'disabled' : '';
-
-          return `
-            <button class="${btnClass}" data-choice-msg="${msg.id}" data-choice-idx="${idx}" ${disabledAttr} type="button">
-              ${escapeHtml(opt)}
-            </button>
-          `;
-        }).join('')}
-      </div>
-    `;
-  }
+  const opts = choice.options || [];
+  const leftOpt = opts[0] || '';
+  const rightOpt = opts[1] || '';
 
   return `
-    <div class="msg-body choice-prompt">${escapeHtml(choice.prompt)}</div>
-    ${opts}
+    <div class="choice-card">
+      <div class="choice-card-title">${escapeHtml(choice.prompt)}</div>
+
+      <div class="choice-card-grid">
+        <button
+          class="choice-option choice-option-left ${choice.answered && choice.answer === leftOpt ? 'selected' : ''}"
+          data-choice-msg="${msg.id}"
+          data-choice-idx="0"
+          ${!canAnswer ? 'disabled' : ''}
+          type="button"
+        >
+          ${escapeHtml(leftOpt)}
+        </button>
+
+        <button
+          class="choice-option choice-option-right ${choice.answered && choice.answer === rightOpt ? 'selected' : ''}"
+          data-choice-msg="${msg.id}"
+          data-choice-idx="1"
+          ${!canAnswer ? 'disabled' : ''}
+          type="button"
+        >
+          ${escapeHtml(rightOpt)}
+        </button>
+      </div>
+    </div>
   `;
 }
+
 
 
 
@@ -4149,6 +4156,51 @@ export async function render(root, params = {}) {
   cursor: pointer;
   flex-shrink: 0;
 }
+  .choice-card {
+  min-width: 220px;
+  max-width: 320px;
+  padding: 10px;
+  border-radius: 18px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 18px var(--color-shadow);
+}
+
+.choice-card-title {
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+  margin-bottom: 10px;
+  word-break: break-word;
+}
+
+.choice-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.choice-option {
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.choice-option.selected {
+  background: color-mix(in srgb, var(--color-accent) 18%, var(--color-bg-tertiary));
+  border-color: var(--color-accent);
+}
+
+.choice-option:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 
       </style>
       <style id="chat-user-css"></style>

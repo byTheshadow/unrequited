@@ -2757,720 +2757,6 @@
   100% { transform: translateY(-150px) scale(1.2) rotate(180deg); opacity: 0; }
 }
 
-
-/* ==========================================================================
-   四、 漂流瓶 (Drift) 与 教程 (Tutorial) 特有样式
-   ========================================================================== */
-
-.drift-container {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  color: var(--color-text-primary);
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
-  padding-bottom: 40px;
-}
-
-/* 优化后的霓虹深空背景，自动适配当前主题底色，仅有柔和的彩色漫反射 */
-.drift-bg-glow {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 1;
-  background: var(--color-bg-primary); /* 跟随系统背景颜色 */
-  overflow: hidden;
-  pointer-events: none;
-}
-.glow-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(70px);
-  opacity: 0.08; /* 非常淡的彩色光晕，避免形成大面积污斑 */
-  mix-blend-mode: screen;
-}
-.orb-1 {
-  top: 15%; left: -10%;
-  width: 320px; height: 320px;
-  background: var(--color-accent);
-  animation: driftGlowOrb 14s ease-in-out infinite alternate;
-}
-.orb-2 {
-  bottom: 20%; right: -10%;
-  width: 300px; height: 300px;
-  background: var(--color-text-secondary);
-  animation: driftGlowOrb 18s ease-in-out infinite alternate-reverse;
-}
-.orb-3 {
-  top: 45%; left: 25%;
-  width: 220px; height: 220px;
-  background: var(--color-accent);
-  animation: driftGlowOrb 16s ease-in-out infinite alternate 1.5s;
-}
-@keyframes driftGlowOrb {
-  0% { transform: translate(0, 0) scale(1); }
-  100% { transform: translate(25px, -30px) scale(1.15); }
-}
-
-.drift-top-bar {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
-}
-.drift-title {
-  font-size: 16px;
-  letter-spacing: 4px;
-  font-weight: 500;
-  text-align: center;
-  color: var(--color-text-primary);
-}
-.drift-btn-circle {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--color-text-secondary);
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: transform 0.15s, color 0.2s, background 0.2s;
-}
-.drift-btn-circle:active {
-  transform: scale(0.93);
-  color: var(--color-text-primary);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.drift-tabs {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  margin: 10px 16px 15px;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 3px;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-.drift-tab-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 0;
-  background: transparent;
-  border: none;
-  border-radius: calc(var(--radius-md) - 2px);
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  letter-spacing: 1px;
-  transition: color 0.2s, background 0.2s, transform 0.1s;
-}
-.drift-tab-item svg {
-  opacity: 0.7;
-  transition: transform 0.2s, opacity 0.2s;
-}
-.drift-tab-item:active { transform: scale(0.97); }
-.drift-tab-item.active {
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--color-accent);
-}
-.drift-tab-item.active svg {
-  opacity: 1;
-  transform: translateY(-1px);
-}
-
-.unread-alert-bar {
-  position: relative;
-  z-index: 5;
-  margin: 0 16px 10px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
-  border-top: 1px dashed var(--color-border);
-  border-bottom: 1px dashed var(--color-border);
-  padding: 8px 0;
-  text-align: center;
-}
-.unread-alert-content {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  letter-spacing: 1px;
-}
-.pulse-star {
-  color: var(--color-accent);
-  animation: pulseStarGlow 2s infinite alternate;
-  display: inline-flex;
-}
-@keyframes pulseStarGlow {
-  0% { transform: scale(0.8); opacity: 0.5; }
-  100% { transform: scale(1.1); opacity: 1; }
-}
-
-.drift-view-content {
-  position: relative;
-  z-index: 4;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 0 16px;
-}
-
-.drift-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 20px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 8px 32px var(--color-shadow);
-  transition: opacity 0.3s, transform 0.3s;
-}
-
-/* --- 写信步骤1: 邮箱筒视图 --- */
-.postbox-step-view {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  animation: driftFadeInUp 0.4s ease forwards;
-}
-.postbox-step-view.hide {
-  display: none;
-}
-.postbox-cylinder-box {
-  position: relative;
-  color: var(--color-accent);
-  padding: 20px;
-}
-.postbox-glowing-glow {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100px; height: 100px;
-  background: var(--color-accent);
-  border-radius: 50%;
-  filter: blur(35px);
-  opacity: 0.15;
-  animation: postboxBreath 3s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-@keyframes postboxBreath {
-  0% { opacity: 0.1; transform: translate(-50%, -50%) scale(0.9); }
-  100% { opacity: 0.22; transform: translate(-50%, -50%) scale(1.15); }
-}
-.postbox-hint {
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: var(--color-text-secondary);
-  margin-bottom: 10px;
-}
-
-/* --- 写信步骤2: 信封展开动效 --- */
-.envelope-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  perspective: 1000px;
-}
-.envelope-wrapper.hide {
-  display: none;
-}
-.envelope-outer {
-  position: relative;
-  width: 240px; height: 160px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 20px;
-  transform-style: preserve-3d;
-  transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.envelope-flap {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid var(--color-border);
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  transform-origin: top;
-  transition: transform 0.5s ease;
-  z-index: 3;
-}
-.envelope-body-front {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  height: 100px;
-  background: rgba(255, 255, 255, 0.01);
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
-  clip-path: polygon(0 100%, 100% 100%, 50% 0);
-  z-index: 2;
-}
-.envelope-paper-preview {
-  position: absolute;
-  bottom: 30px;
-  width: 200px; height: 100px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-  transition: transform 0.5s ease, opacity 0.5s;
-  opacity: 0.5;
-}
-.paper-preview-text {
-  font-size: 10px;
-  letter-spacing: 1px;
-  color: var(--color-text-secondary);
-}
-
-.envelope-wrapper.opened .envelope-outer {
-  transform: rotateX(15deg) translateY(20px);
-}
-.envelope-wrapper.opened .envelope-flap {
-  transform: rotateX(180deg);
-  background: rgba(255, 255, 255, 0.01);
-}
-.envelope-wrapper.opened .envelope-paper-preview {
-  transform: translateY(-50px) scale(1.05);
-  opacity: 0;
-}
-.btn-open-envelope {
-  position: relative;
-  z-index: 4;
-}
-
-/* --- 写信步骤3: 信纸书写区 --- */
-.letter-paper-wrapper {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  transition: opacity 0.4s ease, transform 0.4s ease;
-}
-.letter-paper-wrapper.hide {
-  opacity: 0;
-  transform: scale(0.95) translateY(20px);
-  pointer-events: none;
-  display: none;
-}
-.letter-paper-wrapper.show {
-  opacity: 1;
-  transform: scale(1) translateY(0);
-}
-
-.drift-select-char {
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--color-border);
-  font-size: 13px;
-  letter-spacing: 1px;
-  margin-bottom: 12px;
-}
-.drift-textarea {
-  flex: 1;
-  background: transparent;
-  border: 1px dashed var(--color-border);
-  font-size: 14px;
-  line-height: 1.6;
-  letter-spacing: 1.5px;
-  padding: 10px;
-  margin-bottom: 14px;
-}
-.letter-actions { display: flex; gap: 10px; }
-.letter-actions .btn { flex: 1; }
-
-/* --- 投递动画浮层 --- */
-.drift-anim-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: radial-gradient(circle at center, rgba(13, 9, 26, 0.95) 0%, rgba(3, 2, 6, 0.98) 100%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.5s ease;
-}
-.drift-anim-overlay.show {
-  opacity: 1;
-  pointer-events: auto;
-}
-.drift-anim-bottle {
-  color: var(--color-accent);
-  filter: drop-shadow(0 0 15px var(--color-accent));
-  animation: floatDriftBottle 3s ease-in-out infinite;
-}
-.drift-anim-bottle svg { width: 68px; height: 68px; }
-.drift-anim-text {
-  margin-top: 40px;
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: var(--color-text-secondary);
-  animation: breathText 1.5s ease-in-out infinite alternate;
-}
-.drift-particles-container {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-.drift-particle {
-  position: absolute;
-  bottom: -20px;
-  background: #fff;
-  border-radius: 50%;
-  opacity: 0;
-  box-shadow: 0 0 6px var(--color-accent);
-  animation: floatDriftParticle 3s linear infinite;
-}
-
-@keyframes floatDriftBottle {
-  0% { transform: translateY(20px) rotate(-10deg) scale(0.9); }
-  50% { transform: translateY(-30px) rotate(15deg) scale(1.1); }
-  100% { transform: translateY(-100px) rotate(-5deg) scale(0); opacity: 0; }
-}
-@keyframes breathText {
-  0% { opacity: 0.4; }
-  100% { opacity: 1; }
-}
-@keyframes floatDriftParticle {
-  0% { transform: translateY(0) scale(0.5); opacity: 0; }
-  20% { opacity: 0.8; }
-  80% { opacity: 0.8; }
-  100% { transform: translateY(-100vh) scale(1.2); opacity: 0; }
-}
-
-/* --- 仪式感打捞漂流瓶动画 --- */
-.salvage-anim-vortex {
-  position: relative;
-  width: 160px; height: 160px;
-  display: flex; align-items: center; justify-content: center;
-}
-.salvage-swirl {
-  position: absolute;
-  width: 100%; height: 100%;
-  border: 1px dashed var(--color-accent);
-  border-radius: 50%;
-  opacity: 0.3;
-  animation: salvageSwirlRotate 3s linear infinite;
-}
-.salvage-swirl::before {
-  content: '';
-  position: absolute;
-  inset: 15px;
-  border: 1px dashed var(--color-text-secondary);
-  border-radius: 50%;
-  opacity: 0.5;
-  animation: salvageSwirlRotate 2s linear infinite reverse;
-}
-.salvage-bottle-rise {
-  color: var(--color-accent);
-  filter: drop-shadow(0 0 10px var(--color-accent));
-  animation: bottleRiseUp 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
-}
-.salvage-bottle-rise svg { width: 56px; height: 56px; }
-
-@keyframes salvageSwirlRotate {
-  0% { transform: rotate(0deg) scale(0.85); }
-  50% { transform: rotate(180deg) scale(1.05); }
-  100% { transform: rotate(360deg) scale(0.85); }
-}
-@keyframes bottleRiseUp {
-  0% { transform: translateY(80px) rotate(-30deg) scale(0.5); opacity: 0; }
-  50% { transform: translateY(-10px) rotate(15deg) scale(1.1); opacity: 1; }
-  100% { transform: translateY(-30px) rotate(0deg) scale(1); opacity: 1; }
-}
-
-/* --- 仪式感打捞区域 --- */
-.salvage-trigger-zone {
-  margin-bottom: 20px;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.salvage-trigger-box {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-}
-.salvage-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.salvage-title {
-  font-size: 13px;
-  letter-spacing: 2px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-.salvage-sub {
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-  letter-spacing: 1px;
-}
-.btn-salvage {
-  padding: 6px 12px;
-  min-height: 34px;
-  font-size: 12px;
-  border-radius: var(--radius-md);
-}
-
-/* --- 收件箱时间线机制 --- */
-.drift-mailbox-list {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 5px 0 30px;
-}
-.drift-mailbox-list::before {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0; left: 16px;
-  width: 1px;
-  background: linear-gradient(to bottom, var(--color-border) 0%, rgba(255,255,255,0.01) 100%);
-}
-
-.drift-timeline-item {
-  position: relative;
-  display: flex;
-  padding-left: 40px;
-  animation: driftFadeInUp 0.4s ease forwards;
-}
-.drift-timeline-badge {
-  position: absolute;
-  left: 6px; top: 12px;
-  width: 20px; height: 20px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  font-size: 9px;
-  display: flex; align-items: center; justify-content: center;
-  color: var(--color-text-secondary);
-  z-index: 2;
-}
-
-.item-sent .drift-timeline-badge {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
-.drift-timeline-card {
-  flex: 1;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 12px 14px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition: background 0.2s, border-color 0.2s;
-  cursor: pointer;
-}
-.drift-timeline-card:active {
-  background: rgba(255, 255, 255, 0.04);
-}
-.drift-timeline-card.received-bubble {
-  border-left: 2px solid var(--color-text-secondary);
-}
-.drift-timeline-card.received-bubble:has(.drift-unread-dot) {
-  border-left: 2px solid var(--color-accent);
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.drift-letter-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  margin-bottom: 8px;
-  opacity: 0.7;
-}
-.drift-letter-sender {
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.drift-unread-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  box-shadow: 0 0 6px var(--color-accent);
-}
-.drift-letter-time {
-  color: var(--color-text-tertiary);
-}
-
-.drift-letter-body-container { min-height: 24px; }
-.drift-letter-text {
-  font-size: 13px;
-  line-height: 1.6;
-  letter-spacing: 1px;
-  color: var(--color-text-primary);
-  word-break: break-all;
-}
-.tap-to-read {
-  display: block;
-  text-align: center;
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: var(--color-accent);
-  padding: 6px 0;
-  animation: pulseStarGlow 2.5s infinite alternate;
-}
-
-.drift-letter-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.03);
-  padding-top: 8px;
-}
-.drift-text-btn-danger {
-  background: transparent;
-  border: none;
-  color: rgba(220, 38, 38, 0.6);
-  font-size: 10px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  transition: color 0.2s;
-}
-.drift-text-btn-danger:active {
-  color: rgba(220, 38, 38, 1);
-}
-
-/* 打捞后弹窗打字机排版 */
-.salvaged-sheet-body {
-  padding: 16px 8px;
-  min-height: 120px;
-}
-.salvaged-typewriter-text {
-  font-size: 14px;
-  line-height: 1.8;
-  letter-spacing: 1.5px;
-  color: var(--color-text-primary);
-  word-break: break-all;
-}
-
-/* 打字机光标闪烁 */
-.typing-active::after {
-  content: '';
-  display: inline-block;
-  width: 1px;
-  height: 1.2em;
-  background: var(--color-accent);
-  animation: blinkCursor 0.8s infinite;
-  margin-left: 3px;
-  vertical-align: -0.15em;
-}
-@keyframes blinkCursor {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-@keyframes driftFadeInUp {
-  0% { opacity: 0; transform: translateY(12px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-/* --- 长段字卡库管理 --- */
-.long-cards-card { padding: 18px; }
-.long-cards-header { margin-bottom: 14px; }
-.long-cards-title {
-  font-size: 14px;
-  letter-spacing: 2px;
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-.long-cards-desc {
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-}
-.long-cards-import-zone {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-.long-import-input {
-  min-height: 80px;
-  font-size: 12px;
-  background: rgba(255, 255, 255, 0.01);
-  border-color: var(--color-border);
-}
-.long-list-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
-  padding-bottom: 6px;
-  margin-bottom: 10px;
-}
-.long-cards-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-y: auto;
-  max-height: 300px;
-}
-.long-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-.long-item-content {
-  flex: 1;
-  font-size: 12px;
-  line-height: 1.5;
-  word-break: break-all;
-  color: var(--color-text-primary);
-}
-.long-item-del {
-  background: transparent;
-  border: none;
-  color: var(--color-text-secondary);
-  opacity: 0.5;
-  padding: 2px;
-  transition: opacity 0.2s;
-}
-.long-item-del:active {
-  opacity: 1;
-  color: #dc2626;
-}
 /* ==========================================================================
    五、 星图指引 (Tutorial) 特有样式与星座动效
    ========================================================================== */
@@ -3707,3 +2993,569 @@
   opacity: 0.5;
   letter-spacing: 6px;
 }
+/* ==========================================================================
+   四、 漂流瓶 (Drift) 与 教程 (Tutorial) 特有样式与动效
+   ========================================================================== */
+
+/* --- 漂流瓶主页面容器 --- */
+.drift-container {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  padding-bottom: 40px;
+}
+
+/* 优化后的呼吸霓虹背景 (完美适配浅色/深色主题) */
+.drift-bg-glow {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1;
+  background: var(--color-bg-primary);
+  overflow: hidden;
+  pointer-events: none;
+}
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.08;
+  mix-blend-mode: screen;
+}
+.orb-1 {
+  top: 15%; left: -10%;
+  width: 320px; height: 320px;
+  background: var(--color-accent);
+  animation: driftGlowOrb 14s ease-in-out infinite alternate;
+}
+.orb-2 {
+  bottom: 20%; right: -10%;
+  width: 300px; height: 300px;
+  background: var(--color-text-secondary);
+  animation: driftGlowOrb 18s ease-in-out infinite alternate-reverse;
+}
+.orb-3 {
+  top: 45%; left: 25%;
+  width: 220px; height: 220px;
+  background: var(--color-accent);
+  animation: driftGlowOrb 16s ease-in-out infinite alternate 1.5s;
+}
+@keyframes driftGlowOrb {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(25px, -30px) scale(1.15); }
+}
+
+/* 顶栏 */
+.drift-top-bar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
+}
+.drift-title {
+  font-size: 16px;
+  letter-spacing: 4px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+.drift-btn-circle {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--color-text-secondary);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: transform 0.15s, color 0.2s, background 0.2s;
+}
+.drift-btn-circle:active {
+  transform: scale(0.93);
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 选项卡导航 */
+.drift-tabs {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  margin: 10px 16px 15px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.drift-tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  background: transparent;
+  border: none;
+  border-radius: calc(var(--radius-md) - 2px);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  letter-spacing: 1px;
+  transition: color 0.2s, background 0.2s, transform 0.1s;
+}
+.drift-tab-item svg {
+  opacity: 0.7;
+  transition: transform 0.2s, opacity 0.2s;
+}
+.drift-tab-item:active { transform: scale(0.97); }
+.drift-tab-item.active {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-accent);
+}
+.drift-tab-item.active svg {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+/* 未读回信小提示栏 */
+.unread-alert-bar {
+  position: relative;
+  z-index: 5;
+  margin: 0 16px 10px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  border-top: 1px dashed var(--color-border);
+  border-bottom: 1px dashed var(--color-border);
+  padding: 8px 0;
+  text-align: center;
+}
+.unread-alert-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  letter-spacing: 1px;
+}
+.pulse-star {
+  color: var(--color-accent);
+  animation: pulseStarGlow 2s infinite alternate;
+  display: inline-flex;
+}
+@keyframes pulseStarGlow {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  100% { transform: scale(1.1); opacity: 1; }
+}
+
+/* 磨砂玻璃主卡片 */
+.drift-view-content {
+  position: relative;
+  z-index: 4;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 16px;
+}
+.drift-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px var(--color-shadow);
+  transition: opacity 0.3s, transform 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+
+/* --- 状态 1: 极光星海漂流视图 --- */
+.state-waiting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.state-waiting.hide {
+  display: none;
+}
+.action-top {
+  margin-top: 30px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.hint-text {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--color-text-secondary);
+}
+.btn-open-envelope {
+  background: var(--color-text-primary);
+  color: var(--color-bg-primary);
+  border: none;
+  padding: 10px 22px;
+  border-radius: 99px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px var(--color-shadow);
+  transition: transform 0.2s, background 0.2s;
+}
+.btn-open-envelope:active {
+  transform: scale(0.95);
+}
+
+/* 海洋动画区域 */
+.sea-animation-area {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 65%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+}
+
+/* 孤独漂浮的漂流瓶 */
+.floating-bottle {
+  position: absolute;
+  top: 15%;
+  color: var(--color-accent);
+  animation: floatBottleInSea 4s ease-in-out infinite;
+  z-index: 5;
+  filter: drop-shadow(0 0 10px var(--color-accent));
+}
+@keyframes floatBottleInSea {
+  0% { transform: translateY(0px) rotate(-8deg); }
+  50% { transform: translateY(-16px) rotate(6deg); }
+  100% { transform: translateY(0px) rotate(-8deg); }
+}
+
+/* 海洋波浪容器及流动动效 */
+.drift-sea-container {
+  position: absolute;
+  bottom: 0; left: 0; width: 100%; height: 110px;
+  overflow: hidden;
+}
+.drift-waves {
+  position: absolute;
+  bottom: 0; width: 100%; height: 100%;
+}
+.wave-use {
+  animation: waveMove 12s cubic-bezier(0.55, 0.5, 0.45, 0.5) infinite;
+}
+.wave1 { fill: var(--color-accent); opacity: 0.12; animation-delay: -2s; animation-duration: 7s; }
+.wave2 { fill: var(--color-accent); opacity: 0.18; animation-delay: -3s; animation-duration: 10s; }
+.wave3 { fill: var(--color-text-secondary); opacity: 0.08; animation-delay: -4s; animation-duration: 13s; }
+.wave4 { fill: var(--color-accent); opacity: 0.25; animation-delay: -5s; animation-duration: 18s; }
+
+@keyframes waveMove {
+  0% { transform: translate3d(-90px, 0, 0); }
+  100% { transform: translate3d(85px, 0, 0); }
+}
+
+/* 星海升腾的星光 */
+.sea-stars {
+  position: absolute; inset: 0; pointer-events: none;
+}
+.sea-star {
+  position: absolute;
+  background: var(--color-accent);
+  border-radius: 50%;
+  opacity: 0.4;
+  animation: seaStarTwinkle 3s ease-in-out infinite alternate;
+}
+@keyframes seaStarTwinkle {
+  0% { opacity: 0.2; transform: scale(0.8); }
+  100% { opacity: 0.8; transform: scale(1.2); }
+}
+
+/* --- 状态 2: 信封 3D 展开与书写视图 --- */
+.state-writing {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.5s ease;
+}
+.state-writing.active {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+/* 信封 3D 折叠结构 */
+.envelope-3d {
+  position: relative;
+  width: 260px; height: 160px;
+  perspective: 1000px;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.env-body {
+  position: absolute; inset: 0;
+  background: rgba(128, 128, 128, 0.04);
+  border: 1px solid var(--color-border);
+  border-radius: 8px; z-index: 2;
+}
+.env-flap {
+  position: absolute; top: 0; left: 0; width: 100%; height: 90px;
+  background: rgba(128, 128, 128, 0.06);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: top;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 3;
+  border-bottom: 1px solid var(--color-border);
+}
+.env-paper {
+  position: absolute; bottom: 10px; left: 10px; right: 10px; height: 140px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px; z-index: 1;
+  display: flex; flex-direction: column; padding: 16px;
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.6s ease, bottom 0.6s ease;
+  opacity: 0;
+}
+
+/* 信封展开后的激活类名 */
+.envelope-3d.open {
+  transform: translateY(60px);
+}
+.envelope-3d.open .env-flap {
+  transform: rotateX(180deg);
+  z-index: 0;
+}
+.envelope-3d.open .env-paper {
+  opacity: 1;
+  bottom: 20px;
+  height: 290px;
+  transform: translateY(-130px);
+  box-shadow: 0 -10px 24px var(--color-shadow);
+  z-index: 4;
+}
+
+/* 投递星光粒子动画 */
+.drift-anim-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: radial-gradient(circle at center, rgba(13, 9, 26, 0.96) 0%, rgba(3, 2, 6, 0.98) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+.drift-anim-overlay.show { opacity: 1; pointer-events: auto; }
+.drift-anim-bottle {
+  color: var(--color-accent);
+  filter: drop-shadow(0 0 15px var(--color-accent));
+  animation: floatDriftBottle 3s ease-in-out infinite;
+}
+.drift-anim-bottle svg { width: 68px; height: 68px; }
+.drift-anim-text {
+  margin-top: 40px;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--color-text-secondary);
+  animation: breathText 1.5s ease-in-out infinite alternate;
+}
+.drift-particles-container {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden;
+}
+.drift-particle {
+  position: absolute; bottom: -20px;
+  background: #fff; border-radius: 50%; opacity: 0;
+  box-shadow: 0 0 6px var(--color-accent);
+  animation: floatDriftParticle 3s linear infinite;
+}
+
+@keyframes floatDriftBottle {
+  0% { transform: translateY(20px) rotate(-10deg) scale(0.9); }
+  50% { transform: translateY(-30px) rotate(15deg) scale(1.1); }
+  100% { transform: translateY(-100px) rotate(-5deg) scale(0); opacity: 0; }
+}
+@keyframes breathText { 0% { opacity: 0.4; } 100% { opacity: 1; } }
+@keyframes floatDriftParticle {
+  0% { transform: translateY(0) scale(0.5); opacity: 0; }
+  20% { opacity: 0.8; }
+  80% { opacity: 0.8; }
+  100% { transform: translateY(-100vh) scale(1.2); opacity: 0; }
+}
+
+/* --- 仪式感打捞特效 --- */
+.salvage-anim-vortex {
+  position: relative;
+  width: 160px; height: 160px;
+  display: flex; align-items: center; justify-content: center;
+}
+.salvage-swirl {
+  position: absolute;
+  width: 100%; height: 100%;
+  border: 1px dashed var(--color-accent);
+  border-radius: 50%; opacity: 0.3;
+  animation: salvageSwirlRotate 3s linear infinite;
+}
+.salvage-swirl::before {
+  content: ''; position: absolute; inset: 15px;
+  border: 1px dashed var(--color-text-secondary);
+  border-radius: 50%; opacity: 0.5;
+  animation: salvageSwirlRotate 2s linear infinite reverse;
+}
+.salvage-bottle-rise {
+  color: var(--color-accent);
+  filter: drop-shadow(0 0 10px var(--color-accent));
+  animation: bottleRiseUp 3s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+.salvage-bottle-rise svg { width: 56px; height: 56px; }
+
+@keyframes salvageSwirlRotate {
+  0% { transform: rotate(0deg) scale(0.85); }
+  50% { transform: rotate(180deg) scale(1.05); }
+  100% { transform: rotate(360deg) scale(0.85); }
+}
+@keyframes bottleRiseUp {
+  0% { transform: translateY(80px) rotate(-30deg) scale(0.5); opacity: 0; }
+  50% { transform: translateY(-10px) rotate(15deg) scale(1.1); opacity: 1; }
+  100% { transform: translateY(-30px) rotate(0deg) scale(1); opacity: 1; }
+}
+
+/* --- 收件箱与大邮箱筒 --- */
+.salvage-trigger-zone {
+  margin-bottom: 20px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.salvage-trigger-box {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.salvage-info { display: flex; flex-direction: column; gap: 4px; }
+.salvage-title { font-size: 13px; letter-spacing: 2px; font-weight: 500; color: var(--color-text-primary); }
+.salvage-sub { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 1px; }
+.btn-salvage { padding: 6px 12px; min-height: 34px; font-size: 12px; border-radius: var(--radius-md); }
+
+.mailbox-large-icon {
+  position: relative;
+  color: var(--color-text-secondary);
+  opacity: 0.45;
+  display: inline-flex;
+  margin-bottom: 12px;
+}
+.mailbox-glowing-halo {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px; height: 120px;
+  background: var(--color-text-secondary);
+  border-radius: 50%;
+  filter: blur(40px);
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.drift-mailbox-list {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 5px 0 30px;
+}
+.drift-mailbox-list::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 16px; width: 1px;
+  background: linear-gradient(to bottom, var(--color-border) 0%, rgba(255,255,255,0.01) 100%);
+}
+
+.drift-timeline-item {
+  position: relative;
+  display: flex;
+  padding-left: 40px;
+  animation: driftFadeInUp 0.4s ease forwards;
+}
+.drift-timeline-badge {
+  position: absolute; left: 6px; top: 12px;
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  font-size: 9px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-text-secondary);
+  z-index: 2;
+}
+.item-sent .drift-timeline-badge { border-color: var(--color-accent); color: var(--color-accent); }
+
+.drift-timeline-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+.drift-timeline-card:active { background: rgba(255, 255, 255, 0.04); }
+.drift-timeline-card.received-bubble { border-left: 2px solid var(--color-text-secondary); }
+.drift-timeline-card.received-bubble:has(.drift-unread-dot) {
+  border-left: 2px solid var(--color-accent); background: rgba(255, 255, 255, 0.02);
+}
+
+.drift-letter-meta { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 8px; opacity: 0.7; }
+.drift-letter-sender { font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.drift-unread-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-accent); box-shadow: 0 0 6px var(--color-accent); }
+.drift-letter-time { color: var(--color-text-tertiary); }
+.drift-letter-body-container { min-height: 24px; }
+.drift-letter-text { font-size: 13px; line-height: 1.6; letter-spacing: 1px; color: var(--color-text-primary); word-break: break-all; }
+.tap-to-read { display: block; text-align: center; font-size: 11px; letter-spacing: 2px; color: var(--color-accent); padding: 6px 0; animation: pulseStarGlow 2.5s infinite alternate; }
+
+.drift-letter-actions { display: flex; justify-content: flex-end; margin-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.03); padding-top: 8px; }
+.drift-text-btn-danger { background: transparent; border: none; color: rgba(220, 38, 38, 0.6); font-size: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; transition: color 0.2s; }
+.drift-text-btn-danger:active { color: rgba(220, 38, 38, 1); }
+
+.salvaged-sheet-body { padding: 16px 8px; min-height: 120px; }
+.salvaged-typewriter-text { font-size: 14px; line-height: 1.8; letter-spacing: 1.5px; color: var(--color-text-primary); word-break: break-all; }
+
+/* 打字机光标 */
+.typing-active::after {
+  content: ''; display: inline-block; width: 1px; height: 1.2em;
+  background: var(--color-accent); animation: blinkCursor 0.8s infinite;
+  margin-left: 3px; vertical-align: -0.15em;
+}
+@keyframes blinkCursor { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
+@keyframes driftFadeInUp { 0% { opacity: 0; transform: translateY(12px); } 100% { opacity: 1; transform: translateY(0); } }
+
+/* --- 长段字卡 --- */
+.long-cards-card { padding: 18px; }
+.long-cards-header { margin-bottom: 14px; }
+.long-cards-title { font-size: 14px; letter-spacing: 2px; font-weight: 500; margin-bottom: 4px; }
+.long-cards-desc { font-size: 11px; line-height: 1.5; color: var(--color-text-secondary); }
+.long-cards-import-zone { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.long-import-input { min-height: 80px; font-size: 12px; background: rgba(255, 255, 255, 0.01); border-color: var(--color-border); }
+.long-list-header { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border); padding-bottom: 6px; margin-bottom: 10px; }
+.long-cards-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 300px; }
+.long-item { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 8px 10px; background: rgba(255, 255, 255, 0.01); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.long-item-content { flex: 1; font-size: 12px; line-height: 1.5; word-break: break-all; color: var(--color-text-primary); }
+.long-item-del { background: transparent; border: none; color: var(--color-text-secondary); opacity: 0.5; padding: 2px; transition: opacity 0.2s; }
+.long-item-del:active { opacity: 1; color: #dc2626; }

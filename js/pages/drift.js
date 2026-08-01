@@ -5,21 +5,22 @@ import {
   ICON, escapeHtml, formatTime, haptic, toast, openSheet, confirmSheet, pick
 } from '../utils.js';
 
-// 精美内联 SVG 图标，无 Unicode emoji
+// 纯手绘线条风格内联 SVG，无 Unicode emoji
 const DRIFT_ICON = {
   driftBottle: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M9 6h6M10 6v3.5a2 2 0 0 1-.58 1.42l-2.84 2.83A3 3 0 0 0 6 15.88V20a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-4.12a3 3 0 0 0-.58-2.13l-2.84-2.83A2 2 0 0 1 14 9.5V6"/><path d="M9 16h6M8 19h8"/></svg>`,
+  driftBottleBig: `<svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M9 6h6M10 6v3.5a2 2 0 0 1-.58 1.42l-2.84 2.83A3 3 0 0 0 6 15.88V20a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-4.12a3 3 0 0 0-.58-2.13l-2.84-2.83A2 2 0 0 1 14 9.5V6"/><path d="M9 16h6M8 19h8"/></svg>`,
   envelope: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
   mailbox: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 13V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h8"/><path d="M18 10.5V13a4 4 0 0 1-8 0V8h8"/><path d="M2 6l10 7 10-7"/><circle cx="18" cy="18" r="3"/><path d="M21 21l-1.5-1.5"/></svg>`,
   textCards: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
   starDust: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v2M12 19v2M5 12H3M21 12h-2M18.36 5.64l-1.42 1.42M7.05 16.95l-1.42 1.42M18.36 18.36l-1.42-1.42M7.05 7.05L5.64 5.64M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>`,
   
-  // 邮箱筒 SVG (线条勾勒风格)
-  postboxCylinder: `<svg viewBox="0 0 64 64" width="76" height="76" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 22h24M16 30h32M20 48h24" opacity="0.4"/><path d="M16 26a16 16 0 0 1 32 0v26a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V26z"/><path d="M22 18V12h20v6"/><path d="M24 26h16v6H24z"/><path d="M32 32v12M28 38h8"/></svg>`,
+  // 收件箱大邮箱筒 SVG
+  postboxCylinderBig: `<svg viewBox="0 0 64 64" width="96" height="96" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 22h24M16 30h32M20 48h24" opacity="0.3"/><path d="M16 26a16 16 0 0 1 32 0v26a4 4 0 0 1-4 4H20a4 4 0 0 1-4-4V26z"/><path d="M22 18V12h20v6"/><path d="M24 26h16v6H24z"/><path d="M32 32v12M28 38h8"/></svg>`,
   
-  // 捞网/星海微波图标
   salvageWave: `<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 10 10c0 5.5-4.5 10-10 10S2 17.5 2 12M12 6v6l4 2"/><path d="M6 17c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0" opacity="0.6"/></svg>`
 };
 
+// 预设的深空回音
 const SPACE_WHISPERS = [
   "宇宙是一个庞大的回音室，你的执念，已在三万光年外的星轨上激起了微弱的涟漪。",
   "星尘在永夜的冷寂中重塑。它掠过你的信笺，留下一声无法翻译的叹息：『我听到了。』",
@@ -31,7 +32,7 @@ const SPACE_WHISPERS = [
 let activeTab = 'write'; 
 let characters = [];
 let targetCharId = 'unknown'; 
-let writeStep = 'postbox'; // 'postbox' (邮箱筒) | 'envelope' (折叠信封) | 'paper' (书写纸张)
+let writeStep = 'waiting'; // 'waiting' (星海漂浮状态) | 'writing' (写信展开状态)
 const typingTimers = new Map();
 
 export async function render(root, params) {
@@ -39,7 +40,7 @@ export async function render(root, params) {
 
   root.innerHTML = `
     <div class="drift-container">
-      <!-- 优化后的呼吸霓虹背景 -->
+      <!-- 极简渐变呼吸感背景 -->
       <div class="drift-bg-glow">
         <div class="glow-orb orb-1"></div>
         <div class="glow-orb orb-2"></div>
@@ -75,7 +76,7 @@ export async function render(root, params) {
       <!-- 主视图区域 -->
       <div class="drift-view-content" id="drift-view"></div>
 
-      <!-- 投递动画浮层 -->
+      <!-- 投递星光动画浮层 -->
       <div id="drift-animation-overlay" class="drift-anim-overlay hide">
         <div class="drift-anim-bottle">
           ${DRIFT_ICON.driftBottle}
@@ -97,7 +98,7 @@ export async function render(root, params) {
     </div>
   `;
 
-  // 绑定导航事件
+  // 绑定返回与指引事件
   root.querySelector('#drift-back').addEventListener('click', () => {
     haptic(6);
     goBack('/home');
@@ -134,7 +135,7 @@ async function switchTab(tabName) {
   clearAllTypingTimers();
 
   if (tabName === 'write') {
-    writeStep = 'postbox';
+    writeStep = 'waiting';
     renderWriteView(view);
   } else if (tabName === 'mailbox') {
     await renderMailboxView(view);
@@ -145,7 +146,7 @@ async function switchTab(tabName) {
   updateUnreadAlert();
 }
 
-// ----------------- [视图渲染：写信流] -----------------
+// ----------------- [视图渲染：写信流程] -----------------
 function renderWriteView(container) {
   const optionsHtml = characters.map(c => `
     <option value="${c.id}">寄给：${escapeHtml(c.name)}</option>
@@ -154,103 +155,122 @@ function renderWriteView(container) {
   container.innerHTML = `
     <div class="drift-card write-card">
       
-      <!-- 步骤1: 邮箱筒视图 -->
-      <div class="postbox-step-view ${writeStep === 'postbox' ? 'active' : 'hide'}" id="step-postbox">
-        <div class="postbox-cylinder-box">
-          <div class="postbox-glowing-glow"></div>
-          ${DRIFT_ICON.postboxCylinder}
-        </div>
-        <div class="postbox-hint">思绪已被封存，在此寄往深空</div>
-        <button class="btn btn-primary" id="btn-start-write">
-          ${DRIFT_ICON.envelope}
-          开启信箱撰写思绪
-        </button>
-      </div>
-
-      <!-- 步骤2: 信封封口视图 -->
-      <div class="envelope-wrapper ${writeStep === 'envelope' ? 'active' : 'hide'}" id="step-envelope">
-        <div class="envelope-outer">
-          <div class="envelope-flap"></div>
-          <div class="envelope-body-front"></div>
-          <div class="envelope-paper-preview">
-            <span class="paper-preview-text">写下你无法寄出的思绪...</span>
-          </div>
-          <button class="btn btn-primary btn-open-envelope" id="btn-open-envelope">
+      <!-- 状态 1：海上漂浮等待视图 -->
+      <div class="state-waiting ${writeStep === 'waiting' ? 'active' : 'hide'}" id="view-wait">
+        <div class="action-top">
+          <div class="hint-text">写下你无法寄出的思绪...</div>
+          <button class="btn-open-envelope" id="btn-trigger-open">
             ${DRIFT_ICON.envelope}
-            打开信纸
+            打开信封
           </button>
+        </div>
+
+        <div class="sea-animation-area">
+          <!-- 漂浮起伏的瓶子 -->
+          <div class="floating-bottle">
+            ${DRIFT_ICON.driftBottleBig}
+          </div>
+          
+          <!-- 流线型视差波浪 SVG -->
+          <div class="drift-sea-container">
+            <svg class="drift-waves" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 28" preserveAspectRatio="none">
+              <defs>
+                <path id="wave-path" d="M-160 12c30 0 58-5 88-5s 58 5 88 5 58-5 88-5 58 5 88 5 v18h-352z" />
+              </defs>
+              <g class="wave-parallax">
+                <use href="#wave-path" x="48" y="0" class="wave-use wave1" />
+                <use href="#wave-path" x="48" y="2" class="wave-use wave2" />
+                <use href="#wave-path" x="48" y="4" class="wave-use wave3" />
+                <use href="#wave-path" x="48" y="6" class="wave-use wave4" />
+              </g>
+            </svg>
+          </div>
+          
+          <!-- 闪烁星光 -->
+          <div class="sea-stars">
+            <div class="sea-star" style="top: 15%; left: 20%; width: 2px; height: 2px;"></div>
+            <div class="sea-star" style="top: 35%; left: 80%; width: 3px; height: 3px; animation-delay: 1s;"></div>
+            <div class="sea-star" style="top: 50%; left: 15%; width: 2px; height: 2px; animation-delay: 2s;"></div>
+            <div class="sea-star" style="top: 25%; left: 65%; width: 4px; height: 4px; animation-delay: 1.5s;"></div>
+          </div>
         </div>
       </div>
 
-      <!-- 步骤3: 信纸书写视图 -->
-      <div class="letter-paper-wrapper ${writeStep === 'paper' ? 'show' : 'hide'}" id="step-paper">
-        <div class="letter-header">
-          <select class="select drift-select-char" id="drift-char-select">
-            <option value="unknown">投递至「未知深空」</option>
-            ${optionsHtml}
-          </select>
-        </div>
-        <textarea class="textarea drift-textarea" id="drift-content" placeholder="在这里写下你的念念不忘..." maxlength="500"></textarea>
-        
-        <div class="letter-actions">
-          <button class="btn btn-secondary" id="btn-fold-envelope">收起</button>
-          <button class="btn btn-primary" id="btn-throw-letter">
-            ${DRIFT_ICON.driftBottle}
-            投递出去
-          </button>
+      <!-- 状态 2：信封 3D 展开与书写视图 -->
+      <div class="state-writing ${writeStep === 'writing' ? 'active' : 'hide'}" id="view-write">
+        <div class="envelope-3d" id="envelope-elem">
+          <div class="env-flap"></div>
+          <div class="env-body"></div>
+          
+          <!-- 书写信纸 -->
+          <div class="env-paper">
+            <div class="letter-header">
+              <select class="select drift-select-char" id="drift-char-select">
+                <option value="unknown">投递至「未知深空」</option>
+                ${optionsHtml}
+              </select>
+            </div>
+            <textarea class="textarea drift-textarea" id="drift-content" placeholder="在这里写下你的念念不忘..." maxlength="500"></textarea>
+            
+            <div class="letter-actions">
+              <button class="btn btn-secondary" id="btn-close-envelope">收起信纸</button>
+              <button class="btn btn-primary" id="btn-throw-letter">
+                ${DRIFT_ICON.driftBottle}
+                投递出去
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
     </div>
   `;
 
-  // 事件1：点击邮箱筒开启写信
-  container.querySelector('#btn-start-write').addEventListener('click', () => {
+  const viewWait = container.querySelector('#view-wait');
+  const viewWrite = container.querySelector('#view-write');
+  const envElem = container.querySelector('#envelope-elem');
+
+  // 打开信封：触发淡出、翻盖折叠与纸张向上抽出
+  container.querySelector('#btn-trigger-open').addEventListener('click', () => {
     haptic(10);
-    writeStep = 'envelope';
-    const pb = container.querySelector('#step-postbox');
-    const ev = container.querySelector('#step-envelope');
+    viewWait.style.opacity = '0';
+    viewWait.style.pointerEvents = 'none';
     
-    pb.classList.remove('active');
-    pb.classList.add('hide');
     setTimeout(() => {
-      ev.classList.remove('hide');
-      ev.classList.add('active');
-    }, 200);
+      viewWait.classList.remove('active');
+      viewWait.classList.add('hide');
+      
+      viewWrite.classList.remove('hide');
+      viewWrite.classList.add('active');
+      
+      setTimeout(() => {
+        envElem.classList.add('open');
+        writeStep = 'writing';
+      }, 50);
+    }, 300);
   });
 
-  // 事件2：打开信封
-  container.querySelector('#btn-open-envelope').addEventListener('click', () => {
-    haptic(10);
-    const evBox = container.querySelector('#step-envelope');
-    const paper = container.querySelector('#step-paper');
-    
-    evBox.classList.add('opened');
-    setTimeout(() => {
-      writeStep = 'paper';
-      evBox.classList.remove('active');
-      evBox.classList.add('hide');
-      paper.classList.remove('hide');
-      paper.classList.add('show');
-    }, 450);
-  });
-
-  // 事件3：收起信纸回到信封
-  container.querySelector('#btn-fold-envelope').addEventListener('click', () => {
+  // 收起信纸折叠回信封
+  container.querySelector('#btn-close-envelope').addEventListener('click', () => {
     haptic(8);
-    const evBox = container.querySelector('#step-envelope');
-    const paper = container.querySelector('#step-paper');
+    envElem.classList.remove('open');
     
-    writeStep = 'envelope';
-    paper.classList.remove('show');
-    paper.classList.add('hide');
-    
-    evBox.classList.remove('opened');
-    evBox.classList.remove('hide');
-    evBox.classList.add('active');
+    setTimeout(() => {
+      viewWrite.classList.remove('active');
+      viewWrite.classList.add('hide');
+      
+      viewWait.classList.remove('hide');
+      viewWait.classList.add('active');
+      
+      setTimeout(() => {
+        viewWait.style.opacity = '1';
+        viewWait.style.pointerEvents = 'auto';
+        writeStep = 'waiting';
+      }, 50);
+    }, 600);
   });
 
-  // 事件4：投递出去
+  // 投递写信
   container.querySelector('#btn-throw-letter').addEventListener('click', () => {
     const text = container.querySelector('#drift-content').value.trim();
     const charIdVal = container.querySelector('#drift-char-select').value;
@@ -266,7 +286,7 @@ function renderWriteView(container) {
   });
 }
 
-// ----------------- [写信投递动画与回信抽取] -----------------
+// ----------------- [投递动画与回复机制验证] -----------------
 async function triggerThrowAnimation(content, charId) {
   const overlay = document.getElementById('drift-animation-overlay');
   if (!overlay) return;
@@ -295,9 +315,11 @@ async function triggerThrowAnimation(content, charId) {
   }, 3000);
 }
 
+// 确保纯随机性：从字卡库中按洗牌概率随机抽取，无硬编码偏置
 async function generateDriftReply(sentContent, charId) {
   const now = Date.now();
 
+  // 添加用户发出信件的记录
   await db.driftLetters.add({
     characterId: charId,
     timestamp: now,
@@ -310,6 +332,7 @@ async function generateDriftReply(sentContent, charId) {
   let finalCharId = charId;
 
   if (charId === 'unknown') {
+    // 投递至未知：纯随机从用户自定义的长段字卡抽取
     const longs = await db.longFragments.toArray();
     if (longs.length > 0) {
       const picked = pick(longs);
@@ -319,6 +342,7 @@ async function generateDriftReply(sentContent, charId) {
     }
     finalCharId = 'unknown';
   } else {
+    // 投递给指定角色：由角色字卡库抽取拼接，确保随机
     try {
       const result = await generateForCharacter(charId);
       if (result && result.messages && result.messages.length > 0) {
@@ -336,6 +360,7 @@ async function generateDriftReply(sentContent, charId) {
     }
   }
 
+  // 写入随机抽取的收到信件
   await db.driftLetters.add({
     characterId: finalCharId,
     timestamp: now + 500,
@@ -347,7 +372,7 @@ async function generateDriftReply(sentContent, charId) {
   window.dispatchEvent(new CustomEvent('drift-unread-updated'));
 }
 
-// ----------------- [视图渲染：收件箱及打捞机制] -----------------
+// ----------------- [收件箱渲染] -----------------
 async function renderMailboxView(container) {
   const unreadCount = await db.driftLetters.where({ type: 'received', isRead: 0 }).count();
   const letters = await db.driftLetters.orderBy('timestamp').reverse().toArray();
@@ -414,7 +439,10 @@ async function renderMailboxView(container) {
     <div class="drift-mailbox-list">
       ${letters.length === 0 
         ? `<div class="empty-state">
-            <div class="empty-state-icon">${DRIFT_ICON.mailbox}</div>
+            <div class="empty-state-icon mailbox-large-icon">
+              <div class="mailbox-glowing-halo"></div>
+              ${DRIFT_ICON.postboxCylinderBig}
+            </div>
             <div class="empty-state-title">星河岑寂，收件箱空无一物</div>
             <div class="empty-state-sub">去写封信投递到深空吧，或许会唤醒微弱的回音。</div>
           </div>`
@@ -432,7 +460,7 @@ async function renderMailboxView(container) {
     });
   }
 
-  // 绑定信件卡片点击拆封
+  // 点击信件卡片拆封
   container.querySelectorAll('.drift-timeline-card').forEach((card) => {
     const itemId = Number(card.closest('.drift-timeline-item').getAttribute('data-id'));
 
@@ -455,7 +483,7 @@ async function renderMailboxView(container) {
     });
   });
 
-  // 删除信件事件
+  // 销毁信件
   container.querySelectorAll('[data-act="delete-letter"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -474,7 +502,7 @@ async function renderMailboxView(container) {
   });
 }
 
-// ----------------- [打捞漂流瓶专属动画及弹出阅读] -----------------
+// ----------------- [仪式感打捞漂流瓶动画] -----------------
 function triggerSalvageAnimation() {
   const overlay = document.getElementById('salvage-animation-overlay');
   if (!overlay) return;
@@ -493,10 +521,7 @@ function triggerSalvageAnimation() {
 
     if (firstUnread) {
       haptic(20);
-      // 标记为已读
       await db.driftLetters.update(firstUnread.id, { isRead: 1 });
-      
-      // 优雅展开打捞信笺的底部弹窗
       openSalvagedLetterSheet(firstUnread);
       switchTab('mailbox');
     } else {
@@ -505,7 +530,6 @@ function triggerSalvageAnimation() {
   }, 3000);
 }
 
-// 展开打捞结果弹窗
 function openSalvagedLetterSheet(letterObj) {
   const charMap = new Map(characters.map(c => [c.id, c]));
   let sender = '未知存在';
@@ -530,7 +554,6 @@ function openSalvagedLetterSheet(letterObj) {
     close();
   });
 
-  // 延迟一小会儿后开始像打字机一样吐字
   setTimeout(() => {
     const textEl = root.querySelector('#salvaged-dialog-text');
     if (textEl) {
@@ -539,7 +562,7 @@ function openSalvagedLetterSheet(letterObj) {
   }, 200);
 }
 
-// ----------------- [打字机输出逻辑] -----------------
+// ----------------- [打字机输出特效] -----------------
 function triggerTypewriter(element, text) {
   element.innerHTML = '';
   element.classList.add('typing-active');
@@ -573,7 +596,7 @@ function clearAllTypingTimers() {
   typingTimers.clear();
 }
 
-// ----------------- [视图渲染：长段字卡与自动去重] -----------------
+// ----------------- [长段字卡去重导入与管理] -----------------
 async function renderLongCardsView(container) {
   const longs = await db.longFragments.orderBy('createdAt').reverse().toArray();
 
@@ -582,7 +605,7 @@ async function renderLongCardsView(container) {
       <div class="long-cards-header">
         <div class="long-cards-title">长段字卡库</div>
         <div class="long-cards-desc">
-          在这里导入大段文字（如长难句、诗篇、碎碎念），当投递给「未知深空」或关联角色没有字卡时，回信会从这里随机抽取。
+          在这里导入大段文字，当投递给「未知深空」或关联角色没有配置字卡时，回信会从这里随机抽取。
         </div>
       </div>
 
@@ -607,7 +630,7 @@ async function renderLongCardsView(container) {
     </div>
   `;
 
-  // 去重导入逻辑
+  // 重复行自动检测过滤
   container.querySelector('#btn-import-long').addEventListener('click', async () => {
     const text = container.querySelector('#long-import-text').value.trim();
     if (!text) {
@@ -619,7 +642,6 @@ async function renderLongCardsView(container) {
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     if (!lines.length) return;
 
-    // 拉取现有的字卡内容做去重比对
     const existingLongs = await db.longFragments.toArray();
     const existingSet = new Set(existingLongs.map(item => item.content));
 
@@ -634,7 +656,7 @@ async function renderLongCardsView(container) {
           content: line,
           createdAt: Date.now()
         });
-        existingSet.add(line); // 加入集合防止此次批量导入内自身重复
+        existingSet.add(line);
         addCount++;
       }
     }
@@ -670,7 +692,6 @@ async function renderLongCardsView(container) {
   }
 }
 
-// ----------------- [更新未读回信提醒] -----------------
 async function updateUnreadAlert() {
   const unreadCount = await db.driftLetters.where({ type: 'received', isRead: 0 }).count();
   const alertBar = document.getElementById('unread-alert-bar');

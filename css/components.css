@@ -5629,7 +5629,6 @@
 
 
 
-
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -5665,34 +5664,18 @@
   pointer-events: auto !important;
 }
 
-/* 
-  【核心修复：防御性高优先级样式隔离】
-  无论是经典主题，还是带有任何皮肤（如 .skin-gloomy-rain 等）的通话界面，
-  只要处于小播放器 (player) 或小悬浮球 (ball) 状态，必须彻底、无条件地强制隐藏大版全屏大容器！
-*/
+/* ============ [核心隔离保障] 确保小形态下不出现全屏大版，全屏下不出现小版 ============ */
 #global-call-overlay.global-call-player .global-call-container,
 #global-call-overlay.global-call-ball .global-call-container,
 #global-call-overlay[class*="skin-"].global-call-player .global-call-container,
 #global-call-overlay[class*="skin-"].global-call-ball .global-call-container {
   display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
 }
 
-/* 
-  【核心修复：防御性高优先级小组件隔离】
-  当通话界面处于全屏状态 (full) 时，必须无条件隐藏浮动的小播放器小挂件和小球，
-  防止它们在全屏界面的底部或角落溢出/露馅。
-*/
 #global-call-overlay.global-call-full .global-call-floating,
 #global-call-overlay[class*="skin-"].global-call-full .global-call-floating {
   display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
 }
-
 
 /* ============ 强力隔离全局头像样式污染 ============ */
 #global-call-overlay .avatar {
@@ -6352,6 +6335,7 @@
   background-color: var(--color-accent) !important;
   opacity: 0.4 !important;
   transition: height 0.1s ease !important;
+  box-sizing: border-box !important;
 }
 #global-call-overlay .call-player-eq.playing span {
   animation: eqBounce 0.8s ease-in-out infinite alternate !important;

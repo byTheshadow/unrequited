@@ -10,7 +10,11 @@ const THEMES = [
   { id: 'ocean-white',         name: '海洋白' },
   { id: 'green-healing-light', name: '治愈绿白' },
   { id: 'mono-starfield',      name: '星砂黑白' },
-  
+  // ==== 在下面插入新玻璃主题 ====
+  { id: 'frosted-aurora', name: '极光毛玻璃' },
+  { id: 'liquid-nebula',  name: '液态星云' },
+  { id: 'liquid-amber',   name: '液态琥珀' }
+
 ];
 
 const STORAGE_KEY = 'unrequited:theme';

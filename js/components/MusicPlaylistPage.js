@@ -3,39 +3,69 @@ import { db } from '../db.js';
 export class MusicPlaylistPage {
   constructor(player) {
     this.player = player;
-    this.activeTab = 'list'; // 'list' | 'cards' | 'settings'
+    this.activeTab = 0; // 0: 'list' (心事歌单) | 1: 'cards' (共鸣碎片) | 2: 'settings' (沉浸偏好)
     
     this.render();
     this.initEvents();
   }
 
   render() {
-    // 构造全屏子页面框架
+    // 构造透明磨砂全屏页面框架 (配色透出现有的全局样式)
     this.overlay = document.createElement('div');
     this.overlay.className = 'mp-page-overlay';
     this.overlay.id = 'mp-page-overlay';
 
     const pageHTML = `
       <div class="mp-page-container">
+        <!-- 头部导航与诗意标题 -->
         <div class="mp-page-header">
-          <button class="mp-page-back" id="mp-page-back" title="返回">
+          <button class="mp-page-back" id="mp-page-back" title="收起">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12"></line>
-              <polyline points="12 19 5 12 12 5"></polyline>
+              <polyline points="6 9 12 15 18 9"></polyline>
             </svg>
           </button>
+          
           <div class="mp-header-title-area">
             <h2 class="mp-page-title">弦音留白</h2>
-            <span class="mp-decor-text" id="mp-decor-text">MIDNIGHT LAMENT // 星河微冷</span>
+            <span class="mp-decor-text" id="mp-decor-text">MIDNIGHT LAMENT</span>
+          </div>
+
+          <div style="width: 36px;"></div> <!-- 保持对称布局 -->
+        </div>
+
+        <!-- 重构后的星轨 / 时间轴 Tab 控制 -->
+        <div class="timeline-nav" id="mp-timeline">
+          <div class="timeline-track">
+            <div class="timeline-progress" id="mp-timeline-progress"></div>
+          </div>
+          
+          <div class="timeline-node active" data-index="0">
+            <div class="node-dot"></div>
+            <div class="node-label">心事歌单</div>
+          </div>
+          
+          <div class="timeline-node" data-index="1">
+            <div class="node-dot"></div>
+            <div class="node-label">共鸣碎片</div>
+          </div>
+          
+          <div class="timeline-node" data-index="2">
+            <div class="node-index"></div>
+            <div class="node-dot"></div>
+            <div class="node-label">沉浸偏好</div>
           </div>
         </div>
-        <div class="mp-page-tabs">
-          <div class="mp-page-tab active" data-tab="list">歌单</div>
-          <div class="mp-page-tab" data-tab="cards">专属字卡</div>
-          <div class="mp-page-tab" data-tab="settings">偏好设置</div>
-        </div>
+
+        <!-- 视图容器 -->
         <div class="mp-page-body" id="mp-page-body-content">
-          <!-- 页面主题异步渲染 -->
+          <!-- 歌单列表与控制视图 -->
+          <div class="mp-view active" id="mp-view-list"></div>
+
+          <!-- 共鸣碎片视图 -->
+          <div class="mp-view" id="mp-view-cards"></div>
+
+          <!-- 沉浸设置视图 -->
+          <div class="mp-view" id="mp-view-settings"></div>
         </div>
       </div>
     `;
@@ -43,44 +73,53 @@ export class MusicPlaylistPage {
     this.overlay.innerHTML = pageHTML;
     document.body.appendChild(this.overlay);
 
-    // 缓存指针
+    // 缓存常用 DOM 节点
     this.backBtn = this.overlay.querySelector('#mp-page-back');
-    this.tabButtons = this.overlay.querySelectorAll('.mp-page-tab');
-    this.bodyContent = this.overlay.querySelector('#mp-page-body-content');
+    this.timelineNodes = this.overlay.querySelectorAll('.timeline-node');
+    this.timelineProgress = this.overlay.querySelector('#mp-timeline-progress');
+    
+    this.viewList = this.overlay.querySelector('#mp-view-list');
+    this.viewCards = this.overlay.querySelector('#mp-view-cards');
+    this.viewSettings = this.overlay.querySelector('#mp-view-settings');
   }
 
   initEvents() {
-    // 点击返回关闭全屏子页
     this.backBtn.addEventListener('click', () => this.hide());
 
-    // 切换标签页
-    this.tabButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.tabButtons.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.activeTab = btn.getAttribute('data-tab');
-        this.renderTabContent();
+    // 绑定星轨节点点击事件与滑块流光过渡逻辑
+    this.timelineNodes.forEach(node => {
+      node.addEventListener('click', () => {
+        const index = parseInt(node.getAttribute('data-index'), 10);
+        this.switchTab(index);
       });
     });
+  }
+
+  switchTab(index) {
+    this.activeTab = index;
+    
+    // 更新滑轨流光条宽度
+    const percentMap = { 0: '0%', 1: '50%', 2: '100%' };
+    this.timelineProgress.style.width = percentMap[index];
+
+    // 更新星轨节点选中样式
+    this.timelineNodes.forEach((node, i) => {
+      node.classList.toggle('active', i === index);
+    });
+
+    // 切换视图面板
+    const views = [this.viewList, this.viewCards, this.viewSettings];
+    views.forEach((view, i) => {
+      view.classList.toggle('active', i === index);
+    });
+
+    this.renderTabContent();
   }
 
   show() {
     this.overlay.classList.add('show');
     this.overlay.setAttribute('data-player-theme', this.player.config.theme);
-    
-    // 渲染标题处的装饰诗句
-    const decorMap = {
-      midnight: "MIDNIGHT LAMENT // 星河微冷",
-      foggy: "MISTY VOID // 浮生如梦",
-      deepsea: "DEEP ABYSS // 鱼沉雁杳",
-      snow: "COLD CRYSTAL // 独钓寒江"
-    };
-    const pageDecor = this.overlay.querySelector('#mp-decor-text');
-    if (pageDecor) {
-      pageDecor.textContent = decorMap[this.player.config.theme] || decorMap.midnight;
-    }
-
-    this.renderTabContent();
+    this.switchTab(this.activeTab);
   }
 
   hide() {
@@ -88,33 +127,46 @@ export class MusicPlaylistPage {
   }
 
   async renderTabContent() {
-    this.bodyContent.innerHTML = '';
-
-    if (this.activeTab === 'list') {
+    if (this.activeTab === 0) {
       await this.renderPlaylistTab();
-    } else if (this.activeTab === 'cards') {
+    } else if (this.activeTab === 1) {
       await this.renderWordDecksTab();
-    } else if (this.activeTab === 'settings') {
+    } else if (this.activeTab === 2) {
       await this.renderSettingsTab();
     }
   }
 
-  // --- 歌单页面内容 ---
+  // --- TAB 0: 心事歌单 (带 Equalizer 律动音柱) ---
   async renderPlaylistTab() {
+    this.viewList.innerHTML = '';
     const songs = this.player.songs;
     const listContainer = document.createElement('div');
     listContainer.className = 'mp-list-songs';
 
     if (songs.length === 0) {
-      listContainer.innerHTML = `<div style="text-align:center;font-size:11px;color:var(--mp-text);padding:30px 0;">当前空无一歌，请在下方添加</div>`;
+      listContainer.innerHTML = `<div style="text-align:center;font-size:12px;color:rgba(255,255,255,0.3);padding:40px 0;">当前空无一歌，请在下方添加</div>`;
     } else {
       songs.forEach((song, idx) => {
+        const isCurrent = this.player.currentIndex === idx;
         const item = document.createElement('div');
-        item.className = `mp-list-item ${this.player.currentIndex === idx ? 'active' : ''}`;
+        item.className = `mp-list-item ${isCurrent ? 'active' : ''}`;
         
         item.innerHTML = `
+          <div class="mp-item-track-icon">
+            <!-- 默认细线条音乐符号 -->
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+            <!-- 律动跳跃音轨动效 -->
+            <div class="mp-equalizer">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
           <div class="mp-item-info">
             <div class="mp-item-name">${song.name}</div>
+            <div class="mp-item-status">${isCurrent && this.player.isPlaying ? '正在共鸣' : '等待共鸣'}</div>
           </div>
           <button class="mp-icon-btn mp-btn-delete" data-id="${song.id}" title="删除">
             <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -145,21 +197,20 @@ export class MusicPlaylistPage {
 
     const formContainer = document.createElement('div');
     formContainer.innerHTML = `
-      <div style="border-top: 1px solid var(--mp-border); padding-top:16px; margin-top:16px;">
+      <div style="border-top: 1px solid rgba(255, 255, 255, 0.05); padding-top:20px; margin-top:20px;">
+        <div class="mp-section-title">收录心事</div>
         <div class="mp-form-group">
-          <label>音乐名</label>
           <input type="text" class="mp-input" id="new-song-name" placeholder="写下一个诗意的名字...">
         </div>
         <div class="mp-form-group">
-          <label>网络 MP3 地址 (URL)</label>
-          <input type="text" class="mp-input" id="new-song-url" placeholder="https://example.com/melody.mp3">
+          <input type="text" class="mp-input" id="new-song-url" placeholder="网络音频链接 (URL)...">
         </div>
-        <button class="mp-btn-submit" id="add-song-btn">添入心事歌单</button>
+        <button class="mp-btn-submit" id="add-song-btn">刻入星轨</button>
       </div>
     `;
 
-    this.bodyContent.appendChild(listContainer);
-    this.bodyContent.appendChild(formContainer);
+    this.viewList.appendChild(listContainer);
+    this.viewList.appendChild(formContainer);
 
     formContainer.querySelector('#add-song-btn').onclick = async () => {
       const nameInput = formContainer.querySelector('#new-song-name');
@@ -178,30 +229,31 @@ export class MusicPlaylistPage {
     };
   }
 
-  // --- 字卡页面内容 (使用 filter 规避 category 的索引 Schema 限制) ---
+  // --- TAB 1: 共鸣碎片 ---
   async renderWordDecksTab() {
+    this.viewCards.innerHTML = '';
     let musicDeck = await db.decks.filter(d => d.category === '音乐').first();
     if (!musicDeck) return;
 
     const cardsContainer = document.createElement('div');
     cardsContainer.innerHTML = `
-      <div class="mp-form-group">
-        <label>共鸣字词 (当切歌时，绑定角色将在此抽取内容低语)</label>
-        <div style="display:flex;gap:8px;">
-          <input type="text" class="mp-input" id="new-word-fragment" placeholder="如：深海微光..." style="flex-grow:1;">
-          <button class="mp-btn-submit" id="add-word-btn" style="width:70px;padding:0;">刻写</button>
-        </div>
+      <div class="mp-form-group" style="display:flex;gap:12px;margin-bottom:20px;">
+        <input type="text" class="mp-input" id="new-word-fragment" placeholder="如：落雪无声的叹息..." style="flex-grow:1;">
+        <button class="mp-icon-btn" id="add-word-btn" style="width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,0.9);color:#000;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
       </div>
+      <div class="mp-section-title">散落的共鸣 (切歌时在夜空浮现)</div>
       <div class="mp-word-tags" id="mp-words-list"></div>
     `;
 
-    this.bodyContent.appendChild(cardsContainer);
+    this.viewCards.appendChild(cardsContainer);
 
     const listWrap = cardsContainer.querySelector('#mp-words-list');
     const updateWordTags = () => {
       listWrap.innerHTML = '';
       if (!musicDeck.fragments || musicDeck.fragments.length === 0) {
-        listWrap.innerHTML = `<span style="font-size:11px;color:var(--mp-text);">暂无共鸣片段。</span>`;
+        listWrap.innerHTML = `<span style="font-size:12px;color:rgba(255,255,255,0.3);">暂无共鸣片段。</span>`;
         return;
       }
 
@@ -211,8 +263,9 @@ export class MusicPlaylistPage {
         tag.innerHTML = `
           ${fragment}
           <button class="mp-word-tag-del" data-val="${fragment}">
-            <svg viewBox="0 0 24 24" width="8" height="8" fill="none" stroke="currentColor" stroke-width="3">
-              <path d="M18 6 6 18M6 6l12 12"/>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
         `;
@@ -251,10 +304,11 @@ export class MusicPlaylistPage {
     };
   }
 
-  // --- 偏好设置页面内容 ---
+  // --- TAB 2: 沉浸偏好 (设置开关) ---
   async renderSettingsTab() {
+    this.viewSettings.innerHTML = '';
     const characters = await db.characters.toArray();
-    
+
     const settingsContainer = document.createElement('div');
     settingsContainer.innerHTML = `
       <div class="mp-form-group">
@@ -267,16 +321,24 @@ export class MusicPlaylistPage {
 
       <div class="mp-switch-group">
         <div class="mp-switch-info">
+          <span class="mp-switch-title">显示悬浮图标</span>
+          <span class="mp-switch-desc">在页面右下角显示音乐悬浮球组件。隐藏后可通过主界面“弦音”图标直接呼出设置面页。</span>
+        </div>
+        <div class="mp-switch-btn ${this.player.config.showFloatBadge ? 'active' : ''}" id="switch-badge-visible"></div>
+      </div>
+
+      <div class="mp-switch-group">
+        <div class="mp-switch-info">
           <span class="mp-switch-title">静默共鸣</span>
-          <span class="mp-switch-desc">全局屏障角色评论气泡的浮现</span>
+          <span class="mp-switch-desc">开启后，彻底隐藏所有低语碎片的浮现。</span>
         </div>
         <div class="mp-switch-btn ${this.player.config.silentListening ? 'active' : ''}" id="switch-silent"></div>
       </div>
 
       <div class="mp-switch-group">
         <div class="mp-switch-info">
-          <span class="mp-switch-title">允许角色自主切歌</span>
-          <span class="mp-switch-desc">允许共鸣对象挑选符合当下心境的歌曲</span>
+          <span class="mp-switch-title">角色自主切歌</span>
+          <span class="mp-switch-desc">连接的对象会有极低概率跟随心境主动切歌。</span>
         </div>
         <div class="mp-switch-btn ${this.player.config.roleAutoSwitch ? 'active' : ''}" id="switch-autoswitch"></div>
       </div>
@@ -284,13 +346,13 @@ export class MusicPlaylistPage {
       <div class="mp-switch-group">
         <div class="mp-switch-info">
           <span class="mp-switch-title">漂浮呼吸微动效</span>
-          <span class="mp-switch-desc">为悬浮组件激活专属美化主题微动作</span>
+          <span class="mp-switch-desc">为悬浮播放器开启专属的失重漂浮效果。</span>
         </div>
         <div class="mp-switch-btn ${this.player.config.rotateRecord ? 'active' : ''}" id="switch-rotate"></div>
       </div>
 
-      <div class="mp-form-group" style="margin-top:20px;">
-        <label>留白色彩主题</label>
+      <div class="mp-form-group" style="margin-top:24px;">
+        <label>播放器专属视觉微调</label>
         <div class="mp-theme-grid">
           <div class="mp-theme-option ${this.player.config.theme === 'midnight' ? 'active' : ''}" data-theme="midnight">深夜</div>
           <div class="mp-theme-option ${this.player.config.theme === 'foggy' ? 'active' : ''}" data-theme="foggy">迷雾</div>
@@ -300,16 +362,25 @@ export class MusicPlaylistPage {
       </div>
     `;
 
-    this.bodyContent.appendChild(settingsContainer);
+    this.viewSettings.appendChild(settingsContainer);
 
-    // 绑定角色切换
+    // 绑定角色更改
     const charSelect = settingsContainer.querySelector('#mp-setting-char');
     charSelect.onchange = () => {
       this.player.config.bindCharacterId = charSelect.value ? Number(charSelect.value) : null;
       this.player.saveConfigToDB();
     };
 
-    // 静默共鸣切换
+    // 隐藏/显示悬浮球开关逻辑
+    const btnBadgeVisible = settingsContainer.querySelector('#switch-badge-visible');
+    btnBadgeVisible.onclick = () => {
+      this.player.config.showFloatBadge = !this.player.config.showFloatBadge;
+      btnBadgeVisible.classList.toggle('active', this.player.config.showFloatBadge);
+      this.player.saveConfigToDB();
+      this.player.applyBadgeVisibility();
+    };
+
+    // 静默聆听开关
     const btnSilent = settingsContainer.querySelector('#switch-silent');
     btnSilent.onclick = () => {
       this.player.config.silentListening = !this.player.config.silentListening;
@@ -317,7 +388,7 @@ export class MusicPlaylistPage {
       this.player.saveConfigToDB();
     };
 
-    // 自主切歌切换
+    // 自动切歌开关
     const btnAuto = settingsContainer.querySelector('#switch-autoswitch');
     btnAuto.onclick = () => {
       this.player.config.roleAutoSwitch = !this.player.config.roleAutoSwitch;
@@ -325,7 +396,7 @@ export class MusicPlaylistPage {
       this.player.saveConfigToDB();
     };
 
-    // 微动效切换
+    // 漂浮动效开关
     const btnRotate = settingsContainer.querySelector('#switch-rotate');
     btnRotate.onclick = () => {
       this.player.config.rotateRecord = !this.player.config.rotateRecord;
@@ -350,7 +421,6 @@ export class MusicPlaylistPage {
         opt.classList.add('active');
         const themeKey = opt.getAttribute('data-theme');
         
-        // 应用并同步主题到全局容器与全屏子页
         this.player.applyThemeToContainers(themeKey);
         this.player.saveConfigToDB();
       };

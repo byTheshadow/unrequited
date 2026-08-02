@@ -8,13 +8,14 @@ class MusicPlayer {
     this.currentIndex = -1;
     this.isPlaying = false;
     
-    // 主题偏好及逻辑控制
+    // 初始化配置，增加“是否显示悬浮球”变量
     this.config = {
       theme: 'midnight',
-      silentListening: false,     // 静默聆听开关
-      roleAutoSwitch: true,       // 角色切歌开关
-      rotateRecord: true,         // 是否应用旋转或微飘浮特效
-      bindCharacterId: null       // 绑定角色主ID
+      silentListening: false,     // 静默模式
+      roleAutoSwitch: true,       // 角色自主切歌
+      rotateRecord: true,         // 微浮动效果
+      showFloatBadge: true,       // 显示/隐藏悬浮图标
+      bindCharacterId: null       // 共鸣绑定对象ID
     };
 
     this.hasTriggeredAutoSwitchThisSong = false;
@@ -22,23 +23,23 @@ class MusicPlayer {
   }
 
   async init() {
-    // 1. 初始化读取用户偏好与歌单
+    // 1. 获取本地数据库状态
     await this.loadConfigFromDB();
     await this.loadSongsFromDB();
 
-    // 2. 初始化挂载全新的音乐管理子页面组件
+    // 2. 初始化挂载全屏设置子页面
     this.playlistPage = new MusicPlaylistPage(this);
 
-    // 3. 构建悬浮控制台 HTML
+    // 3. 渲染小挂件 DOM
     this.renderDOM();
     
-    // 4. 监听音频原始事件
+    // 4. 监听音频事件
     this.bindAudioEvents();
 
-    // 5. 监听来自全局的响应请求
+    // 5. 监听全局自定义事件
     this.bindGlobalEvents();
 
-    // 6. 执行寻找月相图标以并排排列
+    // 6. 轮询对齐主界面上的月相图标
     this.startAlignWithMoonIcon();
   }
 
@@ -50,7 +51,7 @@ class MusicPlayer {
       }
       this.applyThemeToContainers(this.config.theme);
     } catch (e) {
-      console.error("音乐配置拉取异常:", e);
+      console.error("加载音乐播放器配置失败:", e);
     }
   }
 
@@ -61,7 +62,7 @@ class MusicPlayer {
         value: this.config
       });
     } catch (e) {
-      console.error("保存音乐配置失败:", e);
+      console.error("保存音乐播放器配置失败:", e);
     }
   }
 
@@ -73,7 +74,7 @@ class MusicPlayer {
         this.audio.src = this.songs[0].url;
       }
     } catch (e) {
-      console.error("拉取本地歌单崩溃:", e);
+      console.error("加载歌单失败:", e);
     }
   }
 
@@ -82,9 +83,10 @@ class MusicPlayer {
     this.container.className = 'music-player-container';
     this.container.id = 'global-music-player';
 
-    // 悬浮徽章 HTML (使用音乐符号 SVG 替代黑胶)
+    // 悬浮徽章 HTML (增加根据 config.showFloatBadge 控制初始类)
+    const badgeClass = this.config.showFloatBadge ? '' : ' hidden-badge';
     const badgeHTML = `
-      <div class="music-player-badge" id="mp-badge" title="弦音留白">
+      <div class="music-player-badge${badgeClass}" id="mp-badge" title="弦音留白">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 18V5l12-2v13"></path>
           <circle cx="6" cy="18" r="3"></circle>
@@ -93,7 +95,7 @@ class MusicPlayer {
       </div>
     `;
 
-    // 气泡低语 HTML
+    // 气泡 HTML
     const bubbleHTML = `
       <div class="music-player-bubble" id="mp-bubble">
         <button class="mp-bubble-close" id="mp-bubble-close">
@@ -102,11 +104,11 @@ class MusicPlayer {
           </svg>
         </button>
         <div class="mp-bubble-author" id="mp-bubble-author">角色</div>
-        <div class="mp-bubble-content" id="mp-bubble-content">评价内容</div>
+        <div class="mp-bubble-content" id="mp-bubble-content">共鸣内容</div>
       </div>
     `;
 
-    // 面板小控制台 HTML
+    // 播放面板 HTML
     const panelHTML = `
       <div class="music-player-panel" id="mp-panel">
         <div class="mp-panel-decor">
@@ -122,7 +124,7 @@ class MusicPlayer {
           </div>
           <div class="mp-song-info">
             <div class="mp-song-title" id="mp-song-title">未加载音乐</div>
-            <div class="mp-song-status" id="mp-song-status">已停止</div>
+            <div class="mp-song-status" id="mp-song-status">弦音静止</div>
           </div>
           <div class="mp-header-actions">
             <button class="mp-icon-btn" id="mp-setting-btn" title="偏好设置">
@@ -167,7 +169,7 @@ class MusicPlayer {
     this.container.innerHTML = badgeHTML + bubbleHTML + panelHTML;
     document.body.appendChild(this.container);
 
-    // 缓存常用 DOM 变量
+    // 获取 DOM 元素
     this.badge = this.container.querySelector('#mp-badge');
     this.panel = this.container.querySelector('#mp-panel');
     this.bubble = this.container.querySelector('#mp-bubble');
@@ -192,12 +194,13 @@ class MusicPlayer {
     this.timeDuration = this.container.querySelector('#mp-time-duration');
 
     this.applyThemeToContainers(this.config.theme);
+    this.applyBadgeVisibility();
     this.bindDomInteractions();
     this.updatePanelDisplay();
     this.updateUserCover();
   }
 
-  // 读取 Dexie 中 user 表头像绑定为播放器封面
+  // 渲染头像为专辑封面
   async updateUserCover() {
     try {
       const user = await db.user.toCollection().first();
@@ -210,7 +213,7 @@ class MusicPlayer {
   }
 
   bindDomInteractions() {
-    // 点击悬浮球展开/收起面板
+    // 悬浮徽章切换面板
     this.badge.addEventListener('click', (e) => {
       e.stopPropagation();
       const isExpanded = this.panel.classList.contains('expanded');
@@ -221,17 +224,15 @@ class MusicPlayer {
       }
     });
 
-    // 点击页面其他任意留白区域收起面板
+    // 空白点击收回面板
     document.addEventListener('click', () => {
       this.panel.classList.remove('expanded');
     });
 
-    // 面板内部交互点击防气泡外泄
     this.panel.addEventListener('click', (e) => {
       e.stopPropagation();
     });
 
-    // 播放、切歌、配置交互绑定
     this.playBtn.addEventListener('click', () => this.togglePlay());
     this.prevBtn.addEventListener('click', () => this.playPrev());
     this.nextBtn.addEventListener('click', () => this.playNext());
@@ -292,10 +293,9 @@ class MusicPlayer {
     });
   }
 
-  // 轮询在主界面检测月相图标，在其旁侧横向平铺插入激活按钮
+  // 轮询并在星轨/月相图标右侧并排挂载“音乐符号触发器”
   startAlignWithMoonIcon() {
     const alignTimer = setInterval(() => {
-      // 匹配可能包含“月相”文字或含有月亮相关 class/id 的元素
       const moonElement = document.querySelector('#moon-phase, .moon-phase, [class*="moon"], [id*="moon"]') ||
         Array.from(document.querySelectorAll('button, a, div, span')).find(el => el.textContent.includes('月相'));
 
@@ -303,16 +303,14 @@ class MusicPlayer {
         if (!document.querySelector('#music-page-trigger-btn')) {
           const musicPageBtn = document.createElement(moonElement.tagName.toLowerCase() === 'button' ? 'button' : 'div');
           musicPageBtn.id = 'music-page-trigger-btn';
-          
-          // 复制月相图标的 class 类名，使其在外观上与主界面完美一体化
           musicPageBtn.className = moonElement.className + ' music-page-trigger-btn';
           if (musicPageBtn.tagName.toLowerCase() === 'button') {
             musicPageBtn.type = 'button';
           }
 
-          // 音乐触发图标：同样为 1.8 极细笔划的诗意乐符
+          // 音乐触发小按钮 (极细笔触)
           musicPageBtn.innerHTML = `
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:100%;height:100%;">
               <path d="M9 18V5l12-2v13"></path>
               <circle cx="6" cy="18" r="3"></circle>
               <circle cx="18" cy="16" r="3"></circle>
@@ -322,17 +320,15 @@ class MusicPlayer {
           
           musicPageBtn.onclick = (e) => {
             e.stopPropagation();
-            this.playlistPage.show();
+            this.playlistPage.show(); // 点击主界面按钮，可以直接呼出设置子页面
           };
           
-          // 插入到月相图标之后，并排平铺
           moonElement.parentNode.insertBefore(musicPageBtn, moonElement.nextSibling);
           clearInterval(alignTimer);
         }
       }
     }, 800);
 
-    // 15 秒后切断轮询，杜绝页面性能损耗
     setTimeout(() => clearInterval(alignTimer), 15000);
   }
 
@@ -362,7 +358,6 @@ class MusicPlayer {
       }
     }
     
-    // 触发概率评价气泡
     this.triggerReactionBubble(false);
   }
 
@@ -417,7 +412,7 @@ class MusicPlayer {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
 
-  // 监听并执行 5% 极低概率的角色自主切歌
+  // 判定并触发角色主动切歌 (5% 概率)
   async checkRoleAutoSwitch() {
     if (!this.config.bindCharacterId || !this.config.roleAutoSwitch || this.hasTriggeredAutoSwitchThisSong) {
       return;
@@ -449,20 +444,18 @@ class MusicPlayer {
     }
   }
 
-  // 触发气泡反馈
+  // 触发共鸣随机字卡低语气泡
   async triggerReactionBubble(isAutoSwitchEvent = false) {
     if (isAutoSwitchEvent || this.config.silentListening || !this.config.bindCharacterId) {
       return; 
     }
 
-    // 随机 30% 概率触发音乐片段词汇气泡
     if (Math.random() > 0.3) return;
 
     try {
       const char = await db.characters.get(Number(this.config.bindCharacterId));
       if (!char) return;
 
-      // 使用 filter 读取默认内置或用户自定义的音乐字卡
       const musicDeck = await db.decks.filter(d => d.category === '音乐').first();
       if (!musicDeck || !musicDeck.fragments || musicDeck.fragments.length === 0) return;
 
@@ -490,10 +483,20 @@ class MusicPlayer {
     }
   }
 
+  // 控制悬浮徽章的显示/隐藏隐藏
+  applyBadgeVisibility() {
+    if (this.badge) {
+      if (this.config.showFloatBadge) {
+        this.badge.classList.remove('hidden-badge');
+      } else {
+        this.badge.classList.add('hidden-badge');
+      }
+    }
+  }
+
   applyThemeToContainers(themeKey) {
     this.config.theme = themeKey;
     
-    // 直接对播放器外层和子页面应用 data-player-theme，确保样式 100% 隔离并渲染
     if (this.container) {
       this.container.setAttribute('data-player-theme', themeKey);
     }
@@ -501,7 +504,6 @@ class MusicPlayer {
       this.playlistPage.overlay.setAttribute('data-player-theme', themeKey);
     }
 
-    // 动态调整装饰文字内容
     const decorMap = {
       midnight: "MIDNIGHT LAMENT // 星河微冷",
       foggy: "MISTY VOID // 浮生如梦",

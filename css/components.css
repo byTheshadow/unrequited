@@ -5627,6 +5627,9 @@
   width: 258px;
 }
 
+
+
+
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -5662,13 +5665,32 @@
   pointer-events: auto !important;
 }
 
+/* 
+  【核心修复：防御性高优先级样式隔离】
+  无论是经典主题，还是带有任何皮肤（如 .skin-gloomy-rain 等）的通话界面，
+  只要处于小播放器 (player) 或小悬浮球 (ball) 状态，必须彻底、无条件地强制隐藏大版全屏大容器！
+*/
 #global-call-overlay.global-call-player .global-call-container,
-#global-call-overlay.global-call-ball .global-call-container {
+#global-call-overlay.global-call-ball .global-call-container,
+#global-call-overlay[class*="skin-"].global-call-player .global-call-container,
+#global-call-overlay[class*="skin-"].global-call-ball .global-call-container {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
-/* ============ 当是全屏状态时，隐藏浮动的小播放器和小球，防止溢出或重叠 ============ */
-#global-call-overlay.global-call-full .global-call-floating {
+
+/* 
+  【核心修复：防御性高优先级小组件隔离】
+  当通话界面处于全屏状态 (full) 时，必须无条件隐藏浮动的小播放器小挂件和小球，
+  防止它们在全屏界面的底部或角落溢出/露馅。
+*/
+#global-call-overlay.global-call-full .global-call-floating,
+#global-call-overlay[class*="skin-"].global-call-full .global-call-floating {
   display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 
@@ -5808,11 +5830,8 @@
   pointer-events: none !important;
   z-index: 2 !important;
   will-change: transform, opacity !important;
-  
-  /* 移除 important，允许 CSS 动画关键帧正确覆盖初始状态 */
   opacity: 0;
   transform: translate3d(0, 0, 0) scale(0.8) rotate(var(--fc-r));
-  
   animation: floatCharUp var(--fc-dur) cubic-bezier(0.22, 0.61, 0.36, 1) forwards !important;
 }
 
@@ -5951,7 +5970,7 @@
   display: inline-block !important;
 }
 
-/* ============ 底部控制区（彻底对齐） ============ */
+/* ============ 底部控制区 ============ */
 .global-call-actions {
   position: absolute !important;
   z-index: 10 !important;
@@ -5990,7 +6009,6 @@
   box-sizing: border-box !important;
 }
 
-/* 强力重置按钮样式并使用 CSS Grid 绝对物理居中 */
 #global-call-overlay .call-btn {
   width: 64px !important;
   height: 64px !important;
@@ -6004,13 +6022,10 @@
   background: var(--color-bg-secondary) !important;
   box-shadow: 0 6px 16px var(--color-shadow) !important;
   aspect-ratio: 1 / 1 !important;
-  
-  /* 强制 Grid 物理像素精准居中，不受 line-height 等干扰 */
   display: grid !important;
   place-items: center !important;
   align-content: center !important;
   justify-content: center !important;
-  
   padding: 0 !important;
   margin: 0 !important;
   outline: none !important;
@@ -6020,7 +6035,6 @@
   transition: transform 0.2s, background 0.2s !important;
 }
 
-/* 清理任何可能被框架添加的伪元素 */
 #global-call-overlay .call-btn::before,
 #global-call-overlay .call-btn::after {
   content: none !important;
@@ -6035,7 +6049,6 @@
   transform: scale(0.93) !important;
 }
 
-/* SVG 尺寸锁死且绝对居中，清除一切第三方框架样式覆盖 */
 #global-call-overlay .call-btn svg {
   width: 24px !important;
   height: 24px !important;

@@ -254,7 +254,6 @@ function choiceBubbleHTML(msg) {
 }
 
 
-
 async function answerCharacterChoice(msgId, idx) {
   const msg = state.messages.find((m) => m.id === msgId);
   if (!msg || msg.type !== 'choice' || msg.sender !== 'character') return;
@@ -264,6 +263,9 @@ async function answerCharacterChoice(msgId, idx) {
 
   const answer = choice.options[idx];
   if (!answer) return;
+
+  // 🟢 移动到这里调用（在第一个 await 前同步播放）
+  playUserSound();
 
   await markChoiceAnswered(msgId, answer, 'user');
   renderMessages();
@@ -281,10 +283,11 @@ async function answerCharacterChoice(msgId, idx) {
   const id = await db.messages.add(userMsg);
   userMsg.id = id;
   appendMessage(userMsg);
-  playUserSound();
+  // playUserSound(); // 🟢 移除了这一行
   await persistConvSummary();
   await schedulePendingReply();
 }
+
 
 /* ---------- 引用相关 HTML ---------- */
 function quoteCardHTML(quotedId) {
@@ -614,10 +617,9 @@ async function sendUserMessage() {
 
   const quotedId = state.pendingQuoteId || null;
 
-  // 优先使用 cardEngine 内置解析；如果失败，则使用本文件的 ??问题|选项1|选项2 兜底解析
   const choice = parseChoiceFragment(text) || parseManualChoiceText(text);
 
-   const msg = {
+  const msg = {
     conversationId: state.convId,
     sender: 'user',
     content: choice ? choiceToContent(choice) : text,
@@ -628,13 +630,16 @@ async function sendUserMessage() {
     isRead: false,
   };
 
+  // 🟢 移动到这里调用（在所有 await 之前，保持同步上下文）
+  playUserSound();
+
   const id = await db.messages.add(msg);
   msg.id = id;
 
   if (quotedId) await clearPendingQuote();
 
   appendMessage(msg);
-  playUserSound();
+  // playUserSound(); // 🟢 移除了这一行
   input.value = '';
   autoGrow(input);
   updateSendBtn();
@@ -642,6 +647,7 @@ async function sendUserMessage() {
   await persistConvSummary();
   await schedulePendingReply();
 }
+
 
 function openChoiceCreatorSheet() {
 

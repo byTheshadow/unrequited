@@ -149,13 +149,11 @@ function escapeHtml(str) {
 function loadSkinStylesheet(skinId) {
   let link = document.getElementById('active-call-skin-css');
   
-  // 如果是经典默认皮肤，直接移除额外的 CSS 文件
   if (!skinId || skinId === 'classic') {
     if (link) link.remove();
     return;
   }
 
-  // 否则创建或更新 link 标签以引入对应的独立 css 文件
   if (!link) {
     link = document.createElement('link');
     link.id = 'active-call-skin-css';
@@ -165,33 +163,28 @@ function loadSkinStylesheet(skinId) {
   link.href = `css/skins/${skinId}.css`;
 }
 
-// 异步将皮肤 Class 添加至根 DOM 的辅助函数
-async function applySkinClass(overlayEl) {
+// 同步将皮肤 Class 添加至根 DOM 的辅助函数
+function applySkinClass(overlayEl, activeSkin, baseClass) {
   if (!overlayEl) return;
-  try {
-    const activeSkinRow = await db.settings.get('callSkin');
-    const activeSkin = activeSkinRow ? activeSkinRow.value : 'classic';
-
-    // 1. 装载或卸载外部 CSS 文件
-    loadSkinStylesheet(activeSkin);
-
-    // 2. 清理以 skin- 开头的旧类名
-    const cleanClasses = overlayEl.className
-      .split(' ')
-      .filter(c => !c.startsWith('skin-'))
-      .join(' ');
-    overlayEl.className = cleanClasses;
-
-    // 3. 特别注意：如果选中的是经典皮肤 (classic)，直接不需要加任何 skin 类名！
-    // 这样它就会 100% 完美应用你在 components.css 里原本写的那个美化！
-    if (activeSkin !== 'classic') {
-      overlayEl.classList.add(`skin-${activeSkin}`);
-    }
-  } catch (err) {
-    console.error('Failed to apply call skin class', err);
+  
+  // 清理以 skin- 开头的旧类名并添加基础类名
+  const cleanClasses = overlayEl.className
+    .split(' ')
+    .filter(c => !c.startsWith('skin-') && c !== 'global-call-active' && c !== 'global-call-full' && c !== 'global-call-player' && c !== 'global-call-ball')
+    .join(' ');
+  
+  let newClasses = `global-call-active ${baseClass}`;
+  if (cleanClasses) {
+    newClasses += ` ${cleanClasses}`;
   }
+  
+  // 仅在不是 classic 皮肤时挂载 skin- 类名
+  if (activeSkin && activeSkin !== 'classic') {
+    newClasses += ` skin-${activeSkin}`;
+  }
+  
+  overlayEl.className = newClasses;
 }
-
 
 export const CallManager = {
   state: 'idle',
@@ -207,6 +200,7 @@ export const CallManager = {
   particleInterval: null,
   overlay: null,
   minimized: false,
+  activeSkin: 'classic', // 新增：用来在内存中缓存当前皮肤ID
 
   floatingPos: {
     player: { x: null, y: null },
@@ -228,11 +222,22 @@ export const CallManager = {
       this.overlay.id = 'global-call-overlay';
       document.body.appendChild(this.overlay);
     }
-    this.render();
+    // 异步加载一次当前皮肤
+    db.settings.get('callSkin').then(row => {
+      this.activeSkin = row ? row.value : 'classic';
+      loadSkinStylesheet(this.activeSkin);
+      this.render();
+    });
   },
 
-  startCall(conversationId, characterId, characterName, characterAvatar, isUserInitiator = true) {
+  async startCall(conversationId, characterId, characterName, characterAvatar, isUserInitiator = true) {
     if (this.state !== 'idle') return;
+
+    // 通话开始时，异步拉取最新设置并保存到 activeSkin
+    const activeSkinRow = await db.settings.get('callSkin');
+    this.activeSkin = activeSkinRow ? activeSkinRow.value : 'classic';
+    loadSkinStylesheet(this.activeSkin);
+
     this.conversationId = conversationId;
     this.characterId = characterId;
     this.characterName = characterName;
@@ -357,7 +362,6 @@ export const CallManager = {
     if (track) track.innerHTML = renderWaveBarsHTML(elapsed, this.state === 'connected');
   },
 
-  // ---- 飘字粒子系统 ----
   startParticles() {
     if (this.particleInterval) return;
     if (!this.overlay) return;
@@ -388,13 +392,11 @@ export const CallManager = {
       if (!c) return;
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-      
-      // 在屏幕安全区域（避开边缘和按钮）发射文字
       const baseX = 10 + Math.random() * 70;
       const baseY = 50 + Math.random() * 25; 
 
       for (let i = 0; i < phrase.length; i++) {
-        const delay = i * 220; // 逐字飘浮间隔
+        const delay = i * 220;
 
         setTimeout(() => {
           if (this.viewMode !== 'full' || this.state === 'idle') return;
@@ -444,7 +446,6 @@ export const CallManager = {
     if (c) c.innerHTML = '';
   },
 
-  // ---- 拖拽核心功能 ----
   makeElementDraggable(targetEl, handleEl, mode) {
     if (!targetEl) return;
     const dragHandle = handleEl || targetEl;
@@ -576,10 +577,9 @@ export const CallManager = {
     const isPlaying = this.state !== 'idle';
     const isConnected = this.state === 'connected';
 
-    // 动态挂载当前皮肤的 Class
-    applySkinClass(this.overlay);
+    // 修改：动态设置类名，带上皮肤名称
+    applySkinClass(this.overlay, this.activeSkin, 'global-call-player');
 
-    this.overlay.classList.add('global-call-active', 'global-call-player');
     this.overlay.innerHTML = `
       <div class="global-call-floating call-player-widget" id="global-call-player">
         <div class="call-player-inner">
@@ -632,10 +632,9 @@ export const CallManager = {
   renderBall() {
     this.stopParticles();
 
-    // 动态挂载当前皮肤的 Class
-    applySkinClass(this.overlay);
+    // 修改：动态设置类名，带上皮肤名称
+    applySkinClass(this.overlay, this.activeSkin, 'global-call-ball');
 
-    this.overlay.classList.add('global-call-active', 'global-call-ball');
     this.overlay.innerHTML = `
       <div class="global-call-floating call-ball-widget" id="global-call-ball">
         <div class="call-ball-ring"></div>
@@ -655,10 +654,8 @@ export const CallManager = {
   },
 
   renderFull() {
-    // 动态挂载当前皮肤的 Class
-    applySkinClass(this.overlay);
-
-    this.overlay.classList.add('global-call-active', 'global-call-full');
+    // 修改：动态设置类名，带上皮肤名称
+    applySkinClass(this.overlay, this.activeSkin, 'global-call-full');
 
     const statusText = this.getScreenStatusText();
     const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 140);
@@ -759,3 +756,4 @@ export const CallManager = {
     this.renderFull();
   },
 };
+

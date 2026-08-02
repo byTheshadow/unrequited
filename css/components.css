@@ -3592,7 +3592,7 @@
   display: block !important;
 }
 
-/* ---- 漂浮文字粒子（修复动画不起作用的问题） ---- */
+/* ---- 漂浮文字粒子 ---- */
 #particle-container {
   position: absolute !important;
   inset: 0 !important;
@@ -3616,7 +3616,7 @@
   z-index: 2 !important;
   will-change: transform, opacity !important;
   
-  /* 注意：此处绝对不能加 !important，否则会强行覆盖动画中的值 */
+  /* 移除 important，允许 CSS 动画关键帧正确覆盖初始状态 */
   opacity: 0;
   transform: translate3d(0, 0, 0) scale(0.8) rotate(var(--fc-r));
   
@@ -3758,7 +3758,7 @@
   display: inline-block !important;
 }
 
-/* 底部控制区 */
+/* ============ 底部控制区（彻底对齐） ============ */
 .global-call-actions {
   position: absolute !important;
   z-index: 10 !important;
@@ -3767,14 +3767,21 @@
   bottom: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
   display: flex !important;
   justify-content: center !important;
+  align-items: center !important;
   pointer-events: auto !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 
 .call-action-grid {
   display: flex !important;
-  align-items: center !important;
+  flex-direction: row !important;
+  align-items: flex-start !important;
   justify-content: center !important;
-  gap: 32px !important;
+  gap: 40px !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  width: auto !important;
 }
 
 .call-action-col {
@@ -3782,21 +3789,35 @@
   flex-direction: column !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 8px !important;
+  width: 72px !important;
+  flex-shrink: 0 !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
 }
 
-/* 通话按钮：强力对齐 & 重置全局 SVG */
-.call-btn {
-  position: relative !important;
+/* 强力重置按钮样式并使用 CSS Grid 绝对物理居中 */
+#global-call-overlay .call-btn {
   width: 64px !important;
   height: 64px !important;
   min-width: 64px !important;
   min-height: 64px !important;
+  max-width: 64px !important;
+  max-height: 64px !important;
   border-radius: 50% !important;
   border: 1px solid var(--color-border) !important;
   color: var(--color-text-primary) !important;
   background: var(--color-bg-secondary) !important;
   box-shadow: 0 6px 16px var(--color-shadow) !important;
+  aspect-ratio: 1 / 1 !important;
+  
+  /* 强制 Grid 物理像素精准居中，不受 line-height 等干扰 */
+  display: grid !important;
+  place-items: center !important;
+  align-content: center !important;
+  justify-content: center !important;
+  
   padding: 0 !important;
   margin: 0 !important;
   outline: none !important;
@@ -3806,28 +3827,37 @@
   transition: transform 0.2s, background 0.2s !important;
 }
 
-.call-btn:hover {
+/* 清理任何可能被框架添加的伪元素 */
+#global-call-overlay .call-btn::before,
+#global-call-overlay .call-btn::after {
+  content: none !important;
+  display: none !important;
+}
+
+#global-call-overlay .call-btn:hover {
   background: var(--color-bg-tertiary) !important;
   transform: scale(1.06) !important;
 }
-.call-btn:active {
+#global-call-overlay .call-btn:active {
   transform: scale(0.93) !important;
 }
 
-/* 用绝对定位强制使图标在按钮中央，防止被全局 flex、基线、margin 等污染 */
+/* SVG 尺寸锁死且绝对居中，清除一切第三方框架样式覆盖 */
 #global-call-overlay .call-btn svg {
-  position: absolute !important;
-  top: 50% !important;
-  left: 50% !important;
-  transform: translate(-50%, -50%) !important;
   width: 24px !important;
   height: 24px !important;
   min-width: 24px !important;
   min-height: 24px !important;
-  margin: 0 !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  margin: 0 auto !important;
   padding: 0 !important;
   display: block !important;
+  flex-shrink: 0 !important;
+  transform: none !important;
+  position: static !important;
   color: currentColor !important;
+  vertical-align: middle !important;
 }
 
 .call-btn.btn-accept {
@@ -3912,7 +3942,7 @@
   cursor: grabbing !important;
 }
 
-/* 播放器头像框：隔绝全局 avatar 大小干扰 */
+/* 头像隔离 */
 #global-call-overlay .call-player-cover {
   width: 48px !important;
   height: 48px !important;
@@ -3946,7 +3976,7 @@
   object-fit: cover !important;
 }
 
-/* 播放器 Meta 文字排版 */
+/* 播放器文字 */
 #global-call-overlay .call-player-meta {
   flex: 1 !important;
   min-width: 0 !important;
@@ -3960,7 +3990,6 @@
   box-sizing: border-box !important;
 }
 
-/* 彻底清除 meta 内部全局继承的 margins 和 paddings */
 #global-call-overlay .call-player-meta * {
   margin: 0 !important;
   padding: 0 !important;
@@ -4044,7 +4073,7 @@
   display: block !important;
 }
 
-/* 音频波形进度条 */
+/* 音频进度条 */
 #global-call-overlay .call-player-progress-bar {
   margin-top: 2px !important;
   display: flex !important;
@@ -4101,7 +4130,7 @@
   justify-content: space-between !important;
 }
 
-/* 通话中左下角音频跳动 */
+/* EQ 音频跳动 */
 #global-call-overlay .call-player-eq {
   display: flex !important;
   align-items: flex-end !important;

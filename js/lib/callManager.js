@@ -346,7 +346,7 @@ export const CallManager = {
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
       
-      // 改为在屏幕中下部（50vh 到 75vh 之间）安全区域生成，避免被最底部的动作按钮遮挡
+      // 在屏幕安全区域（避开边缘和按钮）发射文字
       const baseX = 10 + Math.random() * 70;
       const baseY = 50 + Math.random() * 25; 
 
@@ -365,13 +365,12 @@ export const CallManager = {
           const x = baseX + (i * 2.2); 
           const size = 16 + Math.random() * 14; 
           const dur = 4.5 + Math.random() * 3.5; 
-          const rise = -(200 + Math.random() * 200); // 往上飘的像素距离
-          const drift = Math.random() * 60 - 30; // 左右飘移扰动
+          const rise = -(200 + Math.random() * 200); 
+          const drift = Math.random() * 60 - 30; 
           const r = Math.random() * 16 - 8; 
           const rr = Math.random() * 20 - 10; 
           const alpha = 0.4 + Math.random() * 0.4; 
 
-          // 将变量传入 CSS
           el.style.cssText = `
             --fc-x: ${Math.max(5, Math.min(95, x))}%;
             --fc-y: ${baseY}%;
@@ -390,7 +389,6 @@ export const CallManager = {
       }
     };
 
-    // 初始化即发射几组文字
     for (let i = 0; i < 3; i++) {
       setTimeout(emitPhrase, i * 800);
     }
@@ -403,7 +401,7 @@ export const CallManager = {
     if (c) c.innerHTML = '';
   },
 
-  // ---- 拖拽核心功能（重构绑定在 document，防止移动端断连） ----
+  // ---- 拖拽核心功能 ----
   makeElementDraggable(targetEl, handleEl, mode) {
     if (!targetEl) return;
     const dragHandle = handleEl || targetEl;
@@ -454,7 +452,6 @@ export const CallManager = {
     };
 
     const onPointerUp = (e) => {
-      // 结束拖拽后卸载全局监听器
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
       document.removeEventListener('pointercancel', onPointerUp);
@@ -470,7 +467,6 @@ export const CallManager = {
         const m = 16;
         let tx, ty = Math.max(m, Math.min(rect.top, window.innerHeight - rect.height - m));
         
-        // 磁吸贴边
         if (rect.left + rect.width / 2 < window.innerWidth / 2) {
           tx = m;
         } else {
@@ -517,7 +513,6 @@ export const CallManager = {
       targetEl.style.transform = 'none';
       targetEl.style.margin = '0';
 
-      // 绑定全局 document 级别监听器，防止滑动过快移出元素丢失追踪
       document.addEventListener('pointermove', onPointerMove, { passive: false });
       document.addEventListener('pointerup', onPointerUp);
       document.addEventListener('pointercancel', onPointerUp);
@@ -617,7 +612,6 @@ export const CallManager = {
     const timeText = formatDuration(this.getElapsedSeconds());
 
     let actionButtons = '';
-    // 渲染动作按钮，剥离无用的 span 包裹，将 SVG 直接放在 call-btn 节点下
     if (this.state === 'incoming') {
       actionButtons = `
         <div class="call-action-grid">

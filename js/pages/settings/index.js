@@ -35,7 +35,11 @@ const SHUFFLING_STYLES = [
   { id: 'petal', name: '花瓣抽签' },
   { id: 'holy', name: '圣光天使' },
   { id: 'moon-tarot', name: '月相塔罗' },
-  { id: 'ocean-wave', name: '海浪飘牌' }
+  { id: 'ocean-wave', name: '海浪飘牌' },
+  { id: 'cyber', name: '数据骇入' },
+  { id: 'gear', name: '机械齿轮' },
+  { id: 'vortex', name: '时空漩涡' },
+  { id: 'crystal', name: '水晶预言' }
 ];
 
 

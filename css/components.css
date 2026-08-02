@@ -4889,3 +4889,646 @@
   20% { opacity: 1; }
   100% { transform: translateY(-62px) scale(1.6); opacity: 0; }
 }
+/* ==================== 9. 数据骇入 ==================== */
+.cyber-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.cyber-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--color-border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.28;
+}
+
+.cyber-scanline {
+  position: absolute;
+  left: 0;
+  top: -10px;
+  width: 100%;
+  height: 2px;
+  background: var(--color-accent);
+  box-shadow: 0 0 10px var(--color-accent), 0 0 18px var(--color-accent);
+  animation: cyberScan 2.8s linear infinite;
+}
+
+.cyber-noise {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,0.06), transparent 20%),
+    radial-gradient(circle at 70% 60%, rgba(255,255,255,0.05), transparent 18%),
+    radial-gradient(circle at 45% 80%, rgba(255,255,255,0.04), transparent 16%);
+  opacity: 0.45;
+  animation: cyberNoise 1.6s steps(2, end) infinite;
+}
+
+.cyber-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.cyber-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+  opacity: 0.85;
+}
+
+.cyber-card-left {
+  transform: translate(-42px, -2px) rotate(-10deg);
+  opacity: 0.35;
+  animation: cyberIdleLeft 2.8s ease-in-out infinite;
+}
+
+.cyber-card-right {
+  transform: translate(14px, 0) rotate(8deg);
+  opacity: 0.35;
+  animation: cyberIdleRight 2.8s ease-in-out infinite;
+}
+
+.cyber-card-center {
+  transform: translate(-14px, -4px);
+  border-color: var(--color-accent);
+  animation: cyberDecrypt 2.8s ease-in-out infinite;
+}
+
+.cyber-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes cyberScan {
+  0% { top: -10px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { top: 138px; opacity: 1; }
+  100% { top: 148px; opacity: 0; }
+}
+
+@keyframes cyberNoise {
+  0%, 100% { opacity: 0.3; filter: contrast(1); }
+  50% { opacity: 0.6; filter: contrast(1.2); }
+}
+
+@keyframes cyberIdleLeft {
+  0%, 100% { transform: translate(-42px, -2px) rotate(-10deg); opacity: 0.28; }
+  50% { transform: translate(-46px, -6px) rotate(-14deg); opacity: 0.45; }
+}
+
+@keyframes cyberIdleRight {
+  0%, 100% { transform: translate(14px, 0) rotate(8deg); opacity: 0.28; }
+  50% { transform: translate(18px, -4px) rotate(12deg); opacity: 0.45; }
+}
+
+@keyframes cyberDecrypt {
+  0%, 28% {
+    transform: translate(-14px, -4px) scale(0.92);
+    opacity: 0.35;
+    filter: saturate(0.8);
+    box-shadow: none;
+  }
+  50%, 78% {
+    transform: translate(-14px, -10px) scale(1.14);
+    opacity: 1;
+    filter: saturate(1.15);
+    box-shadow: 0 0 18px var(--color-accent);
+  }
+  100% {
+    transform: translate(-14px, -4px) scale(0.92);
+    opacity: 0.35;
+    filter: saturate(0.8);
+    box-shadow: none;
+  }
+}
+/* ==================== 10. 机械齿轮 ==================== */
+.gear-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.gear-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px dashed var(--color-border);
+  box-sizing: border-box;
+}
+
+.gear-ring::before {
+  content: "";
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
+  border: 1px solid var(--color-accent);
+  opacity: 0.45;
+}
+
+.gear-ring-1 {
+  left: -18px;
+  bottom: -18px;
+  width: 98px;
+  height: 98px;
+  animation: gearSpin 4s linear infinite;
+}
+
+.gear-ring-2 {
+  right: 16px;
+  bottom: -8px;
+  width: 64px;
+  height: 64px;
+  border-color: var(--color-accent);
+  animation: gearSpinReverse 2.2s linear infinite;
+}
+
+.gear-ring-3 {
+  left: 50%;
+  top: 18px;
+  width: 92px;
+  height: 92px;
+  transform: translateX(-50%);
+  opacity: 0.5;
+  animation: gearSpin 6s linear infinite;
+}
+
+.gear-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.gear-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.gear-card.deck-card {
+  opacity: 0.34;
+}
+
+.deck-a {
+  transform: translate(-18px, 10px) rotate(-14deg);
+  animation: gearDeckA 3.2s ease-in-out infinite;
+}
+
+.deck-b {
+  transform: translate(0, 4px) rotate(4deg);
+  animation: gearDeckB 3.2s ease-in-out infinite;
+}
+
+.deck-c {
+  transform: translate(18px, 10px) rotate(14deg);
+  animation: gearDeckC 3.2s ease-in-out infinite;
+}
+
+.chosen-card {
+  border-color: var(--color-accent);
+  animation: gearLift 3.2s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 3;
+}
+
+.gear-hand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 58px;
+  height: 2px;
+  margin-left: -29px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  transform-origin: center center;
+  opacity: 0.55;
+}
+
+.gear-hand-1 {
+  animation: gearHandA 3.2s ease-in-out infinite;
+}
+
+.gear-hand-2 {
+  animation: gearHandB 3.2s ease-in-out infinite;
+}
+
+.gear-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes gearSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes gearSpinReverse {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+@keyframes gearDeckA {
+  0%, 100% { transform: translate(-18px, 10px) rotate(-14deg); opacity: 0.28; }
+  50% { transform: translate(-22px, 6px) rotate(-18deg); opacity: 0.45; }
+}
+
+@keyframes gearDeckB {
+  0%, 100% { transform: translate(0, 4px) rotate(4deg); opacity: 0.24; }
+  50% { transform: translate(0, 0) rotate(7deg); opacity: 0.38; }
+}
+
+@keyframes gearDeckC {
+  0%, 100% { transform: translate(18px, 10px) rotate(14deg); opacity: 0.28; }
+  50% { transform: translate(22px, 6px) rotate(18deg); opacity: 0.45; }
+}
+
+@keyframes gearLift {
+  0%, 18% {
+    transform: translate(-50%, 34px) scale(0.64);
+    opacity: 0;
+  }
+  42%, 78% {
+    transform: translate(-50%, -10px) scale(1.08);
+    opacity: 1;
+    box-shadow: 0 10px 18px rgba(0,0,0,0.18);
+  }
+  100% {
+    transform: translate(-50%, -34px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes gearHandA {
+  0%, 100% { transform: translateY(-14px) rotate(18deg); opacity: 0.25; }
+  50% { transform: translateY(-14px) rotate(-12deg); opacity: 0.55; }
+}
+
+@keyframes gearHandB {
+  0%, 100% { transform: translateY(14px) rotate(-18deg); opacity: 0.25; }
+  50% { transform: translateY(14px) rotate(12deg); opacity: 0.55; }
+}
+/* ==================== 11. 时空漩涡 ==================== */
+.vortex-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  perspective: 420px;
+}
+
+.vortex-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255,255,255,0.05), transparent 22%),
+    radial-gradient(circle at 50% 60%, rgba(255,255,255,0.03), transparent 36%);
+}
+
+.vortex-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  border-radius: 50%;
+  border: 2px solid var(--color-accent);
+  box-shadow: 0 0 14px var(--color-accent), inset 0 0 14px var(--color-accent);
+  opacity: 0.32;
+}
+
+.vortex-ring-1 {
+  width: 138px;
+  height: 138px;
+  margin-left: -69px;
+  margin-top: -69px;
+  transform: rotateX(68deg) rotateY(14deg);
+  animation: vortexSpin 3.2s linear infinite;
+}
+
+.vortex-ring-2 {
+  width: 104px;
+  height: 104px;
+  margin-left: -52px;
+  margin-top: -52px;
+  transform: rotateX(60deg) rotateY(-14deg);
+  animation: vortexSpinReverse 4.2s linear infinite;
+}
+
+.vortex-ring-3 {
+  width: 74px;
+  height: 74px;
+  margin-left: -37px;
+  margin-top: -37px;
+  transform: rotateX(72deg) rotateY(8deg);
+  animation: vortexSpin 2.2s linear infinite;
+}
+
+.vortex-slice {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120px;
+  height: 120px;
+  margin-left: -60px;
+  margin-top: -60px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255,255,255,0.08) 18deg,
+    transparent 38deg,
+    rgba(255,255,255,0.05) 58deg,
+    transparent 78deg,
+    rgba(255,255,255,0.08) 108deg,
+    transparent 140deg,
+    rgba(255,255,255,0.05) 170deg,
+    transparent 360deg
+  );
+  filter: blur(2px);
+  opacity: 0.5;
+}
+
+.vortex-slice-1 { animation: vortexSpin 5s linear infinite; }
+.vortex-slice-2 { animation: vortexSpinReverse 4s linear infinite; width: 92px; height: 92px; margin-left: -46px; margin-top: -46px; }
+.vortex-slice-3 { animation: vortexSpin 3.2s linear infinite; width: 64px; height: 64px; margin-left: -32px; margin-top: -32px; }
+
+.vortex-deck {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  width: 86px;
+  height: 54px;
+  transform: translateX(-50%);
+}
+
+.vortex-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.vortex-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.vortex-card.deck-a { animation: vortexDeckA 3.4s ease-in-out infinite; opacity: 0.35; }
+.vortex-card.deck-b { animation: vortexDeckB 3.4s ease-in-out infinite; opacity: 0.3; }
+.vortex-card.deck-c { animation: vortexDeckC 3.4s ease-in-out infinite; opacity: 0.35; }
+
+.vortex-card.chosen-card {
+  border-color: var(--color-accent);
+  animation: vortexChosen 3.4s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 4;
+}
+
+.vortex-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes vortexSpin {
+  0% { transform: rotateX(68deg) rotateY(14deg) rotateZ(0deg); }
+  100% { transform: rotateX(68deg) rotateY(14deg) rotateZ(360deg); }
+}
+
+@keyframes vortexSpinReverse {
+  0% { transform: rotateX(60deg) rotateY(-14deg) rotateZ(0deg); }
+  100% { transform: rotateX(60deg) rotateY(-14deg) rotateZ(-360deg); }
+}
+
+@keyframes vortexDeckA {
+  0%, 100% { transform: translate(-18px, 8px) rotate(-12deg); opacity: 0.22; }
+  50% { transform: translate(-22px, 2px) rotate(-18deg); opacity: 0.38; }
+}
+
+@keyframes vortexDeckB {
+  0%, 100% { transform: translate(0, 2px) rotate(4deg); opacity: 0.2; }
+  50% { transform: translate(0, -2px) rotate(7deg); opacity: 0.34; }
+}
+
+@keyframes vortexDeckC {
+  0%, 100% { transform: translate(18px, 8px) rotate(12deg); opacity: 0.22; }
+  50% { transform: translate(22px, 2px) rotate(18deg); opacity: 0.38; }
+}
+
+@keyframes vortexChosen {
+  0%, 16% {
+    transform: translate(-50%, 38px) scale(0.18) rotate(180deg);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  42%, 76% {
+    transform: translate(-50%, -12px) scale(1.16) rotate(0deg);
+    opacity: 1;
+    filter: blur(0);
+    box-shadow: 0 0 22px var(--color-accent);
+  }
+  100% {
+    transform: translate(-50%, -34px) scale(1.34) rotate(-18deg);
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+/* ==================== 12. 水晶预言 ==================== */
+.crystal-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.crystal-orb {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: 92px;
+  height: 92px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, var(--color-bg-primary), var(--color-bg-secondary));
+  border: 1px solid var(--color-border);
+  box-shadow:
+    inset 0 0 20px var(--color-accent),
+    0 0 28px rgba(0,0,0,0.18);
+  overflow: hidden;
+}
+
+.crystal-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-accent) 0%, transparent 62%);
+  opacity: 0.28;
+  animation: orbPulse 3s ease-in-out infinite;
+}
+
+.crystal-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 34px;
+  height: 34px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.72), transparent 70%);
+  box-shadow: 0 0 16px var(--color-accent);
+  animation: corePulse 3s ease-in-out infinite;
+}
+
+.crystal-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: transparent;
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 0 10px var(--color-accent);
+}
+
+.crystal-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+  opacity: 0.95;
+}
+
+.crystal-card.chosen-card {
+  animation: crystalManifest 3s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 4;
+}
+
+.crystal-sparkles span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  opacity: 0;
+}
+
+.crystal-sparkles span:nth-child(1) { animation: sparkleRise 3s infinite .1s; }
+.crystal-sparkles span:nth-child(2) { animation: sparkleRise 3s infinite .4s; }
+.crystal-sparkles span:nth-child(3) { animation: sparkleRise 3s infinite .7s; }
+.crystal-sparkles span:nth-child(4) { animation: sparkleRise 3s infinite 1s; }
+.crystal-sparkles span:nth-child(5) { animation: sparkleRise 3s infinite 1.3s; }
+
+.crystal-base {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  width: 100px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: radial-gradient(circle, var(--color-accent), transparent 70%);
+  opacity: 0.26;
+  filter: blur(2px);
+}
+
+.crystal-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes orbPulse {
+  0%, 100% { transform: scale(0.94); opacity: 0.22; }
+  50% { transform: scale(1.08); opacity: 0.48; }
+}
+
+@keyframes corePulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.65; }
+  50% { transform: translate(-50%, -50%) scale(1.12); opacity: 1; }
+}
+
+@keyframes crystalManifest {
+  0%, 18% {
+    transform: translate(-50%, 22px) scale(0.28);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  42%, 78% {
+    transform: translate(-50%, -2px) scale(1.06);
+    opacity: 1;
+    filter: blur(0);
+    box-shadow: 0 0 18px var(--color-accent);
+  }
+  100% {
+    transform: translate(-50%, -22px) scale(1.18);
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+
+@keyframes sparkleRise {
+  0% { transform: translate(0, 18px) scale(0.8); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translate(0, -44px) scale(1.4); opacity: 0; }
+}

@@ -262,6 +262,71 @@ export function getShufflingHTML(styleStyle = 'shuffle') {
           <div class="ocean-label">WAVE DRAW</div>
         </div>
       `;
+          case 'cyber': // 数据骇入
+      return `
+        <div class="cyber-box" aria-label="正在数据解码抽取回应">
+          <div class="cyber-grid"></div>
+          <div class="cyber-scanline"></div>
+          <div class="cyber-noise"></div>
+          <div class="cyber-card cyber-card-left"></div>
+          <div class="cyber-card cyber-card-right"></div>
+          <div class="cyber-card cyber-card-center"></div>
+          <div class="cyber-label">DATA HACK</div>
+        </div>
+      `;
+
+    case 'gear': // 机械齿轮
+      return `
+        <div class="gear-box" aria-label="机械机关正在挑选回应">
+          <div class="gear-ring gear-ring-1"></div>
+          <div class="gear-ring gear-ring-2"></div>
+          <div class="gear-ring gear-ring-3"></div>
+          <div class="gear-card deck-card deck-a"></div>
+          <div class="gear-card deck-card deck-b"></div>
+          <div class="gear-card deck-card deck-c"></div>
+          <div class="gear-card chosen-card"></div>
+          <div class="gear-hand gear-hand-1"></div>
+          <div class="gear-hand gear-hand-2"></div>
+          <div class="gear-label">CLOCKWORK</div>
+        </div>
+      `;
+
+    case 'vortex': // 时空漩涡
+      return `
+        <div class="vortex-box" aria-label="时空漩涡正在抽取回应">
+          <div class="vortex-bg"></div>
+          <div class="vortex-ring vortex-ring-1"></div>
+          <div class="vortex-ring vortex-ring-2"></div>
+          <div class="vortex-ring vortex-ring-3"></div>
+          <div class="vortex-slice vortex-slice-1"></div>
+          <div class="vortex-slice vortex-slice-2"></div>
+          <div class="vortex-slice vortex-slice-3"></div>
+          <div class="vortex-deck">
+            <div class="vortex-card deck-a"></div>
+            <div class="vortex-card deck-b"></div>
+            <div class="vortex-card deck-c"></div>
+          </div>
+          <div class="vortex-card chosen-card"></div>
+          <div class="vortex-label">VORTEX</div>
+        </div>
+      `;
+
+    case 'crystal': // 水晶预言
+      return `
+        <div class="crystal-box" aria-label="水晶球正在显现回应">
+          <div class="crystal-orb">
+            <div class="crystal-glow"></div>
+            <div class="crystal-core"></div>
+            <div class="crystal-sparkles">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="crystal-card chosen-card"></div>
+          </div>
+          <div class="crystal-base"></div>
+          <div class="crystal-label">CRYSTAL ORB</div>
+        </div>
+      `;
+
 
   }
 }
@@ -294,6 +359,15 @@ export function getShufflingHint(styleStyle = 'shuffle') {
       return '月相缓缓对齐，塔罗正在揭示命定回应...';
     case 'ocean-wave':
       return '海浪推着卡牌起伏，正在浮出最合适的回应...';
+          case 'cyber':
+      return '正在解析数据流，筛选最匹配的回应...';
+    case 'gear':
+      return '机械齿轮正在精确咬合，抽取合适回应...';
+    case 'vortex':
+      return '时空漩涡正在收束，回应即将浮现...';
+    case 'crystal':
+      return '水晶球正在映出命运，回应即将显现...';
+
 
   }
 }

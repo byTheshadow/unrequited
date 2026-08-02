@@ -182,6 +182,87 @@ export function getShufflingHTML(styleStyle = 'shuffle') {
         </div>
         <div class="shuffle-caption">正在洗牌</div>
       `;
+          case 'petal': // 花瓣抽签
+      return `
+        <div class="petal-box" aria-label="花瓣抽签中">
+          <div class="petal-glow"></div>
+          <div class="petal-mist"></div>
+          <div class="petal-deck">
+            <div class="petal-card deck-a"></div>
+            <div class="petal-card deck-b"></div>
+            <div class="petal-card deck-c"></div>
+          </div>
+          <div class="petal-burst">
+            <span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="petal-card chosen-card"></div>
+          <div class="petal-label">PETAL DRAW</div>
+        </div>
+      `;
+
+    case 'holy': // 圣光天使
+      return `
+        <div class="holy-box" aria-label="圣光接引中">
+          <div class="holy-pillar"></div>
+          <div class="holy-halo"></div>
+          <div class="holy-rays"></div>
+          <div class="holy-deck">
+            <div class="holy-card deck-a"></div>
+            <div class="holy-card deck-b"></div>
+            <div class="holy-card deck-c"></div>
+          </div>
+          <div class="holy-sparkles">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="holy-card chosen-card"></div>
+          <div class="holy-label">HOLY ASCENSION</div>
+        </div>
+      `;
+
+    case 'moon-tarot': // 月相塔罗
+      return `
+        <div class="moon-tarot-box" aria-label="月相塔罗抽卡中">
+          <div class="moon-bg"></div>
+          <div class="moon-ring"></div>
+          <div class="moon-phase">
+            <span class="phase p1">◐</span>
+            <span class="phase p2">◑</span>
+            <span class="phase p3">◒</span>
+            <span class="phase p4">◓</span>
+          </div>
+          <div class="tarot-fan">
+            <div class="tarot-card fan-1"></div>
+            <div class="tarot-card fan-2"></div>
+            <div class="tarot-card fan-3"></div>
+            <div class="tarot-card fan-4"></div>
+            <div class="tarot-card fan-5"></div>
+          </div>
+          <div class="tarot-moon"></div>
+          <div class="tarot-chosen"></div>
+          <div class="moon-tarot-label">MOON TAROT</div>
+        </div>
+      `;
+
+    case 'ocean-wave': // 海浪飘牌
+      return `
+        <div class="ocean-wave-box" aria-label="海浪飘牌中">
+          <div class="ocean-sky"></div>
+          <div class="ocean-wave wave-a"></div>
+          <div class="ocean-wave wave-b"></div>
+          <div class="ocean-wave wave-c"></div>
+          <div class="bubble-trail">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="ocean-deck">
+            <div class="ocean-card deck-a"></div>
+            <div class="ocean-card deck-b"></div>
+            <div class="ocean-card deck-c"></div>
+          </div>
+          <div class="ocean-card chosen-card"></div>
+          <div class="ocean-label">WAVE DRAW</div>
+        </div>
+      `;
+
   }
 }
 
@@ -205,5 +286,14 @@ export function getShufflingHint(styleStyle = 'shuffle') {
     case 'shuffle':
     default:
       return '挑选最能引起共鸣的字卡碎片...';
+    case 'petal':
+      return '花瓣旋舞之间，正在抽取最柔和的回应...';
+    case 'holy':
+      return '圣光正在接引最纯净的回应...';
+    case 'moon-tarot':
+      return '月相缓缓对齐，塔罗正在揭示命定回应...';
+    case 'ocean-wave':
+      return '海浪推着卡牌起伏，正在浮出最合适的回应...';
+
   }
 }

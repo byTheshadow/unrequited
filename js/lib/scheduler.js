@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { generateForCharacter } from '../cardEngine.js';
+import { generateForCharacter, parseChoiceContent, choiceToContent } from '../cardEngine.js';
 import * as sound from './sound.js';
 import { toast } from '../utils.js';
 
@@ -17,7 +17,7 @@ function calculateNextTime(minMin, maxMin) {
 }
 
 /**
- * 检查并触发所有角色的主动消息
+ * 检查并触发所有角色的主动消息，以及非当前活跃聊天框的后台静默回复
  */
 async function checkActiveMessages() {
   try {
@@ -28,13 +28,30 @@ async function checkActiveMessages() {
       const char = await db.characters.get(conv.characterId);
       if (!char) continue;
 
+      const hash = location.hash || '';
+      const isInThisChat = hash.startsWith('#/chat') && hash.includes(`id=${conv.id}`);
+
+      // ==========================================
+      // 【新增：常规聊天回复后台静默处理】
+      // ==========================================
+      if (conv.pendingReplyAt && now >= conv.pendingReplyAt) {
+        // 如果用户正好在当前聊天框，让 chat.js 的前台定时器去执行（带打字状态与飞卡动效）
+        // 如果用户不在当前聊天框，则由本后台管理器静默生成并发送
+        if (!isInThisChat) {
+          await executeBackgroundReply(conv, char);
+          continue;
+        }
+      }
+
+      // ==========================================
+      // 【原有主动搭讪消息逻辑】
+      // ==========================================
       const replyConfig = char.replyConfig || {};
       const activeEnabled = !!replyConfig.activeMsgEnabled;
       const minVal = replyConfig.activeMsgMinInterval ?? 60;
       const maxVal = replyConfig.activeMsgMaxInterval ?? 180;
 
       if (!activeEnabled) {
-        // 如果关闭了主动消息，清除该时间戳以防干扰，然后跳过
         if (conv.nextActiveMsgAt) {
           await db.conversations.update(conv.id, {
             nextActiveMsgAt: null,
@@ -44,9 +61,6 @@ async function checkActiveMessages() {
         continue;
       }
 
-      // 【自校准避让逻辑】：
-      // 如果 conversations 表记录的最后消息时间 (lastMessageTime) 与我们上次为其排期时参照的时间戳不同，
-      // 说明在这期间用户或角色在聊天室中发了新消息。我们需要把主动消息重新顺延。
       const currentLastMsgTime = conv.lastMessageTime || conv.createdAt || now;
       if (conv.lastActiveMsgScheduledTime !== currentLastMsgTime) {
         const nextTime = currentLastMsgTime + (minVal + Math.random() * (maxVal - minVal)) * 60 * 1000;
@@ -57,7 +71,6 @@ async function checkActiveMessages() {
         continue;
       }
 
-      // 如果未设定下一次时间（例如首次开启还没写入），在此处补全
       if (!conv.nextActiveMsgAt) {
         const nextTime = calculateNextTime(minVal, maxVal);
         await db.conversations.update(conv.id, {
@@ -69,30 +82,17 @@ async function checkActiveMessages() {
 
       // 当到达或超过预定的主动发送时刻
       if (now >= conv.nextActiveMsgAt) {
-        // 【避让选择1】：如果用户当前正好在这个角色的聊天页面，说明正在热聊中，直接顺延下一次，而不插播主动搭讪
-        const hash = location.hash || '';
-        const isInThisChat = hash.startsWith('#/chat') && hash.includes(`id=${conv.id}`);
-        if (isInThisChat) {
-          const nextTime = calculateNextTime(minVal, maxVal);
-          await db.conversations.update(conv.id, {
-            nextActiveMsgAt: nextTime,
-            lastActiveMsgScheduledTime: currentLastMsgTime
-          });
-          continue;
-        }
+        // 🟢 移除了之前的 isInThisChat 避让顺延逻辑，现在在聊天框内也会直接发送
 
-        // 开始生成主动消息内容（优先调用已有的字卡引擎 generateForCharacter）
+        // 开始生成主动消息内容
         let { messages, reason } = await generateForCharacter(char.id);
-        
-        // 检查引擎是否成功返回了有效且非空的消息内容
         const hasContent = reason === 'ok' && messages && messages.length > 0 && messages.every(m => m && m.content && m.content.trim() !== '');
 
         if (!hasContent) {
-          // 备用机制：从绑定了该角色的字卡库以及通用字卡库（没有绑定角色的库）中手动提取字卡
           const decks = await db.decks.toArray();
           const targetDecks = decks.filter(d => d.bindCharacterId === char.id || !d.bindCharacterId);
           
-          let allFrags = []; // 存储所有可用碎片的 { text, deckId, deck }
+          let allFrags = [];
           for (const d of targetDecks) {
             const frags = d.fragments || [];
             frags.forEach(text => {
@@ -103,11 +103,9 @@ async function checkActiveMessages() {
           }
 
           if (allFrags.length > 0) {
-            // 随机抽取一条字卡
             const chosen = allFrags[Math.floor(Math.random() * allFrags.length)];
             messages = [{ content: chosen.text }];
 
-            // 更新该备用字卡的共鸣频次 (usageCount)
             try {
               const deck = chosen.deck;
               const stats = deck.fragmentStats || {};
@@ -120,7 +118,6 @@ async function checkActiveMessages() {
               console.warn('更新备用字卡共鸣频次失败:', e);
             }
           } else {
-            // 字卡库均为空时，随机发送提示语
             const hints = [
               "(对方想来找你，但没有找到合适的字卡)",
               "（对方想说的话似乎更多，需要给对方扩展字卡库吗？）"
@@ -130,7 +127,7 @@ async function checkActiveMessages() {
           }
         }
 
-        // 保存消息到数据库，连发消息合并为单次发送的事务或分批写入
+        // 保存消息到数据库
         let lastCreatedMsg = null;
         for (const msgObj of messages) {
           const msgPayload = {
@@ -138,19 +135,16 @@ async function checkActiveMessages() {
             sender: 'character',
             content: msgObj.content,
             timestamp: Date.now(),
-            quotedMessageId: msgObj.quotedMessageId || null
+            quotedMessageId: msgObj.quotedMessageId || null,
+            isRead: isInThisChat // 🟢 如果用户正好在聊天框中，则直接设为已读
           };
           lastCreatedMsg = await db.messages.add(msgPayload);
         }
 
-        // 整理最新展示文案
         const lastMsgText = messages[messages.length - 1].content;
         const lastMsgTime = Date.now();
-
-        // 重新排期下一次主动发送的时刻
         const nextTime = calculateNextTime(minVal, maxVal);
 
-        // 更新会话表
         await db.conversations.update(conv.id, {
           lastMessage: lastMsgText,
           lastMessageTime: lastMsgTime,
@@ -159,9 +153,9 @@ async function checkActiveMessages() {
         });
 
         // 触发接收主动消息的多维度通知
-        triggerNotification(char, conv, lastMsgText);
+        triggerNotification(char, conv, lastMsgText, isInThisChat);
 
-        // 广播自定义事件，让可能渲染了列表（如主页）的页面感知到去刷新 UI
+        // 广播自定义事件，让可能渲染了聊天列表或当前聊天窗的页面刷新 UI
         window.dispatchEvent(new CustomEvent('active-message-received', {
           detail: { conversationId: conv.id, characterId: char.id }
         }));
@@ -173,19 +167,154 @@ async function checkActiveMessages() {
 }
 
 /**
+ * 后台静默常规回复执行器 (当用户切出了该房间，由本函数在后台进行回复生成)
+ */
+async function executeBackgroundReply(conv, char) {
+  try {
+    // 1. 清空待回复时间戳
+    await db.conversations.update(conv.id, { pendingReplyAt: null });
+
+    const messagesList = await db.messages.where('conversationId').equals(conv.id).sortBy('timestamp');
+    
+    // 2. 检查是否有未回答的选择题
+    let unansweredChoice = null;
+    for (let i = messagesList.length - 1; i >= 0; i--) {
+      const msg = messagesList[i];
+      if (msg.sender === 'user' && msg.type === 'choice') {
+        const choice = parseChoiceContent(msg.content);
+        if (choice && !choice.answered) {
+          unansweredChoice = { msg, choice };
+          break;
+        }
+      }
+    }
+
+    let insertedMessages = [];
+
+    if (unansweredChoice) {
+      // 答题分支
+      const answer = unansweredChoice.choice.options[Math.floor(Math.random() * unansweredChoice.choice.options.length)];
+      const choiceObj = unansweredChoice.choice;
+      choiceObj.answered = true;
+      choiceObj.answer = answer;
+
+      // 在 db 中将选择题标记为已回答
+      await db.messages.update(unansweredChoice.msg.id, {
+        content: choiceToContent(choiceObj)
+      });
+
+      const generated = await generateForCharacter(char.id);
+      const genMsgs = generated && generated.messages ? generated.messages : [];
+      let extraText = '';
+      if (genMsgs.length) {
+        const pickedMsg = genMsgs[0];
+        const pickedContent = typeof pickedMsg === 'string' ? pickedMsg : (pickedMsg && pickedMsg.content ? pickedMsg.content : '');
+        if (pickedContent) extraText = `。${pickedContent}`;
+      }
+
+      insertedMessages.push({
+        conversationId: conv.id,
+        sender: 'character',
+        content: `◈ 选择了「${answer}」${extraText}`,
+        type: 'card',
+        status: 'sent',
+        quotedMessageId: unansweredChoice.msg.id,
+        timestamp: Date.now(),
+        isRead: false
+      });
+    } else {
+      // 普通回复生成
+      const generated = await generateForCharacter(char.id);
+      const messages = generated && generated.messages ? generated.messages : [];
+      const choices = generated && generated.choices ? generated.choices : [];
+
+      if (messages && messages.length > 0) {
+        for (let i = 0; i < messages.length; i++) {
+          insertedMessages.push({
+            conversationId: conv.id,
+            sender: 'character',
+            content: typeof messages[i] === 'string' ? messages[i] : messages[i].content,
+            type: 'card',
+            status: 'sent',
+            quotedMessageId: null,
+            timestamp: Date.now() + i * 10,
+            isRead: false
+          });
+        }
+      }
+
+      if (choices && choices.length > 0) {
+        for (let i = 0; i < choices.length; i++) {
+          const choiceContent = typeof choices[i] === 'string' ? choices[i] : choiceToContent(choices[i]);
+          insertedMessages.push({
+            conversationId: conv.id,
+            sender: 'character',
+            content: choiceContent,
+            type: 'choice',
+            status: 'sent',
+            quotedMessageId: null,
+            timestamp: Date.now() + (messages.length + i) * 10,
+            isRead: false
+          });
+        }
+      }
+    }
+
+    if (insertedMessages.length > 0) {
+      // 将之前的用户未读消息标为已读
+      const lastUserMsg = [...messagesList].reverse().find((m) => m.sender === 'user' && !m.isRead);
+      if (lastUserMsg) {
+        await db.messages.update(lastUserMsg.id, { isRead: true });
+      }
+
+      // 保存新消息并更新会话
+      let lastMsgText = '';
+      for (const msg of insertedMessages) {
+        await db.messages.add(msg);
+        lastMsgText = msg.content;
+      }
+
+      await db.conversations.update(conv.id, {
+        lastMessage: lastMsgText,
+        lastMessageTime: Date.now()
+      });
+
+      // 触发通知 (后台静默回复，isInThisChat 为 false)
+      triggerNotification(char, conv, lastMsgText, false);
+
+      // 发送通知广播
+      window.dispatchEvent(new CustomEvent('active-message-received', {
+        detail: { conversationId: conv.id, characterId: char.id }
+      }));
+    }
+  } catch (e) {
+    console.error('后台静默回复处理失败:', e);
+  }
+}
+
+/**
  * 触发通知（支持前台 Toast / 声音，后台本地系统通知）
  */
-function triggerNotification(character, conv, text) {
+function triggerNotification(character, conv, text, isInThisChat) {
   const isVisible = document.visibilityState === 'visible';
 
   if (isVisible) {
-    // 1. 前台可见：显示轻量 Toast，并尝试播放声音
-    toast(`${character.name}: ${text.slice(0, 30)}${text.length > 30 ? '...' : ''}`);
-    sound.loadConfig().then(() => {
-      sound.play('character', conv.soundOption, conv.customSoundUrl).catch((e) => {
-        console.warn('前台主动消息播放声音受限:', e);
+    if (isInThisChat) {
+      // 🟢 如果用户正在这个聊天页面，不弹顶部 Toast，直接静默播放 chimes 提示音即可
+      sound.loadConfig().then(() => {
+        sound.play('character', conv.soundOption, conv.customSoundUrl).catch((e) => {
+          console.warn('当前聊天室消息播放声音受限:', e);
+        });
       });
-    });
+    } else {
+      // 前台可见但在其他页面：显示 Toast 并播放声音
+      toast(`${character.name}: ${text.slice(0, 30)}${text.length > 30 ? '...' : ''}`);
+      sound.loadConfig().then(() => {
+        sound.play('character', conv.soundOption, conv.customSoundUrl).catch((e) => {
+          console.warn('前台主动消息播放声音受限:', e);
+        });
+      });
+    }
   } else {
     // 2. 后台或锁屏（在保活机制下）：如果用户已授权系统通知，尝试弹出本地推送
     if ('Notification' in window && Notification.permission === 'granted') {

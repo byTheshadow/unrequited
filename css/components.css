@@ -4264,3 +4264,628 @@
   box-shadow: 0 0 6px #10b981 !important;
   box-sizing: border-box !important;
 }
+/* ==================== 5. 花瓣抽签 ==================== */
+.petal-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.petal-glow {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: 130px;
+  height: 70px;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.28), transparent 70%);
+  filter: blur(2px);
+  animation: petalGlow 2.8s ease-in-out infinite;
+}
+
+.petal-mist {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 65%, rgba(251, 207, 232, 0.12), transparent 45%),
+    radial-gradient(circle at 30% 45%, rgba(251, 207, 232, 0.08), transparent 30%),
+    radial-gradient(circle at 70% 40%, rgba(251, 207, 232, 0.08), transparent 30%);
+  opacity: 0.8;
+}
+
+.petal-deck {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  width: 80px;
+  height: 52px;
+  transform: translateX(-50%);
+}
+
+.petal-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  transform-origin: center bottom;
+}
+
+.petal-card::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(236, 72, 153, 0.16);
+}
+
+.petal-card::after {
+  content: "✿";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+  opacity: 0.85;
+}
+
+.petal-card.deck-a { animation: petalDeckA 2.6s ease-in-out infinite; }
+.petal-card.deck-b { animation: petalDeckB 2.6s ease-in-out infinite; }
+.petal-card.deck-c { animation: petalDeckC 2.6s ease-in-out infinite; }
+
+.petal-card.chosen-card {
+  left: 50%;
+  top: 53%;
+  background: linear-gradient(180deg, #fff1f6, #f9a8d4);
+  border-color: rgba(236, 72, 153, 0.55);
+  animation: petalChosen 2.6s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 4;
+}
+
+.petal-burst span {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  margin-top: -4px;
+  border-radius: 100% 0 100% 0;
+  background: #fbcfe8;
+  opacity: 0;
+}
+
+.petal-burst span:nth-child(1) { animation: petalFly1 2.6s infinite; }
+.petal-burst span:nth-child(2) { animation: petalFly2 2.6s infinite; animation-delay: .15s; }
+.petal-burst span:nth-child(3) { animation: petalFly3 2.6s infinite; animation-delay: .28s; }
+.petal-burst span:nth-child(4) { animation: petalFly4 2.6s infinite; animation-delay: .08s; }
+.petal-burst span:nth-child(5) { animation: petalFly5 2.6s infinite; animation-delay: .22s; }
+.petal-burst span:nth-child(6) { animation: petalFly6 2.6s infinite; animation-delay: .35s; }
+
+.petal-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes petalGlow {
+  0%, 100% { opacity: .55; transform: translate(-50%, -50%) scale(0.95); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+}
+@keyframes petalDeckA {
+  0%, 100% { transform: translate(-16px, 0) rotate(-12deg); opacity: .42; }
+  50% { transform: translate(-20px, -4px) rotate(-18deg); opacity: .6; }
+}
+@keyframes petalDeckB {
+  0%, 100% { transform: translate(0, -2px) rotate(5deg); opacity: .34; }
+  50% { transform: translate(2px, -6px) rotate(8deg); opacity: .5; }
+}
+@keyframes petalDeckC {
+  0%, 100% { transform: translate(16px, 2px) rotate(14deg); opacity: .38; }
+  50% { transform: translate(20px, -2px) rotate(18deg); opacity: .55; }
+}
+@keyframes petalChosen {
+  0%, 16% { transform: translate(-50%, 35px) scale(0.62) rotate(180deg); opacity: 0; }
+  38%, 74% { transform: translate(-50%, -10px) scale(1.08) rotate(0deg); opacity: 1; box-shadow: 0 0 22px rgba(236,72,153,.35); }
+  100% { transform: translate(-50%, -34px) scale(1) rotate(0deg); opacity: 0; }
+}
+@keyframes petalFly1 { 0% { transform: translate(0, 10px) rotate(0); opacity: 1; } 100% { transform: translate(-38px, -56px) rotate(180deg); opacity: 0; } }
+@keyframes petalFly2 { 0% { transform: translate(0, 10px) rotate(0); opacity: 1; } 100% { transform: translate(42px, -48px) rotate(220deg); opacity: 0; } }
+@keyframes petalFly3 { 0% { transform: translate(0, 10px) rotate(0); opacity: 1; } 100% { transform: translate(-16px, -78px) rotate(90deg); opacity: 0; } }
+@keyframes petalFly4 { 0% { transform: translate(0, 10px) rotate(0); opacity: 1; } 100% { transform: translate(22px, -72px) rotate(140deg); opacity: 0; } }
+@keyframes petalFly5 { 0% { transform: translate(0, 10px) rotate(0); opacity: 1; } 100% { transform: translate(-50px, -36px) rotate(260deg); opacity: 0; } }
+@keyframes petalFly6 { 0% { transform: translate(0, 10px) rotate(0); opacity: 1; } 100% { transform: translate(54px, -58px) rotate(300deg); opacity: 0; } }
+/* ==================== 6. 圣光天使 ==================== */
+.holy-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.holy-pillar {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  width: 74px;
+  height: 150px;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgba(255,253,230,.72), rgba(255,253,230,.12) 72%, transparent);
+  filter: blur(8px);
+  animation: holyPillar 2.8s ease-in-out infinite;
+}
+
+.holy-halo {
+  position: absolute;
+  left: 50%;
+  top: 42px;
+  width: 74px;
+  height: 74px;
+  transform: translateX(-50%) rotateX(70deg);
+  border-radius: 50%;
+  border: 2px solid rgba(255,245,180,.8);
+  box-shadow: 0 0 16px rgba(255,245,180,.55), inset 0 0 8px rgba(255,245,180,.4);
+  animation: holyHalo 2.8s ease-in-out infinite;
+}
+
+.holy-rays {
+  position: absolute;
+  left: 50%;
+  top: 10px;
+  width: 120px;
+  height: 120px;
+  transform: translateX(-50%);
+  background:
+    conic-gradient(from 0deg,
+      transparent 0deg,
+      rgba(255,255,255,.22) 20deg,
+      transparent 35deg,
+      rgba(255,244,188,.22) 55deg,
+      transparent 70deg,
+      rgba(255,255,255,.2) 90deg,
+      transparent 120deg,
+      rgba(255,244,188,.18) 145deg,
+      transparent 180deg,
+      rgba(255,255,255,.18) 210deg,
+      transparent 240deg,
+      rgba(255,244,188,.18) 280deg,
+      transparent 360deg);
+  border-radius: 50%;
+  filter: blur(2px);
+  opacity: .7;
+  animation: holyRays 3.2s linear infinite;
+}
+
+.holy-deck {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  width: 84px;
+  height: 54px;
+  transform: translateX(-50%);
+}
+
+.holy-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.holy-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+  opacity: .9;
+}
+
+.holy-card.deck-a { animation: holyDeckA 2.8s ease-in-out infinite; }
+.holy-card.deck-b { animation: holyDeckB 2.8s ease-in-out infinite; }
+.holy-card.deck-c { animation: holyDeckC 2.8s ease-in-out infinite; }
+
+.holy-card.chosen-card {
+  left: 50%;
+  top: 56%;
+  background: linear-gradient(180deg, #fffbe6, #facc15);
+  border-color: rgba(250, 204, 21, .7);
+  animation: holyAscend 2.8s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 4;
+}
+
+.holy-sparkles span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px rgba(255,245,180,.9);
+  opacity: 0;
+}
+
+.holy-sparkles span:nth-child(1) { animation: holySpark 2.8s infinite .1s; }
+.holy-sparkles span:nth-child(2) { animation: holySpark 2.8s infinite .4s; }
+.holy-sparkles span:nth-child(3) { animation: holySpark 2.8s infinite .7s; }
+.holy-sparkles span:nth-child(4) { animation: holySpark 2.8s infinite 1s; }
+.holy-sparkles span:nth-child(5) { animation: holySpark 2.8s infinite 1.3s; }
+
+.holy-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes holyPillar {
+  0%, 100% { opacity: .45; transform: translateX(-50%) scaleX(.98); }
+  50% { opacity: 1; transform: translateX(-50%) scaleX(1.08); }
+}
+@keyframes holyHalo {
+  0%, 100% { transform: translateX(-50%) rotateX(70deg) translateY(0); }
+  50% { transform: translateX(-50%) rotateX(70deg) translateY(-8px) scale(1.08); }
+}
+@keyframes holyRays {
+  0% { transform: translateX(-50%) rotate(0deg); opacity: .55; }
+  100% { transform: translateX(-50%) rotate(360deg); opacity: .75; }
+}
+@keyframes holyDeckA {
+  0%, 100% { transform: translate(-18px, 2px) rotate(-12deg); opacity: .4; }
+  50% { transform: translate(-22px, -2px) rotate(-18deg); opacity: .56; }
+}
+@keyframes holyDeckB {
+  0%, 100% { transform: translate(0, -2px) rotate(4deg); opacity: .34; }
+  50% { transform: translate(2px, -6px) rotate(8deg); opacity: .5; }
+}
+@keyframes holyDeckC {
+  0%, 100% { transform: translate(18px, 2px) rotate(14deg); opacity: .38; }
+  50% { transform: translate(22px, -2px) rotate(18deg); opacity: .54; }
+}
+@keyframes holyAscend {
+  0%, 15% { transform: translate(-50%, 36px) scale(.62); opacity: 0; }
+  40%, 74% { transform: translate(-50%, -10px) scale(1.1); opacity: 1; box-shadow: 0 0 24px rgba(250,204,21,.45); }
+  100% { transform: translate(-50%, -36px) scale(1); opacity: 0; }
+}
+@keyframes holySpark {
+  0% { transform: translate(0, 18px) scale(.8); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translate(0, -42px) scale(1.4); opacity: 0; }
+}
+/* ==================== 7. 月相塔罗 ==================== */
+.moon-tarot-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.moon-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(196,181,253,.18), transparent 45%),
+    radial-gradient(circle at 50% 70%, rgba(96,165,250,.08), transparent 50%);
+}
+
+.moon-ring {
+  position: absolute;
+  left: 50%;
+  top: 38px;
+  width: 102px;
+  height: 102px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border: 1px solid rgba(196,181,253,.22);
+  box-shadow: 0 0 14px rgba(196,181,253,.16);
+}
+
+.moon-phase {
+  position: absolute;
+  left: 50%;
+  top: 22px;
+  width: 132px;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-accent);
+  font-size: 12px;
+  opacity: .85;
+}
+
+.phase {
+  animation: moonPhase 3s ease-in-out infinite;
+}
+
+.tarot-fan {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  width: 120px;
+  height: 70px;
+  transform: translateX(-50%);
+}
+
+.tarot-card {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 28px;
+  height: 42px;
+  margin-left: -14px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 16px rgba(0,0,0,.12);
+  transform-origin: center bottom;
+}
+
+.tarot-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.fan-1 { animation: tarotFan1 3s ease-in-out infinite; }
+.fan-2 { animation: tarotFan2 3s ease-in-out infinite; }
+.fan-3 { animation: tarotFan3 3s ease-in-out infinite; z-index: 4; border-color: rgba(196,181,253,.5); }
+.fan-4 { animation: tarotFan4 3s ease-in-out infinite; }
+.fan-5 { animation: tarotFan5 3s ease-in-out infinite; }
+
+.tarot-moon {
+  position: absolute;
+  left: 50%;
+  top: 24px;
+  width: 36px;
+  height: 36px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 60% 40%, rgba(255,255,255,.95) 0 28%, transparent 29%),
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,.16) 0 55%, transparent 56%);
+  box-shadow: 0 0 18px rgba(255,255,255,.22);
+  animation: moonPulse 3s ease-in-out infinite;
+}
+
+.tarot-chosen {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 30px;
+  height: 44px;
+  margin-left: -15px;
+  margin-top: -22px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #f8faff, #c4b5fd);
+  border: 1px solid rgba(196,181,253,.7);
+  box-shadow: 0 0 24px rgba(196,181,253,.28);
+  animation: tarotChosen 3s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 5;
+}
+
+.tarot-chosen::after {
+  content: "☾";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -52%);
+  color: #6d28d9;
+  font-size: 12px;
+}
+
+.moon-tarot-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes moonPulse {
+  0%, 100% { transform: translateX(-50%) scale(.96); opacity: .72; }
+  50% { transform: translateX(-50%) scale(1.08); opacity: 1; }
+}
+@keyframes moonPhase {
+  0%, 100% { opacity: .35; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+@keyframes tarotFan1 {
+  0%, 18% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  45%, 80% { transform: translateX(-54px) rotate(-34deg); opacity: .62; }
+  100% { transform: translateX(0) rotate(0deg); opacity: 0; }
+}
+@keyframes tarotFan2 {
+  0%, 18% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  45%, 80% { transform: translateX(-28px) rotate(-16deg); opacity: .8; }
+  100% { transform: translateX(0) rotate(0deg); opacity: 0; }
+}
+@keyframes tarotFan3 {
+  0%, 18% { transform: translateX(0) scale(1); opacity: 0; }
+  45%, 80% { transform: translateX(0) translateY(-24px) scale(1.16); opacity: 1; box-shadow: 0 0 20px rgba(196,181,253,.35); }
+  100% { transform: translateX(0) scale(1); opacity: 0; }
+}
+@keyframes tarotFan4 {
+  0%, 18% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  45%, 80% { transform: translateX(28px) rotate(16deg); opacity: .8; }
+  100% { transform: translateX(0) rotate(0deg); opacity: 0; }
+}
+@keyframes tarotFan5 {
+  0%, 18% { transform: translateX(0) rotate(0deg); opacity: 0; }
+  45%, 80% { transform: translateX(54px) rotate(34deg); opacity: .62; }
+  100% { transform: translateX(0) rotate(0deg); opacity: 0; }
+}
+@keyframes tarotChosen {
+  0%, 16% { transform: translate(-50%, 32px) scale(.62); opacity: 0; }
+  40%, 76% { transform: translate(-50%, -12px) scale(1.16); opacity: 1; }
+  100% { transform: translate(-50%, -34px) scale(1); opacity: 0; }
+}
+/* ==================== 8. 海浪飘牌 ==================== */
+.ocean-wave-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.ocean-sky {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(6,21,37,1) 0%, rgba(8,47,73,1) 100%);
+}
+
+.ocean-wave {
+  position: absolute;
+  left: 50%;
+  bottom: -120px;
+  width: 260px;
+  height: 260px;
+  margin-left: -130px;
+  border-radius: 42%;
+  background: rgba(56,189,248,.18);
+  filter: blur(1px);
+  animation: oceanSpin 4s linear infinite;
+}
+
+.wave-b {
+  background: rgba(14,165,233,.22);
+  border-radius: 46%;
+  animation-duration: 3.2s;
+  animation-direction: reverse;
+}
+
+.wave-c {
+  background: rgba(125,211,252,.12);
+  border-radius: 44%;
+  animation-duration: 5s;
+}
+
+.ocean-deck {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  width: 88px;
+  height: 54px;
+  transform: translateX(-50%);
+}
+
+.ocean-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(11,38,63,.95), rgba(7,89,133,.8));
+  border: 1px solid rgba(56,189,248,.35);
+  box-shadow: 0 6px 16px rgba(0,0,0,.2);
+}
+
+.ocean-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: #bae6fd;
+}
+
+.ocean-card.deck-a { animation: oceanDeckA 3s ease-in-out infinite; }
+.ocean-card.deck-b { animation: oceanDeckB 3s ease-in-out infinite; }
+.ocean-card.deck-c { animation: oceanDeckC 3s ease-in-out infinite; }
+
+.ocean-card.chosen-card {
+  left: 50%;
+  top: 55%;
+  background: linear-gradient(180deg, #e0f2fe, #38bdf8);
+  border-color: rgba(56,189,248,.7);
+  animation: oceanRise 3s ease-in-out infinite;
+  z-index: 4;
+}
+
+.bubble-trail span {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+  border-radius: 50%;
+  background: #bae6fd;
+  opacity: 0;
+}
+
+.bubble-trail span:nth-child(1) { animation: bubbleRise 3s infinite .15s; }
+.bubble-trail span:nth-child(2) { animation: bubbleRise 3s infinite .4s; }
+.bubble-trail span:nth-child(3) { animation: bubbleRise 3s infinite .65s; }
+.bubble-trail span:nth-child(4) { animation: bubbleRise 3s infinite .9s; }
+.bubble-trail span:nth-child(5) { animation: bubbleRise 3s infinite 1.15s; }
+
+.ocean-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: #38bdf8;
+}
+
+@keyframes oceanSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes oceanDeckA {
+  0%, 100% { transform: translate(-18px, 2px) rotate(-16deg); opacity: .34; }
+  50% { transform: translate(-22px, -2px) rotate(-20deg); opacity: .5; }
+}
+@keyframes oceanDeckB {
+  0%, 100% { transform: translate(0, -2px) rotate(6deg); opacity: .28; }
+  50% { transform: translate(0, -6px) rotate(9deg); opacity: .42; }
+}
+@keyframes oceanDeckC {
+  0%, 100% { transform: translate(18px, 2px) rotate(16deg); opacity: .34; }
+  50% { transform: translate(22px, -2px) rotate(20deg); opacity: .5; }
+}
+@keyframes oceanRise {
+  0%, 18% { transform: translate(-50%, 34px) scale(.64) rotate(-5deg); opacity: 0; }
+  44%, 78% { transform: translate(-50%, -10px) scale(1.08) rotate(2deg); opacity: 1; box-shadow: 0 10px 18px rgba(2,132,199,.45); }
+  100% { transform: translate(-50%, -34px) scale(1) rotate(5deg); opacity: 0; }
+}
+@keyframes bubbleRise {
+  0% { transform: translateY(0) scale(.9); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translateY(-62px) scale(1.6); opacity: 0; }
+}

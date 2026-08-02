@@ -56,6 +56,22 @@ db.version(4).stores({
   musicPlaylist: '++id, name, url, bindCharacterId'
 });
 
+// 升级至版本 5：将 decks 的 category 设为索引，解决查询 SchemaError 崩溃报错
+db.version(5).stores({
+  user: '++id',
+  characters: '++id, name, createdAt',
+  conversations: '++id, characterId, pinned, lastMessageTime',
+  messages: '++id, conversationId, timestamp, sender',
+  decks: '++id, name, category, bindCharacterId, createdAt',
+  divinationHistory: '++id, type, timestamp',
+  statusPool: '++id',
+  settings: 'key',
+  missRecords: '++id, characterId, timestamp, isRead',
+  driftLetters: '++id, characterId, timestamp, type, isRead',
+  longFragments: '++id, content, createdAt',
+  musicPlaylist: '++id, name, url, bindCharacterId'
+});
+
 // 系统内置默认字卡配置
 const DEFAULT_PRESET_DECKS = [
   {
@@ -200,8 +216,8 @@ export async function initDB() {
     console.log("系统内置字卡数据导入成功！");
   }
 
-  // 3. 初始化默认音乐专属字卡包
-  const musicDeck = await db.decks.where({ category: '音乐' }).first();
+  // 3. 初始化默认音乐专属字卡包 (防防御性写法，避免在未生成索引前过滤报错)
+  const musicDeck = await db.decks.filter(d => d.category === '音乐').first();
   if (!musicDeck) {
     console.log("检测到音乐专属字卡库为空，正在初始化...");
     const now = Date.now();
@@ -215,7 +231,7 @@ export async function initDB() {
       "隔着窗子听见的夜雨",
       "指针倒流的错觉",
       "未寄出的信笺",
-      "梦境边缘的余温",
+      "梦境边缘 of 余温",
       "迷雾中模糊的轮廓",
       "孤单星球的自转"
     ];

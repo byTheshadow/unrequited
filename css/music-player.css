@@ -1,88 +1,66 @@
-/* 音乐播放器全局主题变量定义 */
-[data-player-theme="midnight"] {
-  --mp-bg: rgba(13, 13, 13, 0.92);
-  --mp-text: #888888;
-  --mp-text-active: #e0e0e0;
-  --mp-border: rgba(255, 255, 255, 0.08);
-  --mp-accent: #444444;
-  --mp-bubble-bg: rgba(20, 20, 20, 0.95);
+/* 音乐播放器全局主题变量 - 极致轻盈与虚幻微光滤镜 */
+body[data-player-theme="midnight"] {
+  --mp-bg: rgba(10, 10, 12, 0.45);
+  --mp-text: #70757d;
+  --mp-text-active: #e2e8f0;
+  --mp-border: rgba(255, 255, 255, 0.04);
+  --mp-accent: rgba(255, 255, 255, 0.06);
+  --mp-bubble-bg: rgba(10, 10, 12, 0.7);
+  --mp-glow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 0 16px rgba(255, 255, 255, 0.02);
+  --mp-aura: rgba(110, 120, 230, 0.05);
 }
 
-[data-player-theme="foggy"] {
-  --mp-bg: rgba(24, 28, 26, 0.92);
-  --mp-text: #7d8c85;
-  --mp-text-active: #ccd6d2;
-  --mp-border: rgba(125, 140, 133, 0.15);
-  --mp-accent: #4a5c53;
-  --mp-bubble-bg: rgba(30, 35, 33, 0.95);
+body[data-player-theme="foggy"] {
+  --mp-bg: rgba(16, 20, 18, 0.45);
+  --mp-text: #6d7d74;
+  --mp-text-active: #ccd6d0;
+  --mp-border: rgba(255, 255, 255, 0.04);
+  --mp-accent: rgba(255, 255, 255, 0.06);
+  --mp-bubble-bg: rgba(16, 20, 18, 0.7);
+  --mp-glow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 0 16px rgba(255, 255, 255, 0.02);
+  --mp-aura: rgba(125, 140, 133, 0.06);
 }
 
-[data-player-theme="deepsea"] {
-  --mp-bg: rgba(11, 17, 30, 0.92);
-  --mp-text: #5a6e85;
-  --mp-text-active: #a2bdde;
-  --mp-border: rgba(90, 110, 133, 0.15);
-  --mp-accent: #334860;
-  --mp-bubble-bg: rgba(16, 25, 42, 0.95);
+body[data-player-theme="deepsea"] {
+  --mp-bg: rgba(8, 14, 22, 0.45);
+  --mp-text: #5f748d;
+  --mp-text-active: #a9c6e2;
+  --mp-border: rgba(255, 255, 255, 0.04);
+  --mp-accent: rgba(255, 255, 255, 0.06);
+  --mp-bubble-bg: rgba(8, 14, 22, 0.7);
+  --mp-glow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 0 16px rgba(255, 255, 255, 0.02);
+  --mp-aura: rgba(90, 120, 180, 0.06);
 }
 
-[data-player-theme="snow"] {
-  --mp-bg: rgba(30, 32, 34, 0.92);
-  --mp-text: #8b939c;
-  --mp-text-active: #f5f6f7;
-  --mp-border: rgba(139, 147, 156, 0.15);
-  --mp-accent: #5b646e;
-  --mp-bubble-bg: rgba(40, 42, 45, 0.95);
+body[data-player-theme="snow"] {
+  --mp-bg: rgba(24, 26, 28, 0.45);
+  --mp-text: #808890;
+  --mp-text-active: #f1f3f5;
+  --mp-border: rgba(255, 255, 255, 0.04);
+  --mp-accent: rgba(255, 255, 255, 0.06);
+  --mp-bubble-bg: rgba(24, 26, 28, 0.7);
+  --mp-glow: 0 12px 40px rgba(0, 0, 0, 0.6), inset 0 0 16px rgba(255, 255, 255, 0.02);
+  --mp-aura: rgba(255, 255, 255, 0.04);
 }
 
-/* 悬浮球容器 */
+/* 播放器总控容器，始终对齐主界面居中范围 */
 .music-player-container {
   position: fixed;
-  bottom: 80px;
-  right: 20px;
-  z-index: 9999;
-  font-family: inherit;
-  user-select: none;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  pointer-events: none;
+  z-index: 999;
 }
 
-@media (min-width: 481px) {
-  .music-player-container {
-    right: calc(50% - 240px + 20px);
-  }
-}
-
-/* 极简圆形悬浮徽章 */
-.music-player-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--mp-bg);
-  border: 1px solid var(--mp-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), background-color 0.3s;
-  color: var(--mp-text);
-}
-
-.music-player-badge:hover {
-  transform: scale(1.05);
-  color: var(--mp-text-active);
-}
-
-.music-player-badge svg {
-  width: 20px;
-  height: 20px;
-}
-
-/* 唱片缓慢旋转动画 */
-.music-player-badge.playing svg {
+/* 唱片旋转动画 */
+.music-record-svg.playing {
   animation: mp-rotate 12s linear infinite;
 }
 
-.music-player-badge.playing.paused-rotate svg {
+.music-record-svg.paused-rotate {
   animation-play-state: paused;
 }
 
@@ -91,50 +69,52 @@
   to { transform: rotate(360deg); }
 }
 
-/* 播放控制面板 */
+/* 梦幻毛玻璃面板 */
 .music-player-panel {
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 260px;
+  bottom: 80px;
+  left: 50%;
+  transform: translate(-50%, 15px) scale(0.96);
+  width: 280px;
+  max-width: 90vw;
   background: var(--mp-bg);
   border: 1px solid var(--mp-border);
-  border-radius: 8px;
-  padding: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transform: scale(0.9) translateY(10px);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: var(--mp-glow), 0 0 30px var(--mp-aura);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
   opacity: 0;
   pointer-events: none;
-  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), opacity 0.3s;
-  transform-origin: bottom right;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
+  color: var(--mp-text);
 }
 
 .music-player-panel.expanded {
-  transform: scale(1) translateY(0);
+  transform: translate(-50%, 0) scale(1);
   opacity: 1;
   pointer-events: auto;
 }
 
-/* 面板内部结构 */
+/* 内部结构 */
 .mp-panel-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .mp-album-cover {
-  width: 42px;
-  height: 42px;
-  border-radius: 4px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   background: var(--mp-accent);
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.02);
 }
 
 .mp-album-cover img {
@@ -144,9 +124,10 @@
 }
 
 .mp-album-cover svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   color: var(--mp-text);
+  opacity: 0.5;
 }
 
 .mp-song-info {
@@ -155,9 +136,10 @@
 }
 
 .mp-song-title {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--mp-text-active);
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: 0.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -165,14 +147,9 @@
 }
 
 .mp-song-status {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--mp-text);
-}
-
-.mp-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  opacity: 0.6;
 }
 
 .mp-icon-btn {
@@ -180,31 +157,32 @@
   border: none;
   color: var(--mp-text);
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  padding: 5px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s, background-color 0.2s;
+  transition: color 0.3s, background-color 0.3s;
 }
 
 .mp-icon-btn:hover {
   color: var(--mp-text-active);
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
-/* 进度条样式 */
+/* 进度条 */
 .mp-progress-container {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .mp-time-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--mp-text);
-  min-width: 28px;
+  opacity: 0.5;
+  min-width: 26px;
 }
 
 .mp-time-label.right {
@@ -213,37 +191,33 @@
 
 .mp-progress-bar-wrap {
   flex-grow: 1;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 2px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 1px;
   position: relative;
   cursor: pointer;
 }
 
 .mp-progress-bar-fill {
   height: 100%;
-  background: var(--mp-text);
-  border-radius: 2px;
-  width: 0;
-  position: relative;
-}
-
-.mp-progress-bar-wrap:hover .mp-progress-bar-fill {
   background: var(--mp-text-active);
+  opacity: 0.8;
+  border-radius: 1px;
+  width: 0;
 }
 
-/* 控制按钮区 */
+/* 播放控制按钮 */
 .mp-controls {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 20px;
 }
 
 .mp-btn-main {
-  width: 32px;
-  height: 32px;
-  border-radius: 55%;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--mp-border);
   color: var(--mp-text-active);
@@ -251,49 +225,50 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
 .mp-btn-main:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .mp-btn-main:active {
   transform: scale(0.95);
 }
 
-/* 角色互动气泡 */
+/* 灵性互动气泡 */
 .music-player-bubble {
   position: absolute;
-  bottom: calc(100% + 12px);
-  right: 0;
-  width: 220px;
+  bottom: 180px;
+  left: 50%;
+  transform: translate(-50%, 10px);
+  width: 230px;
   background: var(--mp-bubble-bg);
   border: 1px solid var(--mp-border);
-  border-radius: 8px;
-  padding: 10px 24px 10px 10px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  padding: 10px 24px 10px 12px;
+  box-shadow: var(--mp-glow);
   color: var(--mp-text-active);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.6;
   pointer-events: none;
   opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  letter-spacing: 0.5px;
 }
 
 .music-player-bubble.show {
   pointer-events: auto;
   opacity: 1;
-  transform: translateY(0);
+  transform: translate(-50%, 0);
 }
 
 .mp-bubble-close {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 6px;
+  right: 6px;
   background: none;
   border: none;
   color: var(--mp-text);
@@ -302,36 +277,38 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .mp-bubble-close:hover {
-  opacity: 1;
-  color: var(--mp-text-active);
+  opacity: 0.9;
 }
 
 .mp-bubble-author {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--mp-text);
-  margin-bottom: 2px;
-  font-weight: bold;
+  margin-bottom: 4px;
+  font-weight: 500;
+  opacity: 0.7;
 }
 
-/* 全局模态弹窗样式 */
+/* 模态配置中心 - 极致磨砂玻璃 */
 .mp-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(5, 5, 5, 0.6);
   z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.4s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .mp-modal-overlay.show {
@@ -341,18 +318,20 @@
 
 .mp-modal-container {
   width: 90%;
-  max-width: 360px;
-  background: #0f1011;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  max-height: 80vh;
+  max-width: 340px;
+  background: rgba(15, 16, 18, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  max-height: 75vh;
   display: flex;
   flex-direction: column;
-  color: #a0a0a0;
+  color: #8c929a;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
-  transform: scale(0.95);
-  transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  transform: scale(0.96);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
 }
 
 .mp-modal-overlay.show .mp-modal-container {
@@ -361,7 +340,7 @@
 
 .mp-modal-header {
   padding: 14px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -369,31 +348,32 @@
 
 .mp-modal-header h3 {
   margin: 0;
-  font-size: 14px;
-  color: #e0e0e0;
-  font-weight: 500;
+  font-size: 13px;
+  color: #d2d6dc;
+  font-weight: 400;
+  letter-spacing: 1px;
 }
 
 .mp-modal-tabs {
   display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: #0a0b0c;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(5, 5, 5, 0.15);
 }
 
 .mp-modal-tab {
   flex: 1;
   text-align: center;
   padding: 10px 0;
-  font-size: 12px;
-  color: #777;
+  font-size: 11px;
+  color: #60656c;
   cursor: pointer;
   transition: color 0.2s, background-color 0.2s;
+  letter-spacing: 0.5px;
 }
 
 .mp-modal-tab.active {
-  color: #e0e0e0;
-  background: #0f1011;
-  font-weight: 500;
+  color: #d2d6dc;
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .mp-modal-body {
@@ -402,51 +382,51 @@
   flex-grow: 1;
 }
 
-/* 列表与配置表单样式 */
+/* 列表与表单配置 */
 .mp-form-group {
   margin-bottom: 12px;
 }
 
 .mp-form-group label {
   display: block;
-  font-size: 11px;
-  color: #666;
+  font-size: 10px;
+  color: #585d64;
   margin-bottom: 6px;
 }
 
 .mp-input, .mp-select {
   width: 100%;
-  background: #141517;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
   padding: 8px 10px;
-  color: #d0d0d0;
-  font-size: 12px;
+  color: #d2d6dc;
+  font-size: 11px;
   outline: none;
   box-sizing: border-box;
 }
 
 .mp-input:focus, .mp-select:focus {
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .mp-btn-submit {
   width: 100%;
-  background: #202224;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
   padding: 8px 0;
-  color: #e0e0e0;
-  font-size: 12px;
+  color: #d2d6dc;
+  font-size: 11px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color 0.3s;
 }
 
 .mp-btn-submit:hover {
-  background: #282a2d;
+  background: rgba(255, 255, 255, 0.08);
 }
 
-/* 歌单列表样式 */
+/* 歌单列表 */
 .mp-list-songs {
   display: flex;
   flex-direction: column;
@@ -461,16 +441,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #141517;
+  background: rgba(255, 255, 255, 0.01);
   padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: 8px;
+  font-size: 11px;
   border: 1px solid transparent;
 }
 
 .mp-list-item.active {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: #18191c;
+  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .mp-item-info {
@@ -480,25 +460,19 @@
 }
 
 .mp-item-name {
-  color: #c0c0c0;
+  color: #a0a6b0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.mp-item-bind {
-  font-size: 10px;
-  color: #555;
-  margin-top: 1px;
-}
-
-/* 静音配置选项 */
+/* 开关组件 */
 .mp-switch-group {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
 }
 
 .mp-switch-info {
@@ -507,22 +481,23 @@
 }
 
 .mp-switch-title {
-  font-size: 12px;
-  color: #c0c0c0;
+  font-size: 11px;
+  color: #a0a6b0;
 }
 
 .mp-switch-desc {
-  font-size: 10px;
-  color: #555;
+  font-size: 9px;
+  color: #555c64;
+  margin-top: 1px;
 }
 
-/* 极简自定义 Switch 开关 */
 .mp-switch-btn {
   position: relative;
-  width: 32px;
-  height: 18px;
-  background: #202224;
-  border-radius: 9px;
+  width: 30px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -532,23 +507,24 @@
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 14px;
-  height: 14px;
-  background: #888;
+  width: 10px;
+  height: 10px;
+  background: #555c64;
   border-radius: 50%;
   transition: transform 0.2s, background-color 0.2s;
 }
 
 .mp-switch-btn.active {
-  background: #444;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .mp-switch-btn.active::after {
   transform: translateX(14px);
-  background: #e0e0e0;
+  background: #d2d6dc;
 }
 
-/* 专属字卡配置区 */
+/* 专属字卡 */
 .mp-word-tags {
   display: flex;
   flex-wrap: wrap;
@@ -560,12 +536,12 @@
 }
 
 .mp-word-tag {
-  background: #141517;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
   padding: 3px 8px;
-  font-size: 11px;
-  color: #a0a0a0;
+  font-size: 10px;
+  color: #8c929a;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -574,62 +550,41 @@
 .mp-word-tag-del {
   background: none;
   border: none;
-  color: #555;
+  color: #50555c;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 8px;
   padding: 0;
   display: flex;
   align-items: center;
 }
 
 .mp-word-tag-del:hover {
-  color: #cc5555;
+  color: #cc6666;
 }
 
-/* 主题选择方格 */
+/* 主题选择网格 */
 .mp-theme-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 6px;
   margin-top: 8px;
 }
 
 .mp-theme-option {
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.03);
   border-radius: 6px;
   padding: 8px 0;
-  font-size: 11px;
+  font-size: 10px;
   text-align: center;
   cursor: pointer;
-  background: #141517;
-  color: #777;
-  transition: all 0.2s;
+  background: rgba(255, 255, 255, 0.01);
+  color: #555c64;
+  transition: all 0.3s;
 }
 
 .mp-theme-option.active {
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #e0e0e0;
-  background: #202224;
-}
-
-/* 星图旁挂载的快速音量设置按钮 */
-.music-quick-settings-btn {
-  background: none;
-  border: none;
-  color: var(--mp-text, #888888);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.3s, background-color 0.3s, transform 0.2s;
-  vertical-align: middle;
-  margin-left: 6px;
-}
-
-.music-quick-settings-btn:hover {
-  color: var(--mp-text-active, #e0e0e0);
-  background-color: rgba(255, 255, 255, 0.05);
-  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #d2d6dc;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 0 8px var(--mp-aura);
 }

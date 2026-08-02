@@ -34,7 +34,7 @@ const SHUFFLING_STYLES = [
   { id: 'devil', name: '恶魔召唤' },
   { id: 'zodiac', name: '星座' },
   { id: 'book', name: '翻书' },
-  { id: 'bottle', name: '记忆瓶' }
+  { id: 'bottle', name: '记忆瓶' },
   { id: 'petal', name: '花瓣抽签' },
   { id: 'holy', name: '圣光天使' },
   { id: 'moon-tarot', name: '月相塔罗' },

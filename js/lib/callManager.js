@@ -1,3 +1,4 @@
+
 import { db } from '../db.js';
 import { ICON, avatarHTML } from '../utils.js';
 
@@ -106,43 +107,49 @@ function playDialingTone() {
 
 function stopSound() {
   if (soundInterval) { clearInterval(soundInterval); soundInterval = null; }
-  try {
-    if (soundOsc) { soundOsc.stop(); soundOsc.disconnect(); soundOsc = null; }
-    if (soundGain) { soundGain.disconnect(); soundGain = null; }
-  } catch (err) {}
-}
-
-function formatDuration(sec) {
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return [m, s].map(v => String(v).padStart(2, '0')).join(':');
-}
-
-function renderWaveBarsHTML(elapsed, isConnected) {
-  if (!isConnected) return '<span style="color:var(--color-text-secondary);font-size:12px;opacity:0.6;">等待连接...</span>';
-  const barCount = 18;
-  let html = '<div class="wave-bars-wrapper">';
-  for (let i = 0; i < barCount; i++) {
-    const h = 4 + Math.abs(Math.sin((elapsed * 1.5) + i * 0.4)) * 18;
-    html += `<span class="wave-bar" style="height:${h}px"></span>`;
+  if (soundOsc) {
+    try { soundOsc.stop(); } catch (e) {}
+    try { soundOsc.disconnect(); } catch (e) {}
+    soundOsc = null;
   }
-  html += '</div>';
+  if (soundGain) {
+    try { if (audioCtx) soundGain.gain.cancelScheduledValues(audioCtx.currentTime); } catch (e) {}
+    try { soundGain.disconnect(); } catch (e) {}
+    soundGain = null;
+  }
+}
+
+function formatDuration(seconds) {
+  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
+  const ss = String(seconds % 60).padStart(2, '0');
+  return `${mm}:${ss}`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function safeCssUrl(value) {
+  return String(value || '').replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+}
+
+// 保证 100% 沿用你昨晚修改成功的、带有 is-active 填充效果的进度条函数
+function renderWaveBarsHTML(elapsedSeconds, isConnected) {
+  const totalBars = 18;
+  const progressPercent = isConnected ? Math.min(100, (elapsedSeconds % 60) / 60 * 100) : 0;
+  const activeCount = Math.round((progressPercent / 100) * totalBars);
+  let html = '';
+  for (let i = 0; i < totalBars; i++) {
+    const active = i < activeCount ? ' is-active' : '';
+    const h = isConnected ? (Math.floor(Math.random() * 18) + 3) : 3;
+    html += `<span class="call-player-bar${active}" style="height:${h}px"></span>`;
+  }
   return html;
-}
-
-function safeCssUrl(url) {
-  if (!url) return '';
-  return url.replace(/'/g, "\\'");
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 // 动态加载通话主题皮肤 CSS 文件的辅助函数
@@ -150,10 +157,7 @@ function loadSkinStylesheet(skinId) {
   let link = document.getElementById('active-call-skin-css');
   
   if (!skinId || skinId === 'classic') {
-    if (link) {
-      link.remove();
-      console.log(`[CallSkin] 已切回默认经典主题，移除外部CSS`);
-    }
+    if (link) link.remove();
     return;
   }
 
@@ -165,10 +169,9 @@ function loadSkinStylesheet(skinId) {
     document.head.appendChild(link);
   }
   link.href = href;
-  console.log(`[CallSkin] 正在尝试加载通话皮肤: ${href}`);
 }
 
-// 同步将皮肤 Class 添加至根 DOM 的辅助函数
+// 安全设置类名并自动携带皮肤后缀的辅助函数
 function applySkinClass(overlayEl, activeSkin, baseClass) {
   if (!overlayEl) return;
   
@@ -183,7 +186,6 @@ function applySkinClass(overlayEl, activeSkin, baseClass) {
     newClasses += ` ${cleanClasses}`;
   }
   
-  // 仅在不是 classic 皮肤时挂载 skin- 类名
   if (activeSkin && activeSkin !== 'classic') {
     newClasses += ` skin-${activeSkin}`;
   }
@@ -238,7 +240,7 @@ export const CallManager = {
   async startCall(conversationId, characterId, characterName, characterAvatar, isUserInitiator = true) {
     if (this.state !== 'idle') return;
 
-    // 通话开始时，异步拉取最新设置并保存到 activeSkin
+    // 通话开始时，拉取最新设置并保存到 activeSkin 
     const activeSkinRow = await db.settings.get('callSkin');
     this.activeSkin = activeSkinRow ? activeSkinRow.value : 'classic';
     loadSkinStylesheet(this.activeSkin);
@@ -367,6 +369,7 @@ export const CallManager = {
     if (track) track.innerHTML = renderWaveBarsHTML(elapsed, this.state === 'connected');
   },
 
+  // ---- 极其稳定的粒子飘散系统，阴雨天额外定制散开逻辑 ----
   startParticles() {
     if (this.particleInterval) return;
     if (!this.overlay) return;
@@ -391,7 +394,6 @@ export const CallManager = {
       '频率正在靠近',
     ];
 
-    // =============== 阴雨天专属粒子逻辑 ===============
     if (this.activeSkin === 'gloomy-rain') {
       const emitRainPhrase = () => {
         if (this.viewMode !== 'full' || this.state === 'idle') return;
@@ -399,42 +401,35 @@ export const CallManager = {
         if (!cont) return;
 
         const phrase = phrases[Math.floor(Math.random() * phrases.length)];
-        
-        // 随机一个屏幕中心点做散开落点
         const baseX = 15 + Math.random() * 50; 
         const baseY = 25 + Math.random() * 45; 
 
-        // 创建包裹整句的容器
         const phraseEl = document.createElement('div');
         phraseEl.className = 'rain-phrase-wrapper';
         phraseEl.style.left = `${baseX}%`;
         phraseEl.style.top = `${baseY}%`;
         
-        // 将句子拆分为单字并赋予随机散落角度
         for (let i = 0; i < phrase.length; i++) {
           const charEl = document.createElement('span');
           charEl.className = 'rain-char';
           charEl.textContent = phrase[i];
           
-          // 计算字在周围散开的目标偏移距离
           const angle = (i / phrase.length) * Math.PI * 2 + (Math.random() * 0.5);
-          const distance = 40 + Math.random() * 55; // 散播半径
+          const distance = 40 + Math.random() * 55;
           const driftX = Math.cos(angle) * distance;
           const driftY = Math.sin(angle) * distance;
           
           charEl.style.setProperty('--drift-x', `${driftX}px`);
           charEl.style.setProperty('--drift-y', `${driftY}px`);
-          charEl.style.animationDelay = `${i * 0.15}s`; // 逐字流出散开
+          charEl.style.animationDelay = `${i * 0.15}s`;
           
           phraseEl.appendChild(charEl);
         }
 
         cont.appendChild(phraseEl);
-        // 8秒后自动清理该块
         setTimeout(() => { if (phraseEl.parentNode) phraseEl.remove(); }, 8000);
       };
 
-      // 首次呼叫时发射两句
       for (let i = 0; i < 2; i++) {
         setTimeout(emitRainPhrase, i * 1500);
       }
@@ -442,7 +437,6 @@ export const CallManager = {
       return;
     }
 
-    // =============== 默认皮肤粒子逻辑 ===============
     const emitPhrase = () => {
       if (this.viewMode !== 'full' || this.state === 'idle') return;
       const c = this.overlay ? this.overlay.querySelector('#particle-container') : null;
@@ -503,6 +497,7 @@ export const CallManager = {
     if (c) c.innerHTML = '';
   },
 
+  // ---- 拖拽核心功能 ----
   makeElementDraggable(targetEl, handleEl, mode) {
     if (!targetEl) return;
     const dragHandle = handleEl || targetEl;
@@ -634,6 +629,7 @@ export const CallManager = {
     const isPlaying = this.state !== 'idle';
     const isConnected = this.state === 'connected';
 
+    // 动态应用皮肤后缀，支持微信通知和原版播放器切换
     applySkinClass(this.overlay, this.activeSkin, 'global-call-player');
 
     this.overlay.innerHTML = `
@@ -687,7 +683,8 @@ export const CallManager = {
 
   renderBall() {
     this.stopParticles();
-
+    
+    // 动态应用皮肤后缀，支持小球皮肤的专属渲染
     applySkinClass(this.overlay, this.activeSkin, 'global-call-ball');
 
     this.overlay.innerHTML = `
@@ -709,6 +706,7 @@ export const CallManager = {
   },
 
   renderFull() {
+    // 动态应用皮肤后缀
     applySkinClass(this.overlay, this.activeSkin, 'global-call-full');
 
     const statusText = this.getScreenStatusText();

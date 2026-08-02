@@ -40,6 +40,22 @@ db.version(3).stores({
   longFragments: '++id, content, createdAt'
 });
 
+// 升级至版本 4：新增音乐播放器歌单数据表 (musicPlaylist)
+db.version(4).stores({
+  user: '++id',
+  characters: '++id, name, createdAt',
+  conversations: '++id, characterId, pinned, lastMessageTime',
+  messages: '++id, conversationId, timestamp, sender',
+  decks: '++id, name, bindCharacterId, createdAt',
+  divinationHistory: '++id, type, timestamp',
+  statusPool: '++id',
+  settings: 'key',
+  missRecords: '++id, characterId, timestamp, isRead',
+  driftLetters: '++id, characterId, timestamp, type, isRead',
+  longFragments: '++id, content, createdAt',
+  musicPlaylist: '++id, name, url, bindCharacterId'
+});
+
 // 系统内置默认字卡配置
 const DEFAULT_PRESET_DECKS = [
   {
@@ -182,6 +198,44 @@ export async function initDB() {
       });
     }
     console.log("系统内置字卡数据导入成功！");
+  }
+
+  // 3. 初始化默认音乐专属字卡包
+  const musicDeck = await db.decks.where({ category: '音乐' }).first();
+  if (!musicDeck) {
+    console.log("检测到音乐专属字卡库为空，正在初始化...");
+    const now = Date.now();
+    const fragments = [
+      "流淌着时间的沙",
+      "深海里的一束微光",
+      "落雪无声的叹息",
+      "风吹过空旷山谷的声音",
+      "某种早已遗忘的约定",
+      "月光下的潮汐起伏",
+      "隔着窗子听见的夜雨",
+      "指针倒流的错觉",
+      "未寄出的信笺",
+      "梦境边缘的余温",
+      "迷雾中模糊的轮廓",
+      "孤单星球的自转"
+    ];
+    const fragmentStats = {};
+    fragments.forEach((frag, idx) => {
+      fragmentStats[frag] = {
+        usageCount: 0,
+        createdAt: now + idx
+      };
+    });
+
+    await db.decks.add({
+      name: '弦外之音',
+      category: '音乐',
+      bindCharacterId: null,
+      fragments: fragments,
+      fragmentStats: fragmentStats,
+      createdAt: now
+    });
+    console.log("默认音乐字卡库加载完成");
   }
 
   return db;

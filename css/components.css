@@ -3466,7 +3466,6 @@
 .long-item-del:active { opacity: 1; color: #dc2626; }
 
 
-
 /* ============ 全局虚拟通话系统 ============ */
 #global-call-overlay {
   position: fixed !important;
@@ -4291,6 +4290,9 @@
   box-shadow: 0 0 6px #10b981 !important;
   box-sizing: border-box !important;
 }
+
+
+
 /* ==================== 5. 花瓣抽签 ==================== */
 .petal-box {
   position: absolute;

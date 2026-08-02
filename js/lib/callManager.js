@@ -144,7 +144,7 @@ function renderWaveBarsHTML(elapsedSeconds, isConnected) {
   let html = '';
   for (let i = 0; i < totalBars; i++) {
     const active = i < activeCount ? ' is-active' : '';
-    const h = isConnected ? (Math.floor(Math.random() * 14) + 3) : 3;
+    const h = isConnected ? (Math.floor(Math.random() * 18) + 3) : 3;
     html += `<span class="call-player-bar${active}" style="height:${h}px"></span>`;
   }
   return html;
@@ -346,11 +346,12 @@ export const CallManager = {
 
       const phrase = phrases[Math.floor(Math.random() * phrases.length)];
       
+      // 在屏幕安全区域（避开边缘和按钮）发射文字
       const baseX = 10 + Math.random() * 70;
       const baseY = 50 + Math.random() * 25; 
 
       for (let i = 0; i < phrase.length; i++) {
-        const delay = i * 220; 
+        const delay = i * 220; // 逐字飘浮间隔
 
         setTimeout(() => {
           if (this.viewMode !== 'full' || this.state === 'idle') return;
@@ -451,13 +452,9 @@ export const CallManager = {
     };
 
     const onPointerUp = (e) => {
-      try {
-        dragHandle.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-
-      dragHandle.removeEventListener('pointermove', onPointerMove);
-      dragHandle.removeEventListener('pointerup', onPointerUp);
-      dragHandle.removeEventListener('pointercancel', onPointerUp);
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerUp);
 
       if (!this.dragState.active || this.dragState.mode !== mode) return;
 
@@ -495,9 +492,6 @@ export const CallManager = {
     const onPointerDown = (e) => {
       if (e.button !== undefined && e.button !== 0) return;
 
-      // 阻止默认的选择和原生拖拽，这是解决无法拖拽的关键
-      if (e.cancelable) e.preventDefault();
-
       this.dragState.active = true;
       this.dragState.moved = false;
       this.dragState.suppressClick = false;
@@ -519,14 +513,11 @@ export const CallManager = {
       targetEl.style.transform = 'none';
       targetEl.style.margin = '0';
 
-      // 强力锁定指针事件流，移出组件范围依然可以流畅接收 move 和 up
-      try {
-        dragHandle.setPointerCapture(e.pointerId);
-      } catch (err) {}
+      document.addEventListener('pointermove', onPointerMove, { passive: false });
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
 
-      dragHandle.addEventListener('pointermove', onPointerMove, { passive: false });
-      dragHandle.addEventListener('pointerup', onPointerUp);
-      dragHandle.addEventListener('pointercancel', onPointerUp);
+      if (e.cancelable) e.preventDefault();
     };
 
     dragHandle.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -546,25 +537,9 @@ export const CallManager = {
     this.overlay.innerHTML = `
       <div class="global-call-floating call-player-widget" id="global-call-player">
         <div class="call-player-inner">
-          <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="最小化">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="4 14 10 14 10 20"/>
-              <polyline points="20 10 14 10 14 4"/>
-            </svg>
-          </button>
-          
+          <button class="call-player-mini-btn" id="call-btn-to-ball" type="button" aria-label="最小化"><span></span></button>
           <div class="call-player-drag-handle" id="call-player-drag-handle">
-            <!-- 经典的音乐软件黑胶盘唱片样式头像 -->
-            <div class="call-player-vinyl-wrap">
-              <div class="call-player-vinyl ${isConnected ? 'is-playing' : ''}">
-                <div class="vinyl-disc">
-                  <div class="vinyl-center-avatar">
-                    ${avatarHTML(this.characterAvatar, this.characterName, 36)}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
+            <div class="call-player-cover">${avatarHTML(this.characterAvatar, this.characterName, 48)}</div>
             <div class="call-player-meta">
               <div class="call-player-kicker">
                 <span class="call-player-live-dot" style="${!isConnected ? 'background:#f59e0b;box-shadow:0 0 5px #f59e0b;' : ''}"></span>
@@ -574,16 +549,14 @@ export const CallManager = {
               <div class="call-player-subtitle">${escapeHtml(isConnected ? '正在通话 · 声音是唯一的线索' : this.getStatusText())}</div>
             </div>
           </div>
-          
           <div class="call-player-progress-bar">
             <span class="call-player-time">${isConnected ? timeText : '00:00'}</span>
             <div class="call-player-track">${renderWaveBarsHTML(this.getElapsedSeconds(), isConnected)}</div>
             <span class="call-player-live-label">${isConnected ? 'LIVE' : '···'}</span>
           </div>
-          
           <div class="call-player-bottom">
             <div class="call-player-eq ${isPlaying ? 'playing' : ''}"><span></span><span></span><span></span><span></span></div>
-            <div class="call-player-hint">点击展开 · 拖动可移动</div>
+            <div class="call-player-hint">拖动移动</div>
           </div>
         </div>
       </div>
@@ -597,8 +570,6 @@ export const CallManager = {
       this.makeElementDraggable(player, handle || player, 'player');
       player.addEventListener('click', (e) => {
         if (this.wasJustDragged()) { e.preventDefault(); e.stopPropagation(); return; }
-        // 阻止点击 mini 按钮时触发卡片展开
-        if (e.target.closest('#call-btn-to-ball')) return;
         this.expand();
       });
     }

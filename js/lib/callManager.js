@@ -106,48 +106,86 @@ function playDialingTone() {
 
 function stopSound() {
   if (soundInterval) { clearInterval(soundInterval); soundInterval = null; }
-  if (soundOsc) {
-    try { soundOsc.stop(); } catch (e) {}
-    try { soundOsc.disconnect(); } catch (e) {}
-    soundOsc = null;
+  try {
+    if (soundOsc) { soundOsc.stop(); soundOsc.disconnect(); soundOsc = null; }
+    if (soundGain) { soundGain.disconnect(); soundGain = null; }
+  } catch (err) {}
+}
+
+function formatDuration(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return [m, s].map(v => String(v).padStart(2, '0')).join(':');
+}
+
+function renderWaveBarsHTML(elapsed, isConnected) {
+  if (!isConnected) return '<span style="color:var(--color-text-secondary);font-size:12px;opacity:0.6;">等待连接...</span>';
+  const barCount = 18;
+  let html = '<div class="wave-bars-wrapper">';
+  for (let i = 0; i < barCount; i++) {
+    const h = 4 + Math.abs(Math.sin((elapsed * 1.5) + i * 0.4)) * 18;
+    html += `<span class="wave-bar" style="height:${h}px"></span>`;
   }
-  if (soundGain) {
-    try { if (audioCtx) soundGain.gain.cancelScheduledValues(audioCtx.currentTime); } catch (e) {}
-    try { soundGain.disconnect(); } catch (e) {}
-    soundGain = null;
-  }
-}
-
-function formatDuration(seconds) {
-  const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-  const ss = String(seconds % 60).padStart(2, '0');
-  return `${mm}:${ss}`;
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
-function safeCssUrl(value) {
-  return String(value || '').replaceAll('\\', '\\\\').replaceAll("'", "\\'");
-}
-
-function renderWaveBarsHTML(elapsedSeconds, isConnected) {
-  const totalBars = 18;
-  const progressPercent = isConnected ? Math.min(100, (elapsedSeconds % 60) / 60 * 100) : 0;
-  const activeCount = Math.round((progressPercent / 100) * totalBars);
-  let html = '';
-  for (let i = 0; i < totalBars; i++) {
-    const active = i < activeCount ? ' is-active' : '';
-    const h = isConnected ? (Math.floor(Math.random() * 18) + 3) : 3;
-    html += `<span class="call-player-bar${active}" style="height:${h}px"></span>`;
-  }
+  html += '</div>';
   return html;
+}
+
+function safeCssUrl(url) {
+  if (!url) return '';
+  return url.replace(/'/g, "\\'");
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// 动态加载通话主题皮肤 CSS 文件的辅助函数
+function loadSkinStylesheet(skinId) {
+  let link = document.getElementById('active-call-skin-css');
+  
+  // 如果是经典默认皮肤，直接移除额外的 CSS 文件
+  if (!skinId || skinId === 'classic') {
+    if (link) link.remove();
+    return;
+  }
+
+  // 否则创建或更新 link 标签以引入对应的独立 css 文件
+  if (!link) {
+    link = document.createElement('link');
+    link.id = 'active-call-skin-css';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  link.href = `css/skins/${skinId}.css`;
+}
+
+// 异步将皮肤 Class 添加至根 DOM 的辅助函数
+async function applySkinClass(overlayEl) {
+  if (!overlayEl) return;
+  try {
+    const activeSkinRow = await db.settings.get('callSkin');
+    const activeSkin = activeSkinRow ? activeSkinRow.value : 'classic';
+
+    // 先动态装载/卸载 CSS
+    loadSkinStylesheet(activeSkin);
+
+    // 清理以 skin- 开头的旧类名并添加新类名
+    const cleanClasses = overlayEl.className
+      .split(' ')
+      .filter(c => !c.startsWith('skin-'))
+      .join(' ');
+    
+    overlayEl.className = cleanClasses;
+    overlayEl.classList.add(`skin-${activeSkin}`);
+  } catch (err) {
+    console.error('Failed to apply call skin class', err);
+  }
 }
 
 export const CallManager = {
@@ -533,7 +571,10 @@ export const CallManager = {
     const isPlaying = this.state !== 'idle';
     const isConnected = this.state === 'connected';
 
-    this.overlay.className = 'global-call-active global-call-player';
+    // 动态挂载当前皮肤的 Class
+    applySkinClass(this.overlay);
+
+    this.overlay.classList.add('global-call-active', 'global-call-player');
     this.overlay.innerHTML = `
       <div class="global-call-floating call-player-widget" id="global-call-player">
         <div class="call-player-inner">
@@ -585,7 +626,11 @@ export const CallManager = {
 
   renderBall() {
     this.stopParticles();
-    this.overlay.className = 'global-call-active global-call-ball';
+
+    // 动态挂载当前皮肤的 Class
+    applySkinClass(this.overlay);
+
+    this.overlay.classList.add('global-call-active', 'global-call-ball');
     this.overlay.innerHTML = `
       <div class="global-call-floating call-ball-widget" id="global-call-ball">
         <div class="call-ball-ring"></div>
@@ -605,7 +650,10 @@ export const CallManager = {
   },
 
   renderFull() {
-    this.overlay.className = 'global-call-active global-call-full';
+    // 动态挂载当前皮肤的 Class
+    applySkinClass(this.overlay);
+
+    this.overlay.classList.add('global-call-active', 'global-call-full');
 
     const statusText = this.getScreenStatusText();
     const avatarHtmlStr = avatarHTML(this.characterAvatar, this.characterName, 140);

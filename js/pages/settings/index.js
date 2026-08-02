@@ -50,6 +50,13 @@ const SHUFFLING_STYLES = [
 
 ];
 
+// 新增通话皮肤配置列表
+const CALL_SKINS = [
+  { id: 'classic', name: '经典默认' },
+  { id: 'gloomy-rain', name: '阴郁雨天' }
+  // 以后新增了其他皮肤，直接在这个数组追加即可，例如：
+  // { id: 'cyberpunk', name: '赛博朋克' }
+];
 
 let state = {};
 let rootRef = null;
@@ -75,7 +82,8 @@ export async function render(root) {
     aiKeyRevealed: false,
     aiFetching: false,
     launchStyle: await getSetting('launchStyle', 'classic'),
-    shufflingStyle: await getSetting('shufflingStyle', 'shuffle')
+    shufflingStyle: await getSetting('shufflingStyle', 'shuffle'),
+    callSkin: await getSetting('callSkin', 'classic')
   };
 
   const users = await db.user.toArray();
@@ -284,6 +292,17 @@ function renderAppearanceSection() {
           `).join('')}
         </div>
       </div>
+            <div class="row row-vertical">
+        <div class="row-header">
+          <div class="row-label">通话界面主题</div>
+        </div>
+        <div class="chips inline" style="flex-wrap: wrap; gap: 6px 8px;">
+          ${CALL_SKINS.map(s => `
+            <button class="chip" data-act="pick-call-skin" data-val="${s.id}" data-on="${state.callSkin === s.id ? '1' : '0'}" type="button">${s.name}</button>
+          `).join('')}
+        </div>
+      </div>
+
 
     </section>
   `;
@@ -540,6 +559,19 @@ async function onMainClick(e) {
       });
       haptic(6);
       toast('抽卡动画主题已更改');
+      break;
+    }
+
+    case 'pick-call-skin': {
+      const v = t.getAttribute('data-val');
+      if (v === state.callSkin) return;
+      state.callSkin = v;
+      await setSetting('callSkin', v); // 存入 IndexDB
+      rootRef.querySelectorAll('[data-act="pick-call-skin"]').forEach(el => {
+        el.setAttribute('data-on', el.getAttribute('data-val') === v ? '1' : '0');
+      });
+      haptic(6);
+      toast('通话界面主题已更改，下次通话生效');
       break;
     }
 

@@ -1,3 +1,4 @@
+@import "./skins/gloomy-rain.css";
 /* ============ 顶部栏 ============ */
 .top-bar {
   position: sticky; top: 0; z-index: 20;

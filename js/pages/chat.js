@@ -1102,6 +1102,14 @@ async function schedulePendingReply() {
   const maxD = Math.max(minD, cfg.maxReplyDelaySec || 0);
   if (maxD === 0) return;
 
+  // 🟢 优化：如果当前对话已经在冷却/准备回复中，不要重置它，直接保持
+  const currentConv = await db.conversations.get(state.convId);
+  if (currentConv && currentConv.pendingReplyAt && currentConv.pendingReplyAt > Date.now()) {
+    // 依然开启前台定时器同步
+    scheduleTimers();
+    return;
+  }
+
   const delayMs = Math.round((minD + Math.random() * (maxD - minD)) * 1000);
   const target = Date.now() + delayMs;
 
@@ -1109,9 +1117,9 @@ async function schedulePendingReply() {
   if (state.conv) state.conv.pendingReplyAt = target;
 
   showImmediateStatusIndicator();
-
   scheduleTimers();
 }
+
 
 
 
@@ -1298,77 +1306,113 @@ async function incrementFragmentResonance(characterId, text) {
   }
 }
 
-async function executeReply() {
-  cancelTimers();
 
-  if (state.destroyed) return;
-  if (!state.character) {
-    toast('未绑定角色');
-    return;
+async function executeReply() {
+  await executeReplyForConv(state.convId);
+}
+
+async function executeReplyForConv(convId) {
+  // 判断触发的对话是否是当前前台可见的对话
+  const isCurrent = (convId === state.convId && !state.destroyed);
+
+  if (isCurrent) {
+    cancelTimers();
   }
 
-  await db.conversations.update(state.convId, { pendingReplyAt: null });
-  if (state.conv) state.conv.pendingReplyAt = null;
+  const conv = await db.conversations.get(convId);
+  if (!conv) return;
 
-  const cfg = state.character.replyConfig || {};
-  const quoteChance = typeof cfg.quoteChance === 'number'
-    ? cfg.quoteChance
-    : DEFAULT_QUOTE_CHANCE;
+  const character = await db.characters.get(conv.characterId);
+  if (!character) return;
 
-  await maybeInsertSyncMessage();
-  if (state.destroyed) return;
+  // 清除待回复时间
+  await db.conversations.update(convId, { pendingReplyAt: null });
+  if (isCurrent && state.conv) {
+    state.conv.pendingReplyAt = null;
+  }
 
-  const userChoice = findLatestUnansweredUserChoice();
+  const cfg = character.replyConfig || {};
+  const quoteChance = typeof cfg.quoteChance === 'number' ? cfg.quoteChance : DEFAULT_QUOTE_CHANCE;
 
-  // 没有待回答的用户选项时，才允许触发“跳过回复”
+  // 1. 概率插入同步系统提示 (如果是前台才显示提示音或触感，后台静默)
+  let didSync = false;
+  const syncChance = typeof cfg.syncChance === 'number' ? cfg.syncChance : DEFAULT_SYNC_CHANCE;
+  if (syncChance > 0 && Math.random() < syncChance) {
+    const list = (cfg.syncHints && cfg.syncHints.length) ? cfg.syncHints : DEFAULT_SYNC_HINTS;
+    const syncMsg = {
+      conversationId: convId,
+      sender: 'system',
+      content: pick(list),
+      type: 'sync',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: isCurrent, // 如果在前台打开，直接设为已读，否则未读
+    };
+    const id = await db.messages.add(syncMsg);
+    syncMsg.id = id;
+    didSync = true;
+    if (isCurrent) {
+      appendMessage(syncMsg);
+      haptic(20);
+    }
+  }
+
+  // 2. 检查是否有待回答的选项
+  const messagesList = await db.messages.where('conversationId').equals(convId).sortBy('timestamp');
+  const userChoice = findLatestUnansweredUserChoiceInList(messagesList);
+
+  // 3. 概率跳过回复 (非当前选项)
   if (!userChoice) {
     const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
-
     if (skipChance > 0 && Math.random() < skipChance) {
-      const skipList = (cfg.skipHints && cfg.skipHints.length)
-        ? cfg.skipHints
-        : DEFAULT_SKIP_HINTS;
-
-      await markLatestUserUnreadAsRead();
+      const skipList = (cfg.skipHints && cfg.skipHints.length) ? cfg.skipHints : DEFAULT_SKIP_HINTS;
+      
+      // 将之前的消息标为已读
+      await markLatestUserUnreadAsReadForConv(convId, messagesList, isCurrent);
 
       const sysMsg = {
-        conversationId: state.convId,
+        conversationId: convId,
         sender: 'system',
         content: pick(skipList),
         type: 'system',
         status: 'sent',
         quotedMessageId: null,
         timestamp: Date.now(),
-        isRead: true,
+        isRead: isCurrent,
       };
 
       const sysId = await db.messages.add(sysMsg);
       sysMsg.id = sysId;
 
-      appendMessage(sysMsg);
-      await persistConvSummary();
+      if (isCurrent) {
+        appendMessage(sysMsg);
+      }
+      await persistConvSummaryForConv(convId);
       return;
     }
   }
 
-  await maybeStartCallByChance();
+  // 是否打电话判断
+  if (isCurrent) {
+    await maybeStartCallByChance();
+  }
 
-  showShuffling();
-  await sleep(700);
-  if (state.destroyed) return;
-  hideShuffling();
+  // 4. 前台表现：卡片飞入及打字动效延迟
+  if (isCurrent) {
+    showShuffling();
+    await sleep(700);
+    if (state.destroyed || state.convId !== convId) return;
+    hideShuffling();
 
-  showTyping();
-  await sleep(randInt(400, 900));
-  if (state.destroyed) return;
+    showTyping();
+    await sleep(randInt(400, 900));
+    if (state.destroyed || state.convId !== convId) return;
+  }
 
-  await markLatestUserUnreadAsRead();
+  await markLatestUserUnreadAsReadForConv(convId, messagesList, isCurrent);
 
-  /**
-   * 分支 A：
-   * 如果用户发的是 choice 类型消息，并且还没被角色回答，
-   * 角色从用户给出的选项里随机选择一个。
-   */
+  // 分支 A：回答用户发的 choice
   if (userChoice) {
     const answer = pick(userChoice.choice.options);
     await markChoiceAnswered(userChoice.msg.id, answer, 'character');
@@ -1378,82 +1422,65 @@ async function executeReply() {
       autoQuoteId = userChoice.msg.id;
     }
 
-    // 可选：融合一条角色字卡内容
-    const generated = await generateForCharacter(state.character.id);
+    const generated = await generateForCharacter(character.id);
     const generatedMessages = generated && generated.messages ? generated.messages : [];
 
     let extraText = '';
-if (generatedMessages.length) {
-  const pickedMsg = generatedMessages[0];
-  const pickedContent = typeof pickedMsg === 'string'
-    ? pickedMsg
-    : pickedMsg && pickedMsg.content
-      ? pickedMsg.content
-      : '';
-
-  if (pickedContent) {
-    extraText = `。${pickedContent}`;
-
-    // 新增：统计被融合抽取的那条字卡碎片的共鸣频次
-    await incrementFragmentResonance(state.character.id, pickedContent);
-  }
-}
-
+    if (generatedMessages.length) {
+      const pickedMsg = generatedMessages[0];
+      const pickedContent = typeof pickedMsg === 'string' ? pickedMsg : (pickedMsg && pickedMsg.content ? pickedMsg.content : '');
+      if (pickedContent) {
+        extraText = `。${pickedContent}`;
+        await incrementFragmentResonance(character.id, pickedContent);
+      }
+    }
 
     const finalAnswer = `◈ 选择了「${answer}」${extraText}`;
-
     const msg = {
-      conversationId: state.convId,
+      conversationId: convId,
       sender: 'character',
       content: finalAnswer,
       type: 'card',
       status: 'sent',
       quotedMessageId: autoQuoteId,
       timestamp: Date.now(),
-      isRead: true,
+      isRead: isCurrent,
     };
 
     const id = await db.messages.add(msg);
     msg.id = id;
 
-    hideTyping();
-
-    // 因为 markChoiceAnswered 修改了旧消息，所以这里重新拉取并完整渲染
-    state.messages = await db.messages
-      .where('conversationId')
-      .equals(state.convId)
-      .sortBy('timestamp');
-
-    renderMessages();
-    playCharSound();
-    await persistConvSummary();
+    if (isCurrent) {
+      hideTyping();
+      state.messages = await db.messages.where('conversationId').equals(convId).sortBy('timestamp');
+      renderMessages();
+      playCharSound();
+    }
+    await persistConvSummaryForConv(convId);
     return;
   }
 
-  /**
-   * 分支 B：
-   * 普通回复：从角色字卡里生成消息。
-   */
-  const generated = await generateForCharacter(state.character.id);
+  // 分支 B：普通回复字卡
+  const generated = await generateForCharacter(character.id);
   const messages = generated && generated.messages ? generated.messages : [];
   const choices = generated && generated.choices ? generated.choices : [];
   const reason = generated && generated.reason;
 
-  if (state.destroyed) return;
+  if (isCurrent && state.destroyed) return;
 
   if ((!messages || !messages.length) && (!choices || !choices.length)) {
-    hideTyping();
-    toast(reason === 'no_fragments' ? '此角色暂无可用的字卡内容' : '生成失败', 2200);
+    if (isCurrent) {
+      hideTyping();
+      toast(reason === 'no_fragments' ? '此角色暂无可用的字卡内容' : '生成失败', 2200);
+    }
     return;
   }
 
-  /**
-   * 普通字卡消息
-   */
+  // 依次生成普通消息
   for (let i = 0; i < messages.length; i++) {
-    if (state.destroyed) return;
+    if (isCurrent && (state.destroyed || state.convId !== convId)) return;
 
-    if (i > 0) {
+    if (isCurrent && i > 0) {
       hideTyping();
       showTyping();
       await sleep(randInt(600, 1400));
@@ -1461,74 +1488,118 @@ if (generatedMessages.length) {
 
     let autoQuoteId = null;
     if (i === 0 && quoteChance > 0 && Math.random() < quoteChance) {
-      autoQuoteId = pickAutoQuoteTarget();
+      autoQuoteId = pickAutoQuoteTargetInList(messagesList);
     }
 
     const msg = {
-      conversationId: state.convId,
+      conversationId: convId,
       sender: 'character',
       content: messages[i],
       type: 'card',
       status: 'sent',
       quotedMessageId: autoQuoteId,
       timestamp: Date.now(),
-      isRead: true,
+      isRead: isCurrent,
     };
 
     const id = await db.messages.add(msg);
-msg.id = id;
+    msg.id = id;
 
-// 新增：增加字卡共鸣频次统计
-await incrementFragmentResonance(state.character.id, messages[i]);
+    await incrementFragmentResonance(character.id, messages[i]);
 
-hideTyping();
-appendMessage(msg);
-playCharSound();
-
+    if (isCurrent) {
+      hideTyping();
+      appendMessage(msg);
+      playCharSound();
+    }
   }
 
-  /**
-   * 如果 generateForCharacter 返回了 choices，
-   * 这里把它们作为角色发出的 choice 消息插入。
-   *
-   * 注意：
-   * 如果你的 choices 已经是 choiceToContent() 后的字符串，可以直接用；
-   * 如果是原始对象，这里会自动转成 content。
-   */
+  // 依次生成选择项消息
   for (let i = 0; i < choices.length; i++) {
-    if (state.destroyed) return;
+    if (isCurrent && (state.destroyed || state.convId !== convId)) return;
 
-    if (messages.length > 0 || i > 0) {
+    if (isCurrent && (messages.length > 0 || i > 0)) {
       hideTyping();
       showTyping();
       await sleep(randInt(600, 1400));
     }
 
     const choice = choices[i];
-    const content = typeof choice === 'string'
-      ? choice
-      : choiceToContent(choice);
+    const content = typeof choice === 'string' ? choice : choiceToContent(choice);
 
     const msg = {
-      conversationId: state.convId,
+      conversationId: convId,
       sender: 'character',
       content,
       type: 'choice',
       status: 'sent',
       quotedMessageId: null,
       timestamp: Date.now(),
-      isRead: true,
+      isRead: isCurrent,
     };
 
     const id = await db.messages.add(msg);
     msg.id = id;
 
-    hideTyping();
-    appendMessage(msg);
-    playCharSound();
+    if (isCurrent) {
+      hideTyping();
+      appendMessage(msg);
+      playCharSound();
+    }
   }
 
-  await persistConvSummary();
+  await persistConvSummaryForConv(convId);
+}
+
+// 辅助工具方法重构（使其接受参数，解耦 state）
+function findLatestUnansweredUserChoiceInList(messagesList) {
+  for (let i = messagesList.length - 1; i >= 0; i--) {
+    const msg = messagesList[i];
+    if (msg.sender === 'user' && msg.type === 'choice') {
+      const choice = parseChoiceContent(msg.content);
+      if (choice && !choice.answered) {
+        return { msg, choice };
+      }
+    }
+  }
+  return null;
+}
+
+function pickAutoQuoteTargetInList(messagesList) {
+  const pool = messagesList.slice(-20).filter(isQuotableMsg);
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)].id;
+}
+
+async function markLatestUserUnreadAsReadForConv(convId, messagesList, isCurrent) {
+  const lastUserMsg = [...messagesList].reverse().find((m) => m.sender === 'user' && !m.isRead);
+  if (lastUserMsg) {
+    await db.messages.update(lastUserMsg.id, { isRead: true });
+    lastUserMsg.isRead = true;
+    if (isCurrent) {
+      const el = document.querySelector(`.msg-row[data-id="${lastUserMsg.id}"] .msg-read`);
+      if (el) el.textContent = '已读';
+    }
+  }
+}
+
+async function persistConvSummaryForConv(convId) {
+  const messagesList = await db.messages.where('conversationId').equals(convId).sortBy('timestamp');
+  const last = messagesList[messagesList.length - 1];
+  if (!last) return;
+  
+  // 查询未读数量
+  const unreadCount = await db.messages
+    .where('conversationId')
+    .equals(convId)
+    .filter(m => !m.isRead && m.sender === 'character')
+    .count();
+
+  await db.conversations.update(convId, {
+    lastMessage: last.content,
+    lastMessageTime: last.timestamp,
+    unreadCount: unreadCount // 写入未读计数字段，用于侧边栏红点渲染
+  });
 }
 
 
@@ -2742,6 +2813,61 @@ async function checkPendingReplyOnVisible() {
   }
 }
 
+
+/* ============================================================
+   后台轮询器：控制“冲动说话”与“静默回复”
+   ============================================================ */
+function startGlobalBackgroundLooper() {
+  if (window.__charBackgroundLooper) return; // 避免重复启动
+
+  window.__charBackgroundLooper = setInterval(async () => {
+    try {
+      const conversations = await db.conversations.toArray();
+      const now = Date.now();
+
+      for (const conv of conversations) {
+        // 1. 如果当前这个会话已经到了设定的回复时间 pendingReplyAt
+        if (conv.pendingReplyAt && now >= conv.pendingReplyAt) {
+          // 默默触发该角色的回复（前后台逻辑会在 executeReplyForConv 内部自动分流）
+          await executeReplyForConv(conv.id);
+          continue;
+        }
+
+        // 2. 纯随机主动说话机制 (通灵感的核心)
+        // 规则：如果既没有待处理的回复，并且最近 3 小时没发过新消息，摇一次骰子
+        if (!conv.pendingReplyAt) {
+          const messages = await db.messages.where('conversationId').equals(conv.id).sortBy('timestamp');
+          const lastMsg = messages[messages.length - 1];
+          
+          // 如果 3 小时内对话有过互动，或者根本还没建立过消息，则先不触发主动聊天
+          const cooldown = 3 * 60 * 60 * 1000; 
+          if (lastMsg && (now - lastMsg.timestamp > cooldown)) {
+            
+            // 每次心跳（每2分钟）有 3% 的概率角色会产生对该会话的说话冲动
+            if (Math.random() < 0.03) {
+              // 随机酝酿 2分钟 到 15分钟 发送
+              const delay = Math.round((120 + Math.random() * (900 - 120)) * 1000); 
+              const urgeTarget = now + delay;
+              
+              await db.conversations.update(conv.id, { pendingReplyAt: urgeTarget });
+              
+              // 如果刚好是当前前台会话，同步一下 UI 的“正在想事情”动画
+              if (state.convId === conv.id && !state.destroyed) {
+                state.conv.pendingReplyAt = urgeTarget;
+                showImmediateStatusIndicator();
+                scheduleTimers();
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error("后台消息心跳轮询异常: ", e);
+    }
+  }, 120000); // 每 2 分钟执行一次心跳检测
+}
+
+
 /* ============================================================
    render / destroy
    ============================================================ */
@@ -2766,6 +2892,7 @@ export async function render(root, params = {}) {
   statusCardIndex: 0,
 
   draftMessages: [],
+  
 
   call: null,
   callTimer: null,
@@ -2775,6 +2902,8 @@ export async function render(root, params = {}) {
   callDurationSec: 0,
   callExpanded: false,
 };
+
+startGlobalBackgroundLooper();
 
   if (!state.convId) { navigate('/cards'); return; }
 

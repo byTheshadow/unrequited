@@ -1937,6 +1937,7 @@
   0%, 100% { transform: translate(-50%, -50%) scale(0.96); opacity: 0.72; }
   50% { transform: translate(-50%, -50%) scale(1.06); opacity: 1; }
 }
+
 /* ============ 想念箱 Miss Box ============ */
 
 #miss-box-wrap {
@@ -1966,13 +1967,16 @@
 }
 
 .miss-box-card.active {
+  /* 🟢 使用 color-mix 将主题色混合 18% 透明度作为渐变起点 */
   background:
-    radial-gradient(circle at 0% 0%, rgba(139, 92, 246, 0.18) 0%, rgba(10, 10, 10, 0.45) 100%);
-  border: 1px solid rgba(139, 92, 246, 0.34);
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--color-accent) 18%, transparent) 0%, rgba(10, 10, 10, 0.45) 100%);
+  /* 🟢 边框使用主题色混合 34% 透明度 */
+  border: 1px solid color-mix(in srgb, var(--color-accent) 34%, transparent);
   color: var(--color-accent);
+  /* 🟢 外阴影和内阴影都动态使用主题色混合 */
   box-shadow:
-    0 4px 24px rgba(139, 92, 246, 0.16),
-    inset 0 0 18px rgba(139, 92, 246, 0.04);
+    0 4px 24px color-mix(in srgb, var(--color-accent) 16%, transparent),
+    inset 0 0 18px color-mix(in srgb, var(--color-accent) 4%, transparent);
   cursor: pointer;
 }
 
@@ -2029,6 +2033,28 @@
   color: var(--color-text-tertiary);
   white-space: nowrap;
 }
+
+.miss-letter-body {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  letter-spacing: 1px;
+  word-break: break-word;
+  font-style: italic;
+}
+
+@keyframes starPulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
 
 .miss-letter-body {
   font-size: 13.5px;

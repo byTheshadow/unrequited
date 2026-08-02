@@ -5666,6 +5666,11 @@
 #global-call-overlay.global-call-ball .global-call-container {
   display: none !important;
 }
+/* ============ 当是全屏状态时，隐藏浮动的小播放器和小球，防止溢出或重叠 ============ */
+#global-call-overlay.global-call-full .global-call-floating {
+  display: none !important;
+}
+
 
 /* ============ 强力隔离全局头像样式污染 ============ */
 #global-call-overlay .avatar {

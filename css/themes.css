@@ -258,6 +258,83 @@
     linear-gradient(180deg, #050505 0%, #0d0d0d 100%);
 }
 
+/* ==================== 新增：玻璃系列主题 ==================== */
+
+/* 1. 极光毛玻璃 (浅色高亮) */
+[data-theme="frosted-aurora"] {
+  --color-bg-primary: #eef5f6;
+  /* 极高透明度的容器背景，展现毛玻璃质感 */
+  --color-bg-secondary: rgba(255, 255, 255, 0.45);
+  --color-bg-tertiary: rgba(255, 255, 255, 0.65);
+  --color-text-primary: #0f292d;
+  --color-text-secondary: rgba(15, 41, 45, 0.65);
+  --color-text-tertiary: rgba(15, 41, 45, 0.4);
+  --color-accent: #0d9488;
+  /* 略带白色的高光边框，模拟玻璃边缘折射 */
+  --color-border: rgba(255, 255, 255, 0.45);
+  --color-bubble-user: rgba(13, 148, 136, 0.18);
+  --color-bubble-character: rgba(255, 255, 255, 0.7);
+  --color-bubble-text: #0f292d;
+  --color-shadow: rgba(13, 148, 136, 0.08);
+  /* 超强模糊 */
+  --glass-blur: 28px;
+  --glass-bg: rgba(255, 255, 255, 0.4);
+  /* 极光多彩背景光源 */
+  --bg-image:
+    radial-gradient(circle at 10% 20%, rgba(45, 212, 191, 0.35) 0%, transparent 50%),
+    radial-gradient(circle at 90% 10%, rgba(99, 102, 241, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 50% 80%, rgba(244, 63, 94, 0.2) 0%, transparent 60%),
+    linear-gradient(135deg, #e0f2fe 0%, #f0fdf4 100%);
+}
+
+/* 2. 液态星云 (深色液态流光) */
+[data-theme="liquid-nebula"] {
+  --color-bg-primary: #0b091a;
+  --color-bg-secondary: rgba(20, 15, 45, 0.45);
+  --color-bg-tertiary: rgba(40, 25, 80, 0.6);
+  --color-text-primary: #f3efff;
+  --color-text-secondary: rgba(243, 239, 255, 0.65);
+  --color-text-tertiary: rgba(243, 239, 255, 0.4);
+  --color-accent: #ec4899;
+  --color-border: rgba(255, 255, 255, 0.15);
+  --color-bubble-user: rgba(236, 72, 153, 0.25);
+  --color-bubble-character: rgba(255, 255, 255, 0.06);
+  --color-bubble-text: #f3efff;
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --glass-blur: 22px;
+  --glass-bg: rgba(15, 10, 35, 0.55);
+  /* 霓虹液态星云背景 */
+  --bg-image:
+    radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.45) 0%, transparent 55%),
+    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.4) 0%, transparent 60%),
+    radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.3) 0%, transparent 50%),
+    linear-gradient(180deg, #0b091a 0%, #1c0d3a 100%);
+}
+
+/* 3. 液态琥珀 (暖金流光) */
+[data-theme="liquid-amber"] {
+  --color-bg-primary: #180f02;
+  --color-bg-secondary: rgba(40, 25, 10, 0.45);
+  --color-bg-tertiary: rgba(70, 40, 15, 0.6);
+  --color-text-primary: #fef3c7;
+  --color-text-secondary: rgba(254, 243, 199, 0.7);
+  --color-text-tertiary: rgba(254, 243, 199, 0.4);
+  --color-accent: #f59e0b;
+  --color-border: rgba(254, 243, 199, 0.15);
+  --color-bubble-user: rgba(245, 158, 11, 0.25);
+  --color-bubble-character: rgba(255, 255, 255, 0.06);
+  --color-bubble-text: #fef3c7;
+  --color-shadow: rgba(0, 0, 0, 0.6);
+  --glass-blur: 24px;
+  --glass-bg: rgba(30, 18, 5, 0.5);
+  /* 熔岩/琥珀液态渐变背景 */
+  --bg-image:
+    radial-gradient(circle at 25% 20%, rgba(245, 158, 11, 0.45) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(239, 68, 68, 0.35) 0%, transparent 55%),
+    radial-gradient(circle at 75% 15%, rgba(251, 191, 36, 0.25) 0%, transparent 45%),
+    linear-gradient(180deg, #180f02 0%, #291503 100%);
+}
+
 
 /* 动效开关：设置里可关闭 */
 [data-anim="off"] * {

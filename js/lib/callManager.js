@@ -172,21 +172,26 @@ async function applySkinClass(overlayEl) {
     const activeSkinRow = await db.settings.get('callSkin');
     const activeSkin = activeSkinRow ? activeSkinRow.value : 'classic';
 
-    // 先动态装载/卸载 CSS
+    // 1. 装载或卸载外部 CSS 文件
     loadSkinStylesheet(activeSkin);
 
-    // 清理以 skin- 开头的旧类名并添加新类名
+    // 2. 清理以 skin- 开头的旧类名
     const cleanClasses = overlayEl.className
       .split(' ')
       .filter(c => !c.startsWith('skin-'))
       .join(' ');
-    
     overlayEl.className = cleanClasses;
-    overlayEl.classList.add(`skin-${activeSkin}`);
+
+    // 3. 特别注意：如果选中的是经典皮肤 (classic)，直接不需要加任何 skin 类名！
+    // 这样它就会 100% 完美应用你在 components.css 里原本写的那个美化！
+    if (activeSkin !== 'classic') {
+      overlayEl.classList.add(`skin-${activeSkin}`);
+    }
   } catch (err) {
     console.error('Failed to apply call skin class', err);
   }
 }
+
 
 export const CallManager = {
   state: 'idle',

@@ -326,6 +326,85 @@ export function getShufflingHTML(styleStyle = 'shuffle') {
           <div class="crystal-label">CRYSTAL ORB</div>
         </div>
       `;
+          case 'pendulum': // 灵摆寻迹
+      return `
+        <div class="pendulum-box" aria-label="灵摆正在寻找回应">
+          <div class="pendulum-aura"></div>
+          <div class="pendulum-orbit"></div>
+          <div class="pendulum-string">
+            <div class="pendulum-bob"></div>
+          </div>
+          <div class="pendulum-deck">
+            <div class="pendulum-card pendulum-deck-left"></div>
+            <div class="pendulum-card pendulum-deck-right"></div>
+            <div class="pendulum-card pendulum-deck-mid"></div>
+          </div>
+          <div class="pendulum-card pendulum-chosen-card"></div>
+          <div class="pendulum-sparks">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="pendulum-label">PENDULUM</div>
+        </div>
+      `;
+
+    case 'alchemy': // 炼金魔药
+      return `
+        <div class="alchemy-box" aria-label="炼金魔药正在显现回应">
+          <div class="alchemy-glow"></div>
+          <div class="alchemy-flask">
+            <div class="alchemy-neck"></div>
+            <div class="alchemy-body">
+              <div class="alchemy-liquid"></div>
+            </div>
+          </div>
+          <div class="alchemy-bubbles">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="alchemy-card alchemy-chosen-card"></div>
+          <div class="alchemy-runes">
+            <span>✦</span><span>✧</span><span>✶</span>
+          </div>
+          <div class="alchemy-label">ALCHEMY</div>
+        </div>
+      `;
+
+    case 'lantern': // 浮光提灯
+      return `
+        <div class="lantern-box" aria-label="浮光提灯正在照亮回应">
+          <div class="lantern-halo"></div>
+          <div class="lantern">
+            <div class="lantern-handle"></div>
+            <div class="lantern-top"></div>
+            <div class="lantern-glass">
+              <div class="lantern-flame"></div>
+            </div>
+            <div class="lantern-base"></div>
+          </div>
+          <div class="lantern-motes">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="lantern-card lantern-chosen-card"></div>
+          <div class="lantern-label">LANTERN</div>
+        </div>
+      `;
+
+    case 'envelope': // 玻璃信封
+      return `
+        <div class="envelope-box" aria-label="玻璃信封正在展开回应">
+          <div class="envelope-glow"></div>
+          <div class="envelope-card envelope-chosen-card"></div>
+          <div class="envelope-flap"></div>
+          <div class="envelope-body">
+            <div class="envelope-line envelope-line-a"></div>
+            <div class="envelope-line envelope-line-b"></div>
+          </div>
+          <div class="envelope-sparkles">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="envelope-label">GLASS LETTER</div>
+        </div>
+      `;
+
 
 
   }
@@ -367,6 +446,15 @@ export function getShufflingHint(styleStyle = 'shuffle') {
       return '时空漩涡正在收束，回应即将浮现...';
     case 'crystal':
       return '水晶球正在映出命运，回应即将显现...';
+          case 'pendulum':
+      return '灵摆正在轻轻摇晃，寻找最契合的回应...';
+    case 'alchemy':
+      return '魔药正在翻涌，炼出最合适的回应...';
+    case 'lantern':
+      return '提灯照亮微光，回应正在缓缓浮现...';
+    case 'envelope':
+      return '玻璃信封正在展开，将回应递到你手中...';
+
 
 
   }

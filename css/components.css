@@ -5558,3 +5558,894 @@
   35% { opacity: 1; }
   100% { transform: translate(0, -44px) scale(1.4); opacity: 0; }
 }
+/* ==================== 13. 灵摆寻迹 ==================== */
+.pendulum-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.pendulum-aura {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: 128px;
+  height: 82px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-accent), transparent 68%);
+  opacity: 0.14;
+  filter: blur(3px);
+  animation: pendulumAura 3.5s ease-in-out infinite;
+}
+
+.pendulum-orbit {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 112px;
+  height: 42px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  opacity: 0.65;
+}
+
+.pendulum-string {
+  position: absolute;
+  left: 50%;
+  top: -8px;
+  width: 2px;
+  height: 86px;
+  transform-origin: top center;
+  background: linear-gradient(180deg, var(--color-border), var(--color-accent));
+  animation: pendulumSwing 3.5s ease-in-out infinite;
+  z-index: 5;
+}
+
+.pendulum-bob {
+  position: absolute;
+  left: 50%;
+  bottom: -12px;
+  width: 14px;
+  height: 20px;
+  transform: translateX(-50%);
+  background: var(--color-accent);
+  clip-path: polygon(50% 0%, 100% 42%, 50% 100%, 0% 42%);
+  box-shadow: 0 0 12px var(--color-accent);
+}
+
+.pendulum-deck {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  width: 92px;
+  height: 52px;
+  transform: translateX(-50%);
+}
+
+.pendulum-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.pendulum-card::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+}
+
+.pendulum-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+  opacity: 0.85;
+}
+
+.pendulum-deck-left {
+  transform: translate(-22px, 4px) rotate(-18deg);
+  opacity: 0.34;
+  animation: pendulumDeckLeft 3.5s ease-in-out infinite;
+}
+
+.pendulum-deck-right {
+  transform: translate(22px, 4px) rotate(18deg);
+  opacity: 0.34;
+  animation: pendulumDeckRight 3.5s ease-in-out infinite;
+}
+
+.pendulum-deck-mid {
+  transform: translate(0, 0) rotate(4deg);
+  opacity: 0.28;
+  animation: pendulumDeckMid 3.5s ease-in-out infinite;
+}
+
+.pendulum-chosen-card {
+  left: 50%;
+  top: 55%;
+  border-color: var(--color-accent);
+  animation: pendulumChosen 3.5s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 4;
+}
+
+.pendulum-sparks span {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  opacity: 0;
+}
+
+.pendulum-sparks span:nth-child(1) { animation: pendulumSparkA 3.5s infinite .3s; }
+.pendulum-sparks span:nth-child(2) { animation: pendulumSparkB 3.5s infinite .55s; }
+.pendulum-sparks span:nth-child(3) { animation: pendulumSparkC 3.5s infinite .8s; }
+.pendulum-sparks span:nth-child(4) { animation: pendulumSparkD 3.5s infinite 1.05s; }
+
+.pendulum-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes pendulumAura {
+  0%, 100% { opacity: 0.1; transform: translate(-50%, -50%) scale(0.94); }
+  50% { opacity: 0.22; transform: translate(-50%, -50%) scale(1.08); }
+}
+
+@keyframes pendulumSwing {
+  0% { transform: rotate(42deg); }
+  15% { transform: rotate(-34deg); }
+  30% { transform: rotate(20deg); }
+  45% { transform: rotate(-10deg); }
+  60%, 82% { transform: rotate(0deg); }
+  100% { transform: rotate(42deg); }
+}
+
+@keyframes pendulumDeckLeft {
+  0%, 100% { transform: translate(-22px, 4px) rotate(-18deg); opacity: 0.26; }
+  55% { transform: translate(-26px, 0) rotate(-22deg); opacity: 0.42; }
+}
+
+@keyframes pendulumDeckRight {
+  0%, 100% { transform: translate(22px, 4px) rotate(18deg); opacity: 0.26; }
+  55% { transform: translate(26px, 0) rotate(22deg); opacity: 0.42; }
+}
+
+@keyframes pendulumDeckMid {
+  0%, 100% { transform: translate(0, 0) rotate(4deg); opacity: 0.22; }
+  55% { transform: translate(0, -5px) rotate(0deg); opacity: 0.36; }
+}
+
+@keyframes pendulumChosen {
+  0%, 48% {
+    transform: translate(-50%, 30px) scale(0.72);
+    opacity: 0;
+  }
+  64%, 84% {
+    transform: translate(-50%, -12px) scale(1.12);
+    opacity: 1;
+    box-shadow: 0 0 20px var(--color-accent);
+  }
+  100% {
+    transform: translate(-50%, -36px) scale(1.24);
+    opacity: 0;
+  }
+}
+
+@keyframes pendulumSparkA {
+  0% { transform: translate(0, 4px) scale(.7); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: translate(-38px, -38px) scale(1.2); opacity: 0; }
+}
+
+@keyframes pendulumSparkB {
+  0% { transform: translate(0, 4px) scale(.7); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: translate(34px, -32px) scale(1.2); opacity: 0; }
+}
+
+@keyframes pendulumSparkC {
+  0% { transform: translate(0, 4px) scale(.7); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: translate(-14px, -52px) scale(1.2); opacity: 0; }
+}
+
+@keyframes pendulumSparkD {
+  0% { transform: translate(0, 4px) scale(.7); opacity: 0; }
+  45% { opacity: 1; }
+  100% { transform: translate(20px, -54px) scale(1.2); opacity: 0; }
+}
+/* ==================== 14. 炼金魔药 ==================== */
+.alchemy-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.alchemy-glow {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  width: 116px;
+  height: 76px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-accent), transparent 68%);
+  opacity: 0.18;
+  filter: blur(3px);
+  animation: alchemyGlow 3s ease-in-out infinite;
+}
+
+.alchemy-flask {
+  position: absolute;
+  left: 50%;
+  bottom: 17px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 4;
+}
+
+.alchemy-neck {
+  width: 16px;
+  height: 18px;
+  border-left: 2px solid var(--color-border);
+  border-right: 2px solid var(--color-border);
+  background: rgba(255,255,255,0.03);
+  border-radius: 3px 3px 0 0;
+}
+
+.alchemy-body {
+  position: relative;
+  width: 54px;
+  height: 50px;
+  margin-top: -1px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.08), transparent),
+    var(--color-bg-secondary);
+  overflow: hidden;
+  box-shadow: inset 0 0 16px rgba(255,255,255,0.04);
+}
+
+.alchemy-liquid {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  bottom: -4px;
+  height: 34px;
+  border-radius: 45% 45% 0 0;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,255,255,0.24), transparent 30%),
+    var(--color-accent);
+  opacity: 0.42;
+  animation: alchemyLiquid 3s ease-in-out infinite;
+}
+
+.alchemy-card {
+  position: absolute;
+  left: 50%;
+  top: 54%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.alchemy-card::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+}
+
+.alchemy-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.alchemy-chosen-card {
+  animation: alchemyCardFloat 3s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 3;
+}
+
+.alchemy-bubbles span {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  opacity: 0;
+  z-index: 5;
+}
+
+.alchemy-bubbles span:nth-child(1) {
+  width: 5px; height: 5px; margin-left: -18px;
+  animation: alchemyBubble 3s infinite .15s;
+}
+
+.alchemy-bubbles span:nth-child(2) {
+  width: 7px; height: 7px; margin-left: -6px;
+  animation: alchemyBubble 3s infinite .38s;
+}
+
+.alchemy-bubbles span:nth-child(3) {
+  width: 4px; height: 4px; margin-left: 12px;
+  animation: alchemyBubble 3s infinite .65s;
+}
+
+.alchemy-bubbles span:nth-child(4) {
+  width: 6px; height: 6px; margin-left: 22px;
+  animation: alchemyBubble 3s infinite .9s;
+}
+
+.alchemy-bubbles span:nth-child(5) {
+  width: 4px; height: 4px; margin-left: -26px;
+  animation: alchemyBubble 3s infinite 1.12s;
+}
+
+.alchemy-runes span {
+  position: absolute;
+  color: var(--color-accent);
+  font-size: 11px;
+  opacity: 0;
+}
+
+.alchemy-runes span:nth-child(1) {
+  left: 38%;
+  top: 34%;
+  animation: alchemyRune 3s infinite .2s;
+}
+
+.alchemy-runes span:nth-child(2) {
+  left: 58%;
+  top: 30%;
+  animation: alchemyRune 3s infinite .55s;
+}
+
+.alchemy-runes span:nth-child(3) {
+  left: 50%;
+  top: 22%;
+  animation: alchemyRune 3s infinite .9s;
+}
+
+.alchemy-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes alchemyGlow {
+  0%, 100% { opacity: 0.12; transform: translateX(-50%) scale(0.94); }
+  50% { opacity: 0.28; transform: translateX(-50%) scale(1.08); }
+}
+
+@keyframes alchemyLiquid {
+  0%, 100% { transform: translateX(-4px) rotate(-4deg); }
+  50% { transform: translateX(4px) rotate(4deg); }
+}
+
+@keyframes alchemyCardFloat {
+  0%, 18% {
+    transform: translate(-50%, 34px) scale(0.28);
+    opacity: 0;
+    filter: blur(5px);
+  }
+  44%, 76% {
+    transform: translate(-50%, -16px) scale(1.08);
+    opacity: 1;
+    filter: blur(0);
+    box-shadow: 0 0 20px var(--color-accent);
+  }
+  100% {
+    transform: translate(-50%, -40px) scale(1.2);
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+
+@keyframes alchemyBubble {
+  0% { transform: translateY(0) scale(.6); opacity: 0; }
+  25% { opacity: .85; }
+  100% { transform: translateY(-74px) scale(1.5); opacity: 0; }
+}
+
+@keyframes alchemyRune {
+  0%, 20% { transform: translateY(18px) scale(.8); opacity: 0; }
+  48%, 70% { transform: translateY(0) scale(1); opacity: .85; }
+  100% { transform: translateY(-18px) scale(1.15); opacity: 0; }
+}
+/* ==================== 15. 浮光提灯 ==================== */
+.lantern-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.lantern-halo {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  width: 112px;
+  height: 86px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-accent), transparent 70%);
+  opacity: 0.16;
+  filter: blur(4px);
+  animation: lanternHalo 3.5s ease-in-out infinite;
+}
+
+.lantern {
+  position: absolute;
+  left: 50%;
+  bottom: 15px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 4;
+}
+
+.lantern-handle {
+  width: 18px;
+  height: 16px;
+  margin-bottom: -4px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+}
+
+.lantern-top {
+  width: 30px;
+  height: 8px;
+  border-radius: 14px 14px 2px 2px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  z-index: 2;
+}
+
+.lantern-glass {
+  position: relative;
+  width: 36px;
+  height: 40px;
+  border-left: 2px solid var(--color-border);
+  border-right: 2px solid var(--color-border);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.12), transparent),
+    rgba(255,255,255,0.02);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5px;
+  overflow: hidden;
+}
+
+.lantern-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at bottom, var(--color-accent), transparent 76%);
+  opacity: 0.38;
+}
+
+.lantern-base {
+  width: 42px;
+  height: 7px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+}
+
+.lantern-flame {
+  position: relative;
+  width: 12px;
+  height: 16px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  background: var(--color-accent);
+  box-shadow: 0 0 14px var(--color-accent), 0 0 26px var(--color-accent);
+  animation: lanternFlame 1.6s ease-in-out infinite;
+  z-index: 2;
+}
+
+.lantern-card {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+.lantern-card::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+}
+
+.lantern-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.lantern-chosen-card {
+  animation: lanternCardFloat 3.5s cubic-bezier(.2,.85,.2,1) infinite;
+  z-index: 3;
+}
+
+.lantern-motes span {
+  position: absolute;
+  left: 50%;
+  bottom: 46px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  opacity: 0;
+  z-index: 5;
+}
+
+.lantern-motes span:nth-child(1) { animation: lanternMoteA 3.5s infinite .2s; }
+.lantern-motes span:nth-child(2) { animation: lanternMoteB 3.5s infinite .45s; }
+.lantern-motes span:nth-child(3) { animation: lanternMoteC 3.5s infinite .7s; }
+.lantern-motes span:nth-child(4) { animation: lanternMoteD 3.5s infinite .95s; }
+.lantern-motes span:nth-child(5) { animation: lanternMoteE 3.5s infinite 1.2s; }
+
+.lantern-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes lanternHalo {
+  0%, 100% { opacity: 0.1; transform: translateX(-50%) scale(0.94); }
+  50% { opacity: 0.24; transform: translateX(-50%) scale(1.1); }
+}
+
+@keyframes lanternFlame {
+  0%, 100% { transform: rotate(-45deg) scale(.9); opacity: .8; }
+  50% { transform: rotate(-45deg) scale(1.14); opacity: 1; }
+}
+
+@keyframes lanternCardFloat {
+  0%, 16% {
+    transform: translate(-50%, 34px) scale(.34);
+    opacity: 0;
+    filter: blur(3px);
+  }
+  42%, 76% {
+    transform: translate(-50%, -20px) scale(1.08);
+    opacity: 1;
+    filter: blur(0);
+    box-shadow: 0 0 22px var(--color-accent);
+  }
+  100% {
+    transform: translate(-50%, -44px) scale(1.18);
+    opacity: 0;
+    filter: blur(3px);
+  }
+}
+
+@keyframes lanternMoteA {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  32% { opacity: .9; }
+  100% { transform: translate(-34px, -58px) scale(1.2); opacity: 0; }
+}
+
+@keyframes lanternMoteB {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  32% { opacity: .9; }
+  100% { transform: translate(28px, -50px) scale(1.2); opacity: 0; }
+}
+
+@keyframes lanternMoteC {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  32% { opacity: .9; }
+  100% { transform: translate(-8px, -70px) scale(1.2); opacity: 0; }
+}
+
+@keyframes lanternMoteD {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  32% { opacity: .9; }
+  100% { transform: translate(12px, -66px) scale(1.2); opacity: 0; }
+}
+
+@keyframes lanternMoteE {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  32% { opacity: .9; }
+  100% { transform: translate(38px, -36px) scale(1.2); opacity: 0; }
+}
+/* ==================== 16. 玻璃信封 ==================== */
+.envelope-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.envelope-glow {
+  position: absolute;
+  left: 50%;
+  bottom: 32px;
+  width: 100px;
+  height: 48px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--color-accent), transparent 70%);
+  opacity: 0.18;
+  filter: blur(4px);
+  animation: envelopeGlow 3.5s ease-in-out infinite;
+}
+
+.envelope-body {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  width: 86px;
+  height: 52px;
+  margin-left: -43px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  border-top: none;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.10), transparent),
+    linear-gradient(180deg, var(--color-bg-secondary), var(--color-bg-primary));
+  backdrop-filter: blur(4px);
+  z-index: 4;
+  overflow: hidden;
+}
+
+.envelope-body::before,
+.envelope-body::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 62px;
+  height: 62px;
+  border-top: 1px solid var(--color-border);
+}
+
+.envelope-body::before {
+  left: -30px;
+  transform: rotate(36deg);
+}
+
+.envelope-body::after {
+  right: -30px;
+  transform: rotate(-36deg);
+}
+
+.envelope-flap {
+  position: absolute;
+  left: 50%;
+  bottom: 48px;
+  width: 60px;
+  height: 60px;
+  margin-left: -30px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.12), transparent),
+    var(--color-bg-tertiary);
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  transform: rotate(45deg) scaleY(0.68);
+  transform-origin: center bottom;
+  opacity: 0.86;
+  z-index: 5;
+  animation: envelopeFlap 3.5s ease-in-out infinite;
+}
+
+.envelope-card {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 28px;
+  height: 40px;
+  margin-left: -14px;
+  margin-top: -20px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, var(--color-bg-primary), var(--color-bg-tertiary));
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+  z-index: 3;
+}
+
+.envelope-card::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+}
+
+.envelope-card::after {
+  content: "✦";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -55%);
+  font-size: 11px;
+  color: var(--color-accent);
+}
+
+.envelope-chosen-card {
+  animation: envelopeCardSlide 3.5s cubic-bezier(.2,.85,.2,1) infinite;
+}
+
+.envelope-line {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  height: 1px;
+  background: var(--color-border);
+  opacity: 0.7;
+}
+
+.envelope-line-a {
+  top: 24px;
+}
+
+.envelope-line-b {
+  top: 32px;
+  opacity: 0.45;
+}
+
+.envelope-sparkles span {
+  position: absolute;
+  left: 50%;
+  bottom: 52px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  opacity: 0;
+  z-index: 6;
+}
+
+.envelope-sparkles span:nth-child(1) { animation: envelopeSparkA 3.5s infinite .25s; }
+.envelope-sparkles span:nth-child(2) { animation: envelopeSparkB 3.5s infinite .55s; }
+.envelope-sparkles span:nth-child(3) { animation: envelopeSparkC 3.5s infinite .85s; }
+.envelope-sparkles span:nth-child(4) { animation: envelopeSparkD 3.5s infinite 1.15s; }
+
+.envelope-label {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--color-accent);
+}
+
+@keyframes envelopeGlow {
+  0%, 100% { opacity: 0.12; transform: translateX(-50%) scale(0.94); }
+  50% { opacity: 0.3; transform: translateX(-50%) scale(1.1); }
+}
+
+@keyframes envelopeFlap {
+  0%, 24% {
+    transform: rotate(45deg) scaleY(0.68);
+  }
+  42%, 78% {
+    transform: translateY(-8px) rotate(45deg) scaleY(0.46);
+  }
+  100% {
+    transform: rotate(45deg) scaleY(0.68);
+  }
+}
+
+@keyframes envelopeCardSlide {
+  0%, 18% {
+    transform: translate(-50%, 36px) scale(0.72);
+    opacity: 0;
+  }
+  44%, 76% {
+    transform: translate(-50%, -26px) scale(1.08);
+    opacity: 1;
+    box-shadow: 0 0 20px var(--color-accent);
+  }
+  100% {
+    transform: translate(-50%, -48px) scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes envelopeSparkA {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  35% { opacity: .9; }
+  100% { transform: translate(-34px, -42px) scale(1.2); opacity: 0; }
+}
+
+@keyframes envelopeSparkB {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  35% { opacity: .9; }
+  100% { transform: translate(32px, -38px) scale(1.2); opacity: 0; }
+}
+
+@keyframes envelopeSparkC {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  35% { opacity: .9; }
+  100% { transform: translate(-10px, -58px) scale(1.2); opacity: 0; }
+}
+
+@keyframes envelopeSparkD {
+  0% { transform: translate(0, 0) scale(.8); opacity: 0; }
+  35% { opacity: .9; }
+  100% { transform: translate(16px, -54px) scale(1.2); opacity: 0; }
+}
+.center-typing-card.shuffling-style-petal,
+.center-typing-card.shuffling-style-holy,
+.center-typing-card.shuffling-style-moon-tarot,
+.center-typing-card.shuffling-style-ocean-wave,
+.center-typing-card.shuffling-style-cyber,
+.center-typing-card.shuffling-style-gear,
+.center-typing-card.shuffling-style-vortex,
+.center-typing-card.shuffling-style-crystal,
+.center-typing-card.shuffling-style-pendulum,
+.center-typing-card.shuffling-style-alchemy,
+.center-typing-card.shuffling-style-lantern,
+.center-typing-card.shuffling-style-envelope {
+  min-height: 258px;
+  width: 258px;
+}
+

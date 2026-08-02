@@ -39,7 +39,12 @@ const SHUFFLING_STYLES = [
   { id: 'cyber', name: '数据骇入' },
   { id: 'gear', name: '机械齿轮' },
   { id: 'vortex', name: '时空漩涡' },
-  { id: 'crystal', name: '水晶预言' }
+  { id: 'crystal', name: '水晶预言' },
+  { id: 'pendulum', name: '灵摆寻迹' },
+  { id: 'alchemy', name: '炼金魔药' },
+  { id: 'lantern', name: '浮光提灯' },
+  { id: 'envelope', name: '玻璃信封' }
+
 ];
 
 

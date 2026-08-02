@@ -1,0 +1,152 @@
+/* ==================== 阴雨天专属新动效：整句不规则散落 ==================== */
+.rain-phrase-wrapper {
+  position: absolute !important;
+  pointer-events: none !important;
+  display: flex !important;
+  gap: 4px !important;
+  font-family: inherit !important;
+  z-index: 10 !important;
+}
+
+.rain-char {
+  display: inline-block !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  color: var(--color-text-primary) !important;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.25) !important;
+  opacity: 0;
+  transform: translate(0, 0) scale(0.7);
+  animation: rainScatterFade 7.5s cubic-bezier(0.1, 0.8, 0.2, 1) forwards;
+}
+
+/* 飘出后，字向四周散开，在 40% ~ 85% 期间保持完全静止不再漂动，最后渐隐 */
+@keyframes rainScatterFade {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6);
+  }
+  15% {
+    opacity: 0.85;
+    transform: translate(calc(var(--drift-x) * 0.2), calc(var(--drift-y) * 0.2)) scale(1.1);
+  }
+  40% {
+    opacity: 1;
+    transform: translate(var(--drift-x), var(--drift-y)) scale(1);
+  }
+  85% {
+    opacity: 0.8;
+    transform: translate(var(--drift-x), var(--drift-y)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--drift-x), calc(var(--drift-y) + 12px)) scale(0.95);
+  }
+}
+
+
+/* ==================== 阴雨天专属小窗口：仿微信/系统通知消息框 ==================== */
+#global-call-overlay.skin-gloomy-rain .call-player-widget {
+  width: 320px !important;
+  height: auto !important;
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 0 !important;
+}
+
+#global-call-overlay.skin-gloomy-rain .call-player-inner {
+  background: rgba(28, 30, 38, 0.9) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55) !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+/* 隐藏播放器控制轨道、底部字、kicker标题 */
+#global-call-overlay.skin-gloomy-rain .call-player-progress-bar,
+#global-call-overlay.skin-gloomy-rain .call-player-bottom,
+#global-call-overlay.skin-gloomy-rain .call-player-kicker {
+  display: none !important;
+}
+
+/* 拖拽区域重构为通知内容排版 */
+#global-call-overlay.skin-gloomy-rain .call-player-drag-handle {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  background: none !important;
+  border: none !important;
+}
+
+/* 头像：改造成微圆角微信头像效果 */
+#global-call-overlay.skin-gloomy-rain .call-player-cover {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  flex-shrink: 0 !important;
+}
+
+#global-call-overlay.skin-gloomy-rain .call-player-cover .avatar {
+  border-radius: 0% !important;
+}
+
+/* 通知发送者名字与副文本 */
+#global-call-overlay.skin-gloomy-rain .call-player-meta {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  gap: 3px !important;
+  text-align: left !important;
+}
+
+#global-call-overlay.skin-gloomy-rain .call-player-name {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #ffffff !important;
+}
+
+/* 副文本：模仿微信视频通话提示 */
+#global-call-overlay.skin-gloomy-rain .call-player-subtitle {
+  font-size: 12px !important;
+  color: #a0a5b5 !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  overflow: hidden !important;
+  max-width: 200px !important;
+}
+
+/* 右上角关闭按钮：胶囊胶带样式，只留一个小点，用于缩小为小圆球 */
+#global-call-overlay.skin-gloomy-rain .call-player-mini-btn {
+  position: absolute !important;
+  top: 10px !important;
+  right: 10px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 10 !important;
+}
+
+#global-call-overlay.skin-gloomy-rain .call-player-mini-btn span {
+  width: 8px !important;
+  height: 2px !important;
+  background: #ffffff !important;
+  border-radius: 1px !important;
+}

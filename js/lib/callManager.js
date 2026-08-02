@@ -150,17 +150,22 @@ function loadSkinStylesheet(skinId) {
   let link = document.getElementById('active-call-skin-css');
   
   if (!skinId || skinId === 'classic') {
-    if (link) link.remove();
+    if (link) {
+      link.remove();
+      console.log(`[CallSkin] 已切回默认经典主题，移除外部CSS`);
+    }
     return;
   }
 
+  const href = `css/skins/${skinId}.css`;
   if (!link) {
     link = document.createElement('link');
     link.id = 'active-call-skin-css';
     link.rel = 'stylesheet';
     document.head.appendChild(link);
   }
-  link.href = `css/skins/${skinId}.css`;
+  link.href = href;
+  console.log(`[CallSkin] 正在尝试加载通话皮肤: ${href}`);
 }
 
 // 同步将皮肤 Class 添加至根 DOM 的辅助函数
@@ -200,7 +205,7 @@ export const CallManager = {
   particleInterval: null,
   overlay: null,
   minimized: false,
-  activeSkin: 'classic', // 新增：用来在内存中缓存当前皮肤ID
+  activeSkin: 'classic', // 内存中缓存当前皮肤ID
 
   floatingPos: {
     player: { x: null, y: null },
@@ -386,6 +391,58 @@ export const CallManager = {
       '频率正在靠近',
     ];
 
+    // =============== 阴雨天专属粒子逻辑 ===============
+    if (this.activeSkin === 'gloomy-rain') {
+      const emitRainPhrase = () => {
+        if (this.viewMode !== 'full' || this.state === 'idle') return;
+        const cont = this.overlay ? this.overlay.querySelector('#particle-container') : null;
+        if (!cont) return;
+
+        const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+        
+        // 随机一个屏幕中心点做散开落点
+        const baseX = 15 + Math.random() * 50; 
+        const baseY = 25 + Math.random() * 45; 
+
+        // 创建包裹整句的容器
+        const phraseEl = document.createElement('div');
+        phraseEl.className = 'rain-phrase-wrapper';
+        phraseEl.style.left = `${baseX}%`;
+        phraseEl.style.top = `${baseY}%`;
+        
+        // 将句子拆分为单字并赋予随机散落角度
+        for (let i = 0; i < phrase.length; i++) {
+          const charEl = document.createElement('span');
+          charEl.className = 'rain-char';
+          charEl.textContent = phrase[i];
+          
+          // 计算字在周围散开的目标偏移距离
+          const angle = (i / phrase.length) * Math.PI * 2 + (Math.random() * 0.5);
+          const distance = 40 + Math.random() * 55; // 散播半径
+          const driftX = Math.cos(angle) * distance;
+          const driftY = Math.sin(angle) * distance;
+          
+          charEl.style.setProperty('--drift-x', `${driftX}px`);
+          charEl.style.setProperty('--drift-y', `${driftY}px`);
+          charEl.style.animationDelay = `${i * 0.15}s`; // 逐字流出散开
+          
+          phraseEl.appendChild(charEl);
+        }
+
+        cont.appendChild(phraseEl);
+        // 8秒后自动清理该块
+        setTimeout(() => { if (phraseEl.parentNode) phraseEl.remove(); }, 8000);
+      };
+
+      // 首次呼叫时发射两句
+      for (let i = 0; i < 2; i++) {
+        setTimeout(emitRainPhrase, i * 1500);
+      }
+      this.particleInterval = setInterval(emitRainPhrase, 5500);
+      return;
+    }
+
+    // =============== 默认皮肤粒子逻辑 ===============
     const emitPhrase = () => {
       if (this.viewMode !== 'full' || this.state === 'idle') return;
       const c = this.overlay ? this.overlay.querySelector('#particle-container') : null;
@@ -577,7 +634,6 @@ export const CallManager = {
     const isPlaying = this.state !== 'idle';
     const isConnected = this.state === 'connected';
 
-    // 修改：动态设置类名，带上皮肤名称
     applySkinClass(this.overlay, this.activeSkin, 'global-call-player');
 
     this.overlay.innerHTML = `
@@ -632,7 +688,6 @@ export const CallManager = {
   renderBall() {
     this.stopParticles();
 
-    // 修改：动态设置类名，带上皮肤名称
     applySkinClass(this.overlay, this.activeSkin, 'global-call-ball');
 
     this.overlay.innerHTML = `
@@ -654,7 +709,6 @@ export const CallManager = {
   },
 
   renderFull() {
-    // 修改：动态设置类名，带上皮肤名称
     applySkinClass(this.overlay, this.activeSkin, 'global-call-full');
 
     const statusText = this.getScreenStatusText();
@@ -756,4 +810,3 @@ export const CallManager = {
     this.renderFull();
   },
 };
-

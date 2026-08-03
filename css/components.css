@@ -6462,7 +6462,7 @@
   letter-spacing: 6px;
 }
 /* ==========================================================================
-   六、 通灵仪式 (Commune) 与写信冲动特有样式 (适配 theme.css 规范)
+   六、 通灵仪式 (Commune) 与写信冲动特有样式 (完美适配 theme.css 规范)
    ========================================================================== */
 
 /* 通灵撰写中 timeline 卡片 */
@@ -6472,20 +6472,26 @@
 
 .drift-timeline-card.impulse-card {
   border: 1px dashed var(--color-accent) !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.01) 0%, rgba(128, 90, 213, 0.05) 100%);
-  box-shadow: 0 0 12px rgba(128, 90, 213, 0.15);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.01) 0%, color-mix(in srgb, var(--color-accent) 5%, transparent) 100%);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 15%, transparent);
   animation: impulsePulse 3s infinite ease-in-out;
 }
 
 @keyframes impulsePulse {
   0%, 100% { 
-    box-shadow: 0 0 12px rgba(128, 90, 213, 0.15); 
-    border-color: rgba(128, 90, 213, 0.4) !important; 
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 15%, transparent); 
+    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent) !important; 
   }
   50% { 
-    box-shadow: 0 0 20px rgba(128, 90, 213, 0.35); 
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent); 
     border-color: var(--color-accent) !important; 
   }
+}
+
+.item-impulse .drift-timeline-badge {
+  background: var(--color-accent) !important;
+  color: var(--color-bg-primary) !important;
+  border-color: var(--color-accent) !important;
 }
 
 .impulse-writing-indicator {
@@ -6512,12 +6518,11 @@
   100% { opacity: 1; transform: scale(1.2); }
 }
 
-/* 全屏通灵仪式遮罩 */
+/* 全屏通灵仪式遮罩 (背景比背景色微暗，烘托深空感) */
 .commune-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background: var(--color-bg-primary);
-  /* 使用毛玻璃提供深空交错感 */
+  background: color-mix(in srgb, var(--color-bg-primary) 95%, #000);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   z-index: 2000;
@@ -6530,12 +6535,11 @@
   transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 渐变遮罩用于在浅色主题下调谐暗度 */
 .commune-overlay::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.3) 100%);
+  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.35) 100%);
   pointer-events: none;
   z-index: -1;
 }
@@ -6560,7 +6564,7 @@
   height: 100%;
   border: 1px solid var(--color-border);
   border-radius: 50%;
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .portal-ring-active {
@@ -6582,7 +6586,7 @@
 .portal-core {
   width: 130px;
   height: 130px;
-  background: radial-gradient(circle, rgba(128, 90, 213, 0.2) 0%, transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 20%, transparent) 0%, transparent 70%);
   border: 1px solid var(--color-border);
   border-radius: 50%;
   display: flex;
@@ -6592,14 +6596,14 @@
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  box-shadow: 0 0 20px rgba(128, 90, 213, 0.05);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 5%, transparent);
   transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .portal-core:active {
   transform: scale(0.96);
-  background-color: rgba(128, 90, 213, 0.1);
-  box-shadow: 0 0 35px rgba(128, 90, 213, 0.4);
+  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  box-shadow: 0 0 35px color-mix(in srgb, var(--color-accent) 40%, transparent);
 }
 
 .commune-title {

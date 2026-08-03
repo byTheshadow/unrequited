@@ -32,156 +32,6 @@ let targetCharId = 'unknown';
 let writeStep = 'waiting'; // 'waiting' (星海漂浮状态) | 'writing' (写信展开状态)
 const typingTimers = new Map();
 
-// 注入通灵机制专属 CSS 样式
-const styleEl = document.createElement('style');
-styleEl.innerHTML = `
-  /* 通灵占位卡样式 */
-  .drift-timeline-item.item-impulse {
-    opacity: 0.85;
-  }
-  .drift-timeline-card.impulse-card {
-    border: 1px dashed rgba(168, 85, 247, 0.6);
-    background: linear-gradient(135deg, rgba(20, 10, 35, 0.6) 0%, rgba(10, 10, 20, 0.8) 100%);
-    box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
-    animation: impulsePulse 3s infinite ease-in-out;
-  }
-  @keyframes impulsePulse {
-    0%, 100% { box-shadow: 0 0 12px rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.4); }
-    50% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.35); border-color: rgba(168, 85, 247, 0.8); }
-  }
-  .impulse-writing-indicator {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.85rem;
-    color: #a855f7;
-    margin-top: 8px;
-  }
-  .impulse-dot {
-    width: 6px;
-    height: 6px;
-    background-color: #a855f7;
-    border-radius: 50%;
-    animation: impulseDotPulse 1.2s infinite alternate;
-  }
-  .impulse-dot:nth-child(2) { animation-delay: 0.3s; }
-  .impulse-dot:nth-child(3) { animation-delay: 0.6s; }
-  @keyframes impulseDotPulse {
-    0% { opacity: 0.2; transform: scale(0.8); }
-    100% { opacity: 1; transform: scale(1.2); }
-  }
-
-  /* 通灵仪式全屏浮层 */
-  .commune-overlay {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(8, 5, 15, 0.95);
-    backdrop-filter: blur(10px);
-    z-index: 2000;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.5s ease;
-  }
-  .commune-overlay.show {
-    opacity: 1;
-    pointer-events: auto;
-  }
-  .commune-portal {
-    position: relative;
-    width: 200px;
-    height: 200px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .portal-ring-bg {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border: 2px solid rgba(168, 85, 247, 0.1);
-    border-radius: 50%;
-  }
-  .portal-ring-active {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border: 2px solid transparent;
-    border-top-color: #a855f7;
-    border-right-color: #c084fc;
-    border-radius: 50%;
-    transform: rotate(0deg);
-    transition: transform 3s linear;
-  }
-  .commune-overlay.charging .portal-ring-active {
-    transform: rotate(1080deg);
-  }
-  .portal-core {
-    width: 120px;
-    height: 120px;
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
-    box-shadow: 0 0 20px rgba(168, 85, 247, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  .portal-core:active {
-    transform: scale(0.95);
-    box-shadow: 0 0 35px rgba(168, 85, 247, 0.5);
-  }
-  .commune-title {
-    font-size: 1.25rem;
-    color: #e9d5ff;
-    margin-top: 30px;
-    letter-spacing: 2px;
-  }
-  .commune-desc {
-    font-size: 0.9rem;
-    color: #a78bfa;
-    margin-top: 10px;
-    max-width: 280px;
-    text-align: center;
-    line-height: 1.5;
-  }
-  .commune-close {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background: none;
-    border: none;
-    color: rgba(255,255,255,0.5);
-    cursor: pointer;
-  }
-
-  /* 在线共鸣屏幕边缘发光波纹特效 */
-  .resonance-ripple {
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    box-shadow: inset 0 0 80px rgba(168, 85, 247, 0.6);
-    pointer-events: none;
-    z-index: 1999;
-    opacity: 0;
-    transition: opacity 1.5s ease-out;
-  }
-  .resonance-ripple.play {
-    animation: ripplePulse 3s forwards;
-  }
-  @keyframes ripplePulse {
-    0% { opacity: 0; box-shadow: inset 0 0 20px rgba(168, 85, 247, 0); }
-    30% { opacity: 1; box-shadow: inset 0 0 80px rgba(168, 85, 247, 0.7); }
-    100% { opacity: 0; box-shadow: inset 0 0 30px rgba(168, 85, 247, 0); }
-  }
-`;
-document.head.appendChild(styleEl);
-
 export async function render(root, params) {
   characters = await db.characters.toArray();
 
@@ -286,7 +136,7 @@ export async function render(root, params) {
     closeCommuneOverlay();
   });
 
-  // 执行星轨链接判定与未读更新
+  // 执行写信冲动及到期状态判定
   await processCompletedImpulses();
   await checkOfflineImpulseTrigger();
   switchTab('write');
@@ -307,7 +157,7 @@ async function switchTab(tabName) {
 
   clearAllTypingTimers();
 
-  // 每次切换Tab时，都顺便触发一次写信完成状态的检测，并尝试触发“在线共鸣”
+  // 检测撰写中的冲动是否到期，并尝试触发在线共鸣
   await processCompletedImpulses();
   triggerOnlineResonanceCheck();
 
@@ -341,7 +191,7 @@ function renderWriteView(container) {
               ${DRIFT_ICON.envelope}
               打开信封
             </button>
-            <button class="btn btn-secondary" id="btn-commune-trigger" style="flex: 1; padding: 14px 20px; font-size: 0.95rem; border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.05); color: #e9d5ff;">
+            <button class="btn btn-secondary" id="btn-commune-trigger" style="flex: 1; padding: 14px 20px; font-size: 0.95rem;">
               ${DRIFT_ICON.starDust}
               静候来信
             </button>
@@ -413,7 +263,7 @@ function renderWriteView(container) {
   const viewWrite = container.querySelector('#view-write');
   const envElem = container.querySelector('#envelope-elem');
 
-  // 打开信封：触发淡出、翻盖折叠与纸张向上抽出
+  // 打开信封
   container.querySelector('#btn-trigger-open').addEventListener('click', () => {
     haptic(10);
     viewWait.style.opacity = '0';
@@ -433,7 +283,7 @@ function renderWriteView(container) {
     }, 300);
   });
 
-  // 收起信纸折叠回信封
+  // 收起信纸
   container.querySelector('#btn-close-envelope').addEventListener('click', () => {
     haptic(8);
     envElem.classList.remove('open');
@@ -504,7 +354,7 @@ async function triggerThrowAnimation(content, charId) {
   }, 3000);
 }
 
-// 确保纯随机性：从字卡库中按洗牌概率随机抽取，无硬编码偏置
+// 确保从字卡库中随机抽取回复
 async function generateDriftReply(sentContent, charId) {
   const now = Date.now();
 
@@ -521,7 +371,6 @@ async function generateDriftReply(sentContent, charId) {
   let finalCharId = charId;
 
   if (charId === 'unknown') {
-    // 投递至未知：纯随机从用户自定义的长段字卡抽取
     const longs = await db.longFragments.toArray();
     if (longs.length > 0) {
       const picked = pick(longs);
@@ -531,7 +380,6 @@ async function generateDriftReply(sentContent, charId) {
     }
     finalCharId = 'unknown';
   } else {
-    // 投递给指定角色：由角色字卡库抽取拼接，确保随机
     try {
       const result = await generateForCharacter(charId);
       if (result && result.messages && result.messages.length > 0) {
@@ -549,7 +397,7 @@ async function generateDriftReply(sentContent, charId) {
     }
   }
 
-  // 写入随机抽取的收到信件
+  // 写入生成的收到信件
   await db.driftLetters.add({
     characterId: finalCharId,
     timestamp: now + 500,
@@ -563,7 +411,7 @@ async function generateDriftReply(sentContent, charId) {
 
 // ----------------- [收件箱渲染] -----------------
 async function renderMailboxView(container) {
-  const unreadCount = await db.driftLetters.where({ type: 'received', isRead: 0 }).count();
+  const unreadCount = await db.driftLetters.where({ type: 'received', isRead: 0 }).filter(l => l.status !== 'impulse').count();
   const letters = await db.driftLetters.orderBy('timestamp').reverse().toArray();
   const charMap = new Map(characters.map((c) => [c.id, c]));
 
@@ -584,8 +432,8 @@ async function renderMailboxView(container) {
 
     const unreadDot = (!isSent && !letter.isRead && !isImpulse) ? '<span class="drift-unread-dot"></span>' : '';
     let bubbleClass = isSent ? 'sent-bubble' : 'received-bubble';
-    
-    // 如果是通灵撰写中状态，展示特殊卡片样式与占位提示
+
+    // 如果是通灵撰写中状态，展示特殊占位卡片
     if (isImpulse) {
       bubbleClass = 'impulse-card';
       const elapsed = Date.now() - letter.timestamp;
@@ -596,14 +444,14 @@ async function renderMailboxView(container) {
 
       return `
         <div class="drift-timeline-item item-received item-impulse" data-id="${letter.id}">
-          <div class="drift-timeline-badge" style="background: #a855f7; color: white;">联</div>
+          <div class="drift-timeline-badge">联</div>
           <div class="drift-timeline-card ${bubbleClass}">
             <div class="drift-letter-meta">
-              <span class="drift-letter-sender" style="color: #c084fc;">${escapeHtml(senderName)} ${unreadDot}</span>
+              <span class="drift-letter-sender">${escapeHtml(senderName)} ${unreadDot}</span>
               <span class="drift-letter-time">${timeStr}</span>
             </div>
             <div class="drift-letter-body-container">
-              <div class="drift-letter-text" style="color: #a78bfa; font-style: italic;">
+              <div class="drift-letter-text" style="color: var(--color-text-secondary); font-style: italic;">
                 ✦ 通灵星轨连结中 ✦
                 <div class="impulse-writing-indicator">
                   <div class="impulse-dot"></div>
@@ -611,7 +459,7 @@ async function renderMailboxView(container) {
                   <div class="impulse-dot"></div>
                   <span>正在撰写中...</span>
                 </div>
-                <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 6px;">
+                <div style="font-size: 0.85rem; opacity: 0.85; margin-top: 6px;">
                   ${impulseStatusText}
                 </div>
               </div>
@@ -683,7 +531,7 @@ async function renderMailboxView(container) {
     </div>
   `;
 
-  // 绑定仪式感打捞事件
+  // 绑定打捞事件
   const salvageBtn = container.querySelector('#btn-salvage-bottle');
   if (salvageBtn) {
     salvageBtn.addEventListener('click', () => {
@@ -692,10 +540,10 @@ async function renderMailboxView(container) {
     });
   }
 
-  // 点击信件卡片拆封
+  // 点击拆封信件
   container.querySelectorAll('.drift-timeline-card').forEach((card) => {
     const itemEl = card.closest('.drift-timeline-item');
-    if (itemEl.classList.contains('item-impulse')) return; // 撰写中无法点击拆封
+    if (itemEl.classList.contains('item-impulse')) return;
 
     const itemId = Number(itemEl.getAttribute('data-id'));
 
@@ -718,7 +566,7 @@ async function renderMailboxView(container) {
     });
   });
 
-  // 销毁信件 / 切断羁绊
+  // 销毁或切断共鸣
   container.querySelectorAll('[data-act="delete-letter"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -743,7 +591,7 @@ async function renderMailboxView(container) {
   });
 }
 
-// ----------------- [仪式感打捞漂流瓶动画] -----------------
+// ----------------- [打捞漂流瓶动画] -----------------
 function triggerSalvageAnimation() {
   const overlay = document.getElementById('salvage-animation-overlay');
   if (!overlay) return;
@@ -752,7 +600,6 @@ function triggerSalvageAnimation() {
   overlay.classList.add('show');
 
   setTimeout(async () => {
-    // 捞取第一条未读回信（排除正在撰写的）
     const firstUnread = await db.driftLetters
       .where({ type: 'received', isRead: 0 })
       .filter(l => l.status !== 'impulse')
@@ -838,7 +685,7 @@ function clearAllTypingTimers() {
   typingTimers.clear();
 }
 
-// ----------------- [长段字卡去重导入与管理] -----------------
+// ----------------- [长段字卡管理] -----------------
 async function renderLongCardsView(container) {
   const longs = await db.longFragments.orderBy('createdAt').reverse().toArray();
 
@@ -872,7 +719,7 @@ async function renderLongCardsView(container) {
     </div>
   `;
 
-  // 重复行自动检测过滤
+  // 批量导入
   container.querySelector('#btn-import-long').addEventListener('click', async () => {
     const text = container.querySelector('#long-import-text').value.trim();
     if (!text) {
@@ -952,11 +799,11 @@ async function updateUnreadAlert() {
   }
 }
 
-// ----------------- [核心改造：写信冲动及通灵逻辑逻辑] -----------------
+// ----------------- [核心机制：写信冲动及通灵逻辑逻辑] -----------------
 
 /**
- * 1. 命运之骰判定与写信任务执行：检查哪些处于 impulse 状态的角色信件已经超过了他们的随机撰写时间。
- * 如果到了时间，则正式动笔（调用角色生成引擎拼接），并转换状态为正常未读信件。
+ * 1. 命运之骰判定与写信任务执行
+ * 检查 impulse 状态的信件是否已经超过了它们的随机写信时长（duration）。如果时间到了，则触发字卡拼接，写入最终信件内容并变为可读。
  */
 async function processCompletedImpulses() {
   const now = Date.now();
@@ -964,7 +811,6 @@ async function processCompletedImpulses() {
   const impulseLetters = letters.filter(l => l.status === 'impulse');
 
   for (const letter of impulseLetters) {
-    // 到了时间点（startTime + duration）或者超过24小时Deadline，执行“动笔写信并寄出”
     const writeFinishedTime = letter.timestamp + (letter.duration || 3600000);
     const deadlineTime = letter.deadlineTime || (letter.timestamp + 24 * 3600000);
 
@@ -975,7 +821,6 @@ async function processCompletedImpulses() {
         replyText = longs.length > 0 ? pick(longs).content : pick(SPACE_WHISPERS);
       } else {
         try {
-          // 真正的黑盒拼接字卡生成
           const result = await generateForCharacter(letter.characterId);
           if (result && result.messages && result.messages.length > 0) {
             replyText = result.messages.join('\n');
@@ -988,11 +833,11 @@ async function processCompletedImpulses() {
         }
       }
 
-      // 将写信冲动状态更新为真正的信件接收状态
+      // 转换为正式收到的信件
       await db.driftLetters.update(letter.id, {
-        status: 'received', // 取消 'impulse'，设定状态为接收完毕
+        status: 'received',
         content: replyText,
-        timestamp: Math.min(now, writeFinishedTime), // 保持真实的寄达时间
+        timestamp: Math.min(now, writeFinishedTime), // 寄达的时间点
         isRead: 0
       });
 
@@ -1002,12 +847,12 @@ async function processCompletedImpulses() {
     }
   }
   
-  // 触发全局未读红点同步
   window.dispatchEvent(new CustomEvent('drift-unread-updated'));
 }
 
 /**
- * 2. 离线命运判定：根据玩家上次离开网页的时间，以 15%/小时 的概率判定角色是否触发了写信冲动
+ * 2. 离线命运判定
+ * 根据上次离线时长，以 15%/小时 判定离线时是否触发了角色的写信冲动
  */
 async function checkOfflineImpulseTrigger() {
   if (characters.length === 0) return;
@@ -1016,25 +861,23 @@ async function checkOfflineImpulseTrigger() {
   const lastActiveStr = localStorage.getItem('drift_last_active_time');
   localStorage.setItem('drift_last_active_time', String(now));
 
-  if (!lastActiveStr) return; // 第一次登录不触发离线判定
+  if (!lastActiveStr) return;
   const lastActive = Number(lastActiveStr);
   const diffMs = now - lastActive;
-  if (diffMs < 300000) return; // 离线小于 5 分钟不计算
+  if (diffMs < 300000) return; // 5分钟冷启动保护
 
-  // 限制最大计算的离线小时数为 24 小时，防止长时间未登录产生垃圾数据
   const elapsedHours = Math.min(24, Math.floor(diffMs / 3600000));
   if (elapsedHours === 0) return;
 
-  // 检查是否有任何已经在撰写的信
+  // 只能有一个正在写信的冲动
   const currentImpulses = await db.driftLetters.filter(l => l.status === 'impulse').toArray();
-  if (currentImpulses.length > 0) return; // 同一时间只允许一个进行中的通灵写信事件
+  if (currentImpulses.length > 0) return;
 
   let triggered = false;
   let triggerTimeOffset = 0;
 
-  // 每一个小时均有 15% 概率触发判定
   for (let h = 1; h <= elapsedHours; h++) {
-    if (Math.random() < 0.15) {
+    if (Math.random() < 0.15) { // 15% 概率
       triggered = true;
       triggerTimeOffset = h * 3600000;
       break;
@@ -1044,8 +887,7 @@ async function checkOfflineImpulseTrigger() {
   if (triggered) {
     const randomChar = pick(characters);
     const startTime = lastActive + triggerTimeOffset;
-    // 随机 1 到 24 小时写信时间
-    const duration = Math.floor(Math.random() * 23 + 1) * 3600000;
+    const duration = Math.floor(Math.random() * 23 + 1) * 3600000; // 1~24小时写信时长
 
     await db.driftLetters.add({
       characterId: randomChar.id,
@@ -1058,40 +900,37 @@ async function checkOfflineImpulseTrigger() {
       isRead: 0
     });
 
-    // 顺便做一次计算，看它在离线期间是否已经写完了
     await processCompletedImpulses();
   }
 }
 
 /**
- * 3. 在线共鸣判定：当玩家交互/切换Tab时，有 15% 的概率随机引发在线共鸣
+ * 3. 在线共鸣判定
+ * 在玩家日常交互时有 15% 概率触发在线心灵交叠
  */
 let lastOnlineCheckTime = 0;
 async function triggerOnlineResonanceCheck() {
   const now = Date.now();
-  if (now - lastOnlineCheckTime < 60000) return; // 1 分钟检查冷却，避免高频操作刷屏
+  if (now - lastOnlineCheckTime < 60000) return; // 1分钟判定冷却
   lastOnlineCheckTime = now;
 
-  // 必须没有正在撰写中的信
   const currentImpulses = await db.driftLetters.filter(l => l.status === 'impulse').toArray();
   if (currentImpulses.length > 0) return;
 
-  // 15% 的概率判定
-  if (Math.random() < 0.15) {
+  if (Math.random() < 0.15) { // 15% 真随机判定
     const randomChar = pick(characters);
     if (!randomChar) return;
 
-    // 播放边缘发光涟漪特效
+    // 播放边缘发光效果
     const ripple = document.getElementById('resonance-ripple-el');
     if (ripple) {
       ripple.classList.add('play');
-      setTimeout(() => ripple.classList.remove('play'), 3000);
+      setTimeout(() => ripple.classList.remove('play'), 3500);
     }
 
     haptic(18);
-    toast(`（星轨微芒）你与 ${randomChar.name} 产生了刹那的意识交叠，他写信的冲动已悄然萌发。`);
+    toast(`（星轨微芒）你与 ${randomChar.name} 产生了刹那 of 意识交叠，他写信的冲动已悄然萌发。`);
 
-    // 触发写信冲动，并获得 1 ~ 24 小时随机写信时长
     const duration = Math.floor(Math.random() * 23 + 1) * 3600000;
     await db.driftLetters.add({
       characterId: randomChar.id,
@@ -1104,7 +943,6 @@ async function triggerOnlineResonanceCheck() {
       isRead: 0
     });
 
-    // 若当前是收件箱 Tab，直接重新渲染列表展示占位符
     if (activeTab === 'mailbox') {
       const view = document.getElementById('drift-view');
       if (view) renderMailboxView(view);
@@ -1114,6 +952,7 @@ async function triggerOnlineResonanceCheck() {
 
 /**
  * 4. 主动唤醒仪式（动画 A）
+ * 通过使用原装的 openSheet 创建精美的主题选项面板，避免 pick 工具函数冲突
  */
 function openCommuneSelection() {
   const charOptions = [
@@ -1121,10 +960,39 @@ function openCommuneSelection() {
     ...characters.map(c => ({ text: c.name, value: c.id }))
   ];
 
-  pick('你想调谐与谁的星轨连接？', charOptions.map(o => o.text), (index) => {
-    if (index === -1) return;
-    const choice = charOptions[index].value;
-    startCommuneRitual(choice);
+  const optionsHtml = charOptions.map((opt, index) => `
+    <button class="btn btn-secondary btn-block commune-opt-btn" data-index="${index}" style="margin-bottom: 8px; text-align: left; justify-content: flex-start; padding: 12px 16px;">
+      ${DRIFT_ICON.starDust} <span style="margin-left: 8px;">${escapeHtml(opt.text)}</span>
+    </button>
+  `).join('');
+
+  const { close } = openSheet({
+    title: '选择你想共鸣的角色',
+    body: `
+      <div style="padding: 16px 8px; display: flex; flex-direction: column; max-height: 40vh; overflow-y: auto;">
+        ${optionsHtml}
+      </div>
+    `,
+    actions: `<button class="btn btn-block" id="btn-cancel-commune-select" style="background: rgba(255,255,255,0.05); color: var(--color-text-secondary);">取消</button>`,
+    maxHeight: '60vh'
+  });
+
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  if (!root) return;
+
+  root.querySelectorAll('.commune-opt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.getAttribute('data-index'));
+      const choice = charOptions[idx].value;
+      haptic(10);
+      close();
+      startCommuneRitual(choice);
+    });
+  });
+
+  root.querySelector('#btn-cancel-commune-select').addEventListener('click', () => {
+    haptic(6);
+    close();
   });
 }
 
@@ -1141,7 +1009,6 @@ function startCommuneRitual(choice) {
 
   if (!overlay || !touchZone) return;
 
-  // 重置状态
   communeProgress = 0;
   overlay.classList.add('show');
   overlay.classList.remove('charging');
@@ -1149,7 +1016,6 @@ function startCommuneRitual(choice) {
   title.innerText = '星轨已就绪';
   desc.innerText = '按住中心以太星盘\n凝聚你的精神念想...';
 
-  // 绑定长按交互 (支持移动端 touch 和 网页端 mouse)
   const onStart = (e) => {
     e.preventDefault();
     haptic(15);
@@ -1157,25 +1023,21 @@ function startCommuneRitual(choice) {
     title.innerText = '调谐频率中...';
     desc.innerText = '不要松开，正在以太海中锁定他的频率';
 
-    let durationPassed = 0;
-    let hapticDelay = 350; // 震动反馈初速度 350ms，会逐渐缩短变得像心跳一样剧烈
-
+    let hapticDelay = 350;
     const runHapticLoop = () => {
       haptic(4);
       hapticInterval = setTimeout(() => {
-        hapticDelay = Math.max(80, hapticDelay - 45); // 加快节奏
+        hapticDelay = Math.max(80, hapticDelay - 45);
         runHapticLoop();
       }, hapticDelay);
     };
     runHapticLoop();
 
     communeTimer = setTimeout(async () => {
-      // 达到 3 秒成功完成
       clearTimeout(hapticInterval);
       overlay.classList.remove('charging');
       haptic(30);
 
-      // 确定调谐的角色
       let finalCharId = choice;
       if (choice === 'random') {
         if (characters.length > 0) {
@@ -1189,7 +1051,6 @@ function startCommuneRitual(choice) {
       title.innerText = '连接锁定！';
       desc.innerText = `你与 ${charName} 成功达成心灵羁绊。`;
       
-      // 添加在撰写中的占位信
       const now = Date.now();
       const duration = Math.floor(Math.random() * 23 + 1) * 3600000;
       await db.driftLetters.add({
@@ -1248,7 +1109,6 @@ function closeCommuneOverlay() {
   if (hapticInterval) clearTimeout(hapticInterval);
 }
 
-// 辅助：获取角色姓名
 async function getCharacterName(charId) {
   if (charId === 'unknown') return '未知存在';
   const c = await db.characters.get(charId);

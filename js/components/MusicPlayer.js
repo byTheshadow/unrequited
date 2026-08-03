@@ -30,6 +30,16 @@ class MusicPlayer {
     // 2. 初始化挂载全屏设置子页面
     this.playlistPage = new MusicPlaylistPage(this);
 
+    // 新增：劫持并拦截设置页面的 show 方法，在它打开时动态注入网络搜索框
+    const originalShow = this.playlistPage.show;
+    if (originalShow) {
+      this.playlistPage.show = (...args) => {
+        originalShow.apply(this.playlistPage, args);
+        // 稍作延迟以确保它的 DOM Overlay 已经渲染完成并插入文档中
+        setTimeout(() => this.injectSearchIntoPlaylistPage(), 80);
+      };
+    }
+
     // 3. 渲染小挂件 DOM
     this.renderDOM();
     
@@ -77,7 +87,7 @@ class MusicPlayer {
         white-space: nowrap !important;
       }
 
-      /* ================= 新增搜索样式 ================= */
+      /* ================= 新增：悬浮面板内搜索框样式 ================= */
       .mp-search-container {
         padding: 10px;
         border-top: 1px solid rgba(255,255,255,0.08);
@@ -143,11 +153,13 @@ class MusicPlayer {
       
       /* 美化滚动条 */
       .mp-search-container::-webkit-scrollbar,
-      .mp-search-results::-webkit-scrollbar {
+      .mp-search-results::-webkit-scrollbar,
+      .mp-page-search-results::-webkit-scrollbar {
         width: 4px;
       }
       .mp-search-container::-webkit-scrollbar-thumb,
-      .mp-search-results::-webkit-scrollbar-thumb {
+      .mp-search-results::-webkit-scrollbar-thumb,
+      .mp-page-search-results::-webkit-scrollbar-thumb {
         background: rgba(255,255,255,0.15);
         border-radius: 2px;
       }
@@ -220,6 +232,87 @@ class MusicPlayer {
         color: rgba(255,255,255,0.3);
         font-size: 11px;
       }
+
+      /* ================= 新增：歌单设置页面内的搜索模块样式 ================= */
+      .mp-page-search-wrapper {
+        margin: 15px;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+      .mp-page-search-box {
+        display: flex;
+        gap: 8px;
+      }
+      .mp-page-search-box input {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 4px;
+        color: #fff;
+        padding: 6px 10px;
+        font-size: 13px;
+        outline: none;
+      }
+      .mp-page-search-box button {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #fff;
+        padding: 6px 12px;
+        font-size: 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .mp-page-search-box button:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      .mp-page-search-results {
+        margin-top: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .mp-page-search-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        background: rgba(255, 255, 255, 0.02);
+        border-radius: 4px;
+        font-size: 12px;
+      }
+      .mp-page-search-item-info {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+      }
+      .mp-page-search-item-title {
+        color: #fff;
+      }
+      .mp-page-search-item-artist {
+        color: #888;
+      }
+      .mp-page-search-item-add-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #ccc;
+        padding: 3px 8px;
+        font-size: 11px;
+        border-radius: 3px;
+        cursor: pointer;
+      }
+      .mp-page-search-item-add-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -289,7 +382,7 @@ class MusicPlayer {
       </div>
     `;
 
-    // 播放面板 HTML (在头部加入搜索小图标按钮，在 header 下面加入搜索容器)
+    // 播放面板 HTML (在右上角增加了搜索切换按钮，在 header 之下加入了搜索容器)
     const panelHTML = `
       <div class="music-player-panel" id="mp-panel">
         <div class="mp-panel-decor">
@@ -324,10 +417,10 @@ class MusicPlayer {
           </div>
         </div>
 
-        <!-- 新增：搜索面板 UI -->
+        <!-- 新增：悬浮面板的搜索 UI (默认折叠) -->
         <div class="mp-search-container" id="mp-search-container" style="display: none;">
           <div class="mp-search-box">
-            <input type="text" id="mp-search-input" placeholder="搜索歌名/歌手...">
+            <input type="text" id="mp-search-input" placeholder="输入歌名/歌手...">
             <button id="mp-search-submit-btn">搜索</button>
           </div>
           <div class="mp-search-results" id="mp-search-results"></div>
@@ -380,7 +473,7 @@ class MusicPlayer {
     this.nextBtn = this.container.querySelector('#mp-next-btn');
     this.settingBtn = this.container.querySelector('#mp-setting-btn');
 
-    // 新增：获取搜索 DOM 元素
+    // 新增：绑定悬浮窗搜索 DOM
     this.searchToggleBtn = this.container.querySelector('#mp-search-toggle-btn');
     this.searchContainer = this.container.querySelector('#mp-search-container');
     this.searchInput = this.container.querySelector('#mp-search-input');
@@ -458,7 +551,7 @@ class MusicPlayer {
       this.audio.currentTime = clickPercent * this.audio.duration;
     });
 
-    // 新增：绑定搜索交互事件
+    // 新增：悬浮面板的搜索事件绑定
     this.searchToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isSearchVisible = this.searchContainer.style.display !== 'none';
@@ -478,7 +571,7 @@ class MusicPlayer {
     });
 
     this.searchContainer.addEventListener('click', (e) => {
-      e.stopPropagation(); // 阻止点击搜索框内部折叠/隐藏面板
+      e.stopPropagation(); // 阻止点击搜索输入框引起控制面板收回
     });
 
     this.searchSubmitBtn.addEventListener('click', (e) => {
@@ -487,7 +580,133 @@ class MusicPlayer {
     });
   }
 
-  // 新增：调用第三方 API 搜索音乐
+  // 新增：在设置/歌单管理页面中动态注入搜索模块的入口
+  injectSearchIntoPlaylistPage() {
+    if (!this.playlistPage || !this.playlistPage.overlay) return;
+    
+    // 避免重复创建搜索区域
+    if (this.playlistPage.overlay.querySelector('.mp-page-search-wrapper')) return;
+
+    const searchWrapper = document.createElement('div');
+    searchWrapper.className = 'mp-page-search-wrapper';
+    searchWrapper.innerHTML = `
+      <div class="mp-page-search-box">
+        <input type="text" id="mp-page-search-input" placeholder="输入歌名/歌手搜索网络音乐...">
+        <button id="mp-page-search-btn">搜索音乐</button>
+      </div>
+      <div class="mp-page-search-results" id="mp-page-search-results"></div>
+    `;
+
+    // 尽量把搜索输入框挂载在歌单列表的顶部上方
+    const songListContainer = this.playlistPage.overlay.querySelector('.song-list, .playlist-list, [class*="list"]') 
+      || this.playlistPage.overlay.querySelector('.mp-page-body, [class*="body"]')
+      || this.playlistPage.overlay.firstElementChild;
+
+    if (songListContainer) {
+      songListContainer.parentNode.insertBefore(searchWrapper, songListContainer);
+    } else {
+      this.playlistPage.overlay.appendChild(searchWrapper);
+    }
+
+    // 绑定设置页面的搜索事件
+    const input = searchWrapper.querySelector('#mp-page-search-input');
+    const btn = searchWrapper.querySelector('#mp-page-search-btn');
+    const resultsContainer = searchWrapper.querySelector('#mp-page-search-results');
+
+    const handlePageSearch = async () => {
+      const query = input.value.trim();
+      if (!query) return;
+      resultsContainer.innerHTML = '<div class="mp-search-loading">弦音寻觅中...</div>';
+      
+      try {
+        const url = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("API Exception");
+        const data = await response.json();
+        if (!Array.isArray(data) || data.length === 0) throw new Error("No Results");
+        
+        this.renderPlaylistPageSearchResults(data, resultsContainer);
+      } catch (e) {
+        // 备用网易云云音乐源
+        try {
+          const backupUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
+          const backupResp = await fetch(backupUrl);
+          const backupData = await backupResp.json();
+          const songs = backupData.result?.songs;
+          if (!songs || songs.length === 0) {
+            resultsContainer.innerHTML = '<div class="mp-search-empty">未搜索到相关音乐</div>';
+            return;
+          }
+          const formatted = songs.slice(0, 10).map(s => ({
+            id: s.id,
+            name: s.name,
+            artist: s.artists ? s.artists.map(a => a.name) : ["未知歌手"],
+            url: `https://music.163.com/song/media/outer/url?id=${s.id}.mp3`
+          }));
+          this.renderPlaylistPageSearchResults(formatted, resultsContainer);
+        } catch (err) {
+          resultsContainer.innerHTML = '<div class="mp-search-empty">寻音受阻，请稍后再试</div>';
+        }
+      }
+    };
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handlePageSearch();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.stopPropagation();
+        handlePageSearch();
+      }
+    });
+    searchWrapper.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+  }
+
+  // 新增：渲染歌单设置页面内的搜索列表
+  renderPlaylistPageSearchResults(songs, container) {
+    container.innerHTML = '';
+    songs.slice(0, 10).forEach(song => {
+      const item = document.createElement('div');
+      item.className = 'mp-page-search-item';
+      
+      const artist = Array.isArray(song.artist) ? song.artist.join('/') : (song.artist || '未知歌手');
+      
+      item.innerHTML = `
+        <div class="mp-page-search-item-info">
+          <span class="mp-page-search-item-title">${song.name}</span>
+          <span class="mp-page-search-item-artist"> - ${artist}</span>
+        </div>
+        <button class="mp-page-search-item-add-btn">添加</button>
+      `;
+      
+      item.querySelector('.mp-page-search-item-add-btn').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const btn = e.currentTarget;
+        btn.textContent = '添加中...';
+        btn.disabled = true;
+        
+        await this.addSongToPlaylist(song);
+        
+        btn.textContent = '已添加';
+        
+        // 尝试触发刷新设置页面的歌单 UI 列表呈现
+        if (this.playlistPage) {
+          if (typeof this.playlistPage.loadSongs === 'function') this.playlistPage.loadSongs();
+          else if (typeof this.playlistPage.loadSongsFromDB === 'function') this.playlistPage.loadSongsFromDB();
+          else if (typeof this.playlistPage.render === 'function') this.playlistPage.render();
+          else if (typeof this.playlistPage.renderList === 'function') this.playlistPage.renderList();
+          else if (typeof this.playlistPage.init === 'function') this.playlistPage.init();
+        }
+      });
+      
+      container.appendChild(item);
+    });
+  }
+
+  // 新增：处理悬浮面板的搜索功能
   async handleSearch() {
     const query = this.searchInput.value.trim();
     if (!query) return;
@@ -495,7 +714,6 @@ class MusicPlayer {
     this.searchResults.innerHTML = '<div class="mp-search-loading">弦音寻觅中...</div>';
 
     try {
-      // 优先方案：Meting 备用 API（返回带歌曲直链的统一结构）
       const url = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error("首选 API 异常");
@@ -506,9 +724,8 @@ class MusicPlayer {
       }
       this.renderSearchResults(data);
     } catch (e) {
-      console.warn("主搜索接口受限，正启用网易云备用源...", e);
+      console.warn("主搜索接口受阻，启用备选网易云镜像...", e);
       try {
-        // 备选方案：Autumnfish 网易云公开镜像服务
         const backupUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
         const backupResp = await fetch(backupUrl);
         if (!backupResp.ok) throw new Error("备选 API 异常");
@@ -520,7 +737,6 @@ class MusicPlayer {
           return;
         }
 
-        // 整理为统一播放直链结构（利用网易云官方免跨域的 MP3 直链，高稳定性）
         const formattedData = songs.slice(0, 15).map(song => ({
           id: song.id,
           name: song.name,
@@ -529,13 +745,13 @@ class MusicPlayer {
         }));
         this.renderSearchResults(formattedData);
       } catch (err) {
-        console.error("音乐搜索解析失败:", err);
+        console.error("搜索失败:", err);
         this.searchResults.innerHTML = `<div class="mp-search-empty">寻音受阻: ${err.message || '网络连接异常'}</div>`;
       }
     }
   }
 
-  // 新增：渲染搜索列表
+  // 新增：渲染悬浮面板的搜索列表
   renderSearchResults(songs) {
     this.searchResults.innerHTML = '';
     
@@ -567,19 +783,19 @@ class MusicPlayer {
     });
   }
 
-  // 新增：将选择的歌曲添加进本地 IndexedDB 库并自动开始播放
+  // 新增：通用将单曲存入 IndexedDB 播放列表的逻辑
   async addSongToPlaylist(songData) {
     const artistName = Array.isArray(songData.artist) ? songData.artist.join('/') : (songData.artist || '未知歌手');
     const songName = `${songData.name} - ${artistName}`;
     const playUrl = songData.url || `https://music.163.com/song/media/outer/url?id=${songData.id}.mp3`;
 
-    // 查重，如果已有此歌直接播放
+    // 查重：若列表存在这首歌，则直接切到那首歌播放即可
     const existsIdx = this.songs.findIndex(s => s.url === playUrl || s.name === songName);
     if (existsIdx !== -1) {
       this.isPlaying = true;
       await this.selectSong(existsIdx);
       if (this.audio.paused) {
-        this.audio.play().catch(err => console.log("播放受浏览器策略拦截:", err));
+        this.audio.play().catch(err => console.log("播放被浏览器拦截:", err));
       }
       return;
     }
@@ -589,23 +805,23 @@ class MusicPlayer {
         name: songName,
         url: playUrl
       };
-      // 保存至 IndexedDB
+      // 写入 IndexedDB
       await db.musicPlaylist.add(newSong);
       
-      // 更新本地状态列表
+      // 更新状态列表并取得最新数据
       await this.loadSongsFromDB();
       
-      // 自动播放最新导入的这首歌
+      // 自动播放最新加入的这一首歌曲
       const newIndex = this.songs.length - 1;
       if (newIndex >= 0) {
         this.isPlaying = true;
         await this.selectSong(newIndex);
         if (this.audio.paused) {
-          this.audio.play().catch(err => console.log("播放受浏览器策略拦截:", err));
+          this.audio.play().catch(err => console.log("播放被浏览器拦截:", err));
         }
       }
     } catch (e) {
-      console.error("保存新歌曲到 IndexedDB 失败:", e);
+      console.error("写入数据库失败:", e);
     }
   }
 
@@ -881,4 +1097,5 @@ class MusicPlayer {
 }
 
 export const playerInstance = new MusicPlayer();
+
 

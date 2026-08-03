@@ -1161,15 +1161,14 @@ function hideShuffling() {
 }
 
 async function schedulePendingReply() {
-  // 🟢 新增：如果是静默投递模式，提示并直接返回，不触发回复倒计时
+  // 🟢 静默拦截：如果开启了静默投递，直接返回，不触发任何思考 UI 和排程
   if (state.silentMode) {
-    toast('讯息已静默投递');
     return;
   }
 
   const cfg = (state.character && state.character.replyConfig) || {};
   const minD = Math.max(0, cfg.minReplyDelaySec || 0);
-
+  const maxD = Math.max(minD, cfg.maxReplyDelaySec || 0);
   if (maxD === 0) return;
 
   // 🟢 如果已经有等待回复的时间，且还没过期，直接沿用它，不重新计算
@@ -1192,7 +1191,6 @@ async function schedulePendingReply() {
 
 
 
-
 function showImmediateStatusIndicator() {
   if (state.destroyed) return;
 
@@ -1202,7 +1200,12 @@ function showImmediateStatusIndicator() {
   const cfg = (state.character && state.character.replyConfig) || {};
   const hints = (cfg.thinkingHints && cfg.thinkingHints.length) ? cfg.thinkingHints : DEFAULT_THINKING_HINTS;
 
-  showTyping(hints[0]);
+  // 🟢 新增：如果当前的 pendingReplyAt 距离现在超过 1 分钟，底部打字泡泡先隐藏，只启动顶部副标题的自定义文案轮播
+  const remain = (state.conv && state.conv.pendingReplyAt) ? (state.conv.pendingReplyAt - Date.now()) : 0;
+  if (remain <= 60000) {
+    showTyping(hints[0]);
+  }
+  
   startThinkingUI(hints);
 }
 
@@ -1219,15 +1222,43 @@ function scheduleTimers() {
   const typingDurationMs = 3000;
   const shuffleDurationMs = 1500;
 
-  // 🟢 新增：如果剩余回复时间超过 1 分钟，隐藏下方的打字指示器，仅在顶部副标题显示感知状态
-  if (remain > 60000) {
-    hideTyping();
-    startThinkingUI(['正在感知留言...', '静心寻觅字面...', '正在拼凑字卡...']);
+  if (remain > typingDurationMs + shuffleDurationMs) {
+    // 🟢 新增：如果在长倒计时期间（>1分钟），且底部气泡被隐藏了，我们在倒计时快进入最后洗牌与输入阶段之前，把自定义的初始思考提示展示出来
+    const triggerBubbleDelay = remain - (typingDurationMs + shuffleDurationMs) - 5000; // 在进入洗牌前 5 秒显示思考泡泡
+    if (triggerBubbleDelay > 0) {
+      state.thinkingTimer = setTimeout(() => {
+        if (state.destroyed) return;
+        showTyping(hints[0]);
+      }, triggerBubbleDelay);
+    }
+
+    // 🟢 以下完全保留你原本的分阶段计时逻辑
+    state.thinkingTimer = setTimeout(() => {
+      if (state.destroyed) return;
+      showShuffling();
+
+      state.thinkingTimer = setTimeout(() => {
+        if (state.destroyed) return;
+        showTyping("正在输入...");
+      }, shuffleDurationMs);
+
+    }, remain - (typingDurationMs + shuffleDurationMs));
+  } else if (remain > typingDurationMs) {
+    showShuffling();
+    state.thinkingTimer = setTimeout(() => {
+      if (state.destroyed) return;
+      showTyping("正在输入...");
+    }, remain - typingDurationMs);
+  } else {
+    showTyping("正在输入...");
   }
- state.replyTimer = setTimeout(() => {
+
+  state.replyTimer = setTimeout(() => {
+    if (state.destroyed) return;
     executeReply();
   }, remain);
 }
+
 
 
 function cancelTimers({ keepSubtitle } = {}) {
@@ -4370,7 +4401,8 @@ root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
         
         toast('对方已恢复接收，正在默默感知留言');
         
-        // 启动后台计时器
+        // 🟢 唤醒你原本的自定义思考状态与时间分段逻辑
+        showImmediateStatusIndicator();
         scheduleTimers();
       } else {
         // 用户手动开启静默模式 -> 取消当前还没发生的回复倒计时
@@ -4381,6 +4413,7 @@ root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
       }
     });
   }
+
 
 root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
 

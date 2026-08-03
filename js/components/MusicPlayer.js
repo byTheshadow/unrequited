@@ -30,7 +30,7 @@ class MusicPlayer {
     // 2. 初始化挂载全屏设置子页面
     this.playlistPage = new MusicPlaylistPage(this);
 
-    // 新增：劫持并拦截设置页面的 show 方法，在它打开时动态注入网络搜索框
+    // 劫持并拦截设置页面的 show 方法，在它打开时动态注入网络搜索框
     const originalShow = this.playlistPage.show;
     if (originalShow) {
       this.playlistPage.show = (...args) => {
@@ -357,7 +357,7 @@ class MusicPlayer {
     this.container.className = 'music-player-container';
     this.container.id = 'global-music-player';
 
-    // 悬浮徽章 HTML (增加根据 config.showFloatBadge 控制初始类)
+    // 悬浮徽章 HTML
     const badgeClass = this.config.showFloatBadge ? '' : ' hidden-badge';
     const badgeHTML = `
       <div class="music-player-badge${badgeClass}" id="mp-badge" title="弦音留白">
@@ -382,7 +382,7 @@ class MusicPlayer {
       </div>
     `;
 
-    // 播放面板 HTML (在右上角增加了搜索切换按钮，在 header 之下加入了搜索容器)
+    // 播放面板 HTML
     const panelHTML = `
       <div class="music-player-panel" id="mp-panel">
         <div class="mp-panel-decor">
@@ -401,7 +401,6 @@ class MusicPlayer {
             <div class="mp-song-status" id="mp-song-status">弦音静止</div>
           </div>
           <div class="mp-header-actions" style="display: flex; gap: 6px; align-items: center;">
-            <!-- 新增：搜索音乐触发按钮 -->
             <button class="mp-icon-btn" id="mp-search-toggle-btn" title="搜索音乐">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
@@ -417,7 +416,7 @@ class MusicPlayer {
           </div>
         </div>
 
-        <!-- 新增：悬浮面板的搜索 UI (默认折叠) -->
+        <!-- 悬浮面板的搜索 UI (默认折叠) -->
         <div class="mp-search-container" id="mp-search-container" style="display: none;">
           <div class="mp-search-box">
             <input type="text" id="mp-search-input" placeholder="输入歌名/歌手...">
@@ -473,7 +472,7 @@ class MusicPlayer {
     this.nextBtn = this.container.querySelector('#mp-next-btn');
     this.settingBtn = this.container.querySelector('#mp-setting-btn');
 
-    // 新增：绑定悬浮窗搜索 DOM
+    // 绑定悬浮窗搜索 DOM
     this.searchToggleBtn = this.container.querySelector('#mp-search-toggle-btn');
     this.searchContainer = this.container.querySelector('#mp-search-container');
     this.searchInput = this.container.querySelector('#mp-search-input');
@@ -551,7 +550,7 @@ class MusicPlayer {
       this.audio.currentTime = clickPercent * this.audio.duration;
     });
 
-    // 新增：悬浮面板的搜索事件绑定
+    // 悬浮面板的搜索事件绑定
     this.searchToggleBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isSearchVisible = this.searchContainer.style.display !== 'none';
@@ -580,7 +579,18 @@ class MusicPlayer {
     });
   }
 
-  // 新增：在设置/歌单管理页面中动态注入搜索模块的入口
+  // 跨域请求辅助函数：使用 allorigins 公共跨域代理获取数据
+  async fetchWithCorsProxy(url) {
+    // 包装为跨域代理 URL，绕过浏览器的同源 CORS 限制
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    const response = await fetch(proxyUrl);
+    if (!response.ok) throw new Error("跨域代理服务请求异常");
+    const container = await response.json();
+    // allorigins 会把源内容放在 contents 字段中
+    return JSON.parse(container.contents);
+  }
+
+  // 在设置/歌单管理页面中动态注入搜索模块
   injectSearchIntoPlaylistPage() {
     if (!this.playlistPage || !this.playlistPage.overlay) return;
     
@@ -597,7 +607,7 @@ class MusicPlayer {
       <div class="mp-page-search-results" id="mp-page-search-results"></div>
     `;
 
-    // 尽量把搜索输入框挂载在歌单列表的顶部上方
+    // 挂载在歌单列表的顶部上方
     const songListContainer = this.playlistPage.overlay.querySelector('.song-list, .playlist-list, [class*="list"]') 
       || this.playlistPage.overlay.querySelector('.mp-page-body, [class*="body"]')
       || this.playlistPage.overlay.firstElementChild;
@@ -608,7 +618,6 @@ class MusicPlayer {
       this.playlistPage.overlay.appendChild(searchWrapper);
     }
 
-    // 绑定设置页面的搜索事件
     const input = searchWrapper.querySelector('#mp-page-search-input');
     const btn = searchWrapper.querySelector('#mp-page-search-btn');
     const resultsContainer = searchWrapper.querySelector('#mp-page-search-results');
@@ -619,22 +628,21 @@ class MusicPlayer {
       resultsContainer.innerHTML = '<div class="mp-search-loading">弦音寻觅中...</div>';
       
       try {
-        const url = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("API Exception");
-        const data = await response.json();
+        // 使用跨域代理调用 Meting API
+        const targetUrl = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
+        const data = await this.fetchWithCorsProxy(targetUrl);
         if (!Array.isArray(data) || data.length === 0) throw new Error("No Results");
         
         this.renderPlaylistPageSearchResults(data, resultsContainer);
       } catch (e) {
-        // 备用网易云云音乐源
+        console.warn("主搜索代理失败，尝试备选源...", e);
         try {
-          const backupUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
-          const backupResp = await fetch(backupUrl);
-          const backupData = await backupResp.json();
+          // 备用：通过跨域代理请求公共网易云镜像接口
+          const targetUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
+          const backupData = await this.fetchWithCorsProxy(targetUrl);
           const songs = backupData.result?.songs;
           if (!songs || songs.length === 0) {
-            resultsContainer.innerHTML = '<div class="mp-search-empty">未搜索到相关音乐</div>';
+            resultsContainer.innerHTML = '<div class="mp-search-empty">未找到该歌曲</div>';
             return;
           }
           const formatted = songs.slice(0, 10).map(s => ({
@@ -645,7 +653,23 @@ class MusicPlayer {
           }));
           this.renderPlaylistPageSearchResults(formatted, resultsContainer);
         } catch (err) {
-          resultsContainer.innerHTML = '<div class="mp-search-empty">寻音受阻，请稍后再试</div>';
+          // 终极备用方案：免代理免跨域的国产公共免签 API
+          try {
+            const directUrl = `https://api.lolimi.cn/API/wysearch/?word=${encodeURIComponent(query)}`;
+            const resp = await fetch(directUrl);
+            const resData = await resp.json();
+            if (resData.code === 200 && Array.isArray(resData.data)) {
+              const formatted = resData.data.slice(0, 10).map(s => ({
+                id: s.id,
+                name: s.songs,
+                artist: [s.singers],
+                url: s.url || `https://music.163.com/song/media/outer/url?id=${s.id}.mp3`
+              }));
+              this.renderPlaylistPageSearchResults(formatted, resultsContainer);
+              return;
+            }
+          } catch(err2) {}
+          resultsContainer.innerHTML = '<div class="mp-search-empty">寻音受阻，所有 API 请求均被跨域拦截，请检查网络</div>';
         }
       }
     };
@@ -665,7 +689,7 @@ class MusicPlayer {
     });
   }
 
-  // 新增：渲染歌单设置页面内的搜索列表
+  // 渲染设置页面内的搜索列表
   renderPlaylistPageSearchResults(songs, container) {
     container.innerHTML = '';
     songs.slice(0, 10).forEach(song => {
@@ -692,7 +716,6 @@ class MusicPlayer {
         
         btn.textContent = '已添加';
         
-        // 尝试触发刷新设置页面的歌单 UI 列表呈现
         if (this.playlistPage) {
           if (typeof this.playlistPage.loadSongs === 'function') this.playlistPage.loadSongs();
           else if (typeof this.playlistPage.loadSongsFromDB === 'function') this.playlistPage.loadSongsFromDB();
@@ -706,7 +729,7 @@ class MusicPlayer {
     });
   }
 
-  // 新增：处理悬浮面板的搜索功能
+  // 处理悬浮面板的搜索功能
   async handleSearch() {
     const query = this.searchInput.value.trim();
     if (!query) return;
@@ -714,30 +737,24 @@ class MusicPlayer {
     this.searchResults.innerHTML = '<div class="mp-search-loading">弦音寻觅中...</div>';
 
     try {
-      const url = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("首选 API 异常");
+      // 优先通过跨域代理访问 Meting API
+      const targetUrl = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
+      const data = await this.fetchWithCorsProxy(targetUrl);
+      if (!Array.isArray(data) || data.length === 0) throw new Error("No results");
       
-      const data = await response.json();
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error("无结果");
-      }
       this.renderSearchResults(data);
     } catch (e) {
-      console.warn("主搜索接口受阻，启用备选网易云镜像...", e);
+      console.warn("悬浮面板主搜索代理异常，启用备用源...", e);
       try {
-        const backupUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
-        const backupResp = await fetch(backupUrl);
-        if (!backupResp.ok) throw new Error("备选 API 异常");
-        
-        const backupData = await backupResp.json();
+        const targetUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
+        const backupData = await this.fetchWithCorsProxy(targetUrl);
         const songs = backupData.result?.songs;
         if (!songs || songs.length === 0) {
           this.searchResults.innerHTML = '<div class="mp-search-empty">未寻得此曲</div>';
           return;
         }
 
-        const formattedData = songs.slice(0, 15).map(song => ({
+        const formattedData = songs.slice(0, 12).map(song => ({
           id: song.id,
           name: song.name,
           artist: song.artists ? song.artists.map(a => a.name) : ["未知歌手"],
@@ -745,13 +762,28 @@ class MusicPlayer {
         }));
         this.renderSearchResults(formattedData);
       } catch (err) {
-        console.error("搜索失败:", err);
-        this.searchResults.innerHTML = `<div class="mp-search-empty">寻音受阻: ${err.message || '网络连接异常'}</div>`;
+        // 终极备用方案：免代理免跨域的国产公共免签 API
+        try {
+          const directUrl = `https://api.lolimi.cn/API/wysearch/?word=${encodeURIComponent(query)}`;
+          const resp = await fetch(directUrl);
+          const resData = await resp.json();
+          if (resData.code === 200 && Array.isArray(resData.data)) {
+            const formatted = resData.data.slice(0, 12).map(s => ({
+              id: s.id,
+              name: s.songs,
+              artist: [s.singers],
+              url: s.url || `https://music.163.com/song/media/outer/url?id=${s.id}.mp3`
+            }));
+            this.renderSearchResults(formatted);
+            return;
+          }
+        } catch(err2) {}
+        this.searchResults.innerHTML = `<div class="mp-search-empty">寻音受阻: 请求均被跨域拦截</div>`;
       }
     }
   }
 
-  // 新增：渲染悬浮面板的搜索列表
+  // 渲染悬浮面板的搜索列表
   renderSearchResults(songs) {
     this.searchResults.innerHTML = '';
     
@@ -783,7 +815,7 @@ class MusicPlayer {
     });
   }
 
-  // 新增：通用将单曲存入 IndexedDB 播放列表的逻辑
+  // 通用将单曲存入 IndexedDB 播放列表的逻辑
   async addSongToPlaylist(songData) {
     const artistName = Array.isArray(songData.artist) ? songData.artist.join('/') : (songData.artist || '未知歌手');
     const songName = `${songData.name} - ${artistName}`;
@@ -1097,5 +1129,6 @@ class MusicPlayer {
 }
 
 export const playerInstance = new MusicPlayer();
+
 
 

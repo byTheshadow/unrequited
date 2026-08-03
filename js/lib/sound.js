@@ -22,6 +22,7 @@ function ensureCtx() {
     masterGain.gain.value = cache.muted ? 0 : cache.volume;
     masterGain.connect(ctx.destination);
   } catch (e) {
+    console.warn('[sound] 无法创建 AudioContext:', e);
     ctx = null;
   }
   return ctx;
@@ -75,9 +76,12 @@ export async function saveConfig(patch) {
 
 export function getConfig() { return { ...cache }; }
 
-function playBell(gainScale = 1) {
+function playBell(gainScale = 1, destination = null) {
   const c = ensureCtx();
   if (!c) return;
+  const dest = destination || masterGain;
+  if (!dest) return;
+
   const now = c.currentTime;
   const harmonics = [
     { f: 880, g: 1.0 },
@@ -93,20 +97,23 @@ function playBell(gainScale = 1) {
     gain.gain.exponentialRampToValueAtTime(g * gainScale, now + 0.005);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
     osc.connect(gain);
-    gain.connect(masterGain);
+    gain.connect(dest);
     osc.start(now);
     osc.stop(now + 0.55);
   });
 }
 
-function playChime(gainScale = 1) {
+function playChime(gainScale = 1, destination = null) {
   const c = ensureCtx();
   if (!c) return;
+  const dest = destination || masterGain;
+  if (!dest) return;
+
   const now = c.currentTime;
   const filter = c.createBiquadFilter();
   filter.type = 'lowpass';
   filter.frequency.value = 3000;
-  filter.connect(masterGain);
+  filter.connect(dest);
 
   const harmonics = [
     { f: 523.25, g: 1.0 },
@@ -133,7 +140,7 @@ function playChime(gainScale = 1) {
   delayGain.gain.value = 0.18 * gainScale;
   filter.connect(delay);
   delay.connect(delayGain);
-  delayGain.connect(masterGain);
+  delayGain.connect(dest);
 }
 
 async function loadCustomBuffer(url) {
@@ -152,9 +159,12 @@ async function loadCustomBuffer(url) {
   }
 }
 
-async function playCustom(url, gainScale = 1) {
+async function playCustom(url, gainScale = 1, destination = null) {
   const c = ensureCtx();
   if (!c) return;
+  const dest = destination || masterGain;
+  if (!dest) return;
+
   const buf = await loadCustomBuffer(url);
   if (!buf) return;
   const src = c.createBufferSource();
@@ -162,45 +172,70 @@ async function playCustom(url, gainScale = 1) {
   const gain = c.createGain();
   gain.gain.value = gainScale;
   src.connect(gain);
-  gain.connect(masterGain);
+  gain.connect(dest);
   src.start(0);
 }
 
 // which: 'user' | 'character'
 // convOption: 'inherit' | 'silent' | 'bell' | 'chime' | 'custom' | undefined
 // convCustomUrl: string | null | undefined
-export async function play(which, convOption, convCustomUrl) {
-  await loadConfig();
-  if (cache.muted) return;
+export function play(which, convOption, convCustomUrl) {
   if (document.visibilityState !== 'visible') return;
-  const c = ensureCtx();
-  if (!c || c.state !== 'running') return;
 
-  let type = cache.builtin;
-  let customUrl = cache.customUrl;
   const opt = convOption || 'inherit';
   if (opt === 'silent') return;
-  if (opt !== 'inherit') {
-    type = opt;
-    if (opt === 'custom') customUrl = convCustomUrl || cache.customUrl;
-  }
-  if (type === 'none' || !type) return;
 
-  const gainScale = which === 'user' ? 0.6 : 1.0;
-  if (type === 'bell') playBell(gainScale);
-  else if (type === 'chime') playChime(gainScale);
-  else if (type === 'custom') {
-    if (!customUrl) return;
-    playCustom(customUrl, gainScale);
+  // 1. 同步获取并激活 AudioContext，锁死手势响应
+  const c = ensureCtx();
+  if (!c) return;
+  if (c.state === 'suspended') {
+    try { c.resume().catch(() => {}); } catch (e) {}
+  }
+
+  const triggerPlay = () => {
+    if (cache.muted) return;
+
+    let type = cache.builtin;
+    let customUrl = cache.customUrl;
+    if (opt !== 'inherit') {
+      type = opt;
+      if (opt === 'custom') customUrl = convCustomUrl || cache.customUrl;
+    }
+    if (type === 'none' || !type) return;
+
+    const gainScale = which === 'user' ? 0.6 : 1.0;
+    if (type === 'bell') playBell(gainScale);
+    else if (type === 'chime') playChime(gainScale);
+    else if (type === 'custom') {
+      if (!customUrl) return;
+      playCustom(customUrl, gainScale).catch(() => {});
+    }
+  };
+
+  // 2. 如果配置已加载，同步触发播放（防止产生微任务丢失手势）
+  if (cache.loaded) {
+    triggerPlay();
+  } else {
+    // 降级兼容：如果尚未加载则异步加载后播放
+    loadConfig().then(() => {
+      triggerPlay();
+    }).catch(() => {});
   }
 }
 
 export async function preview(type, customUrl) {
-  await unlock();
-  await loadConfig();
+  // 试听直连 c.destination，彻底绕过 masterGain 的静音和音量限制
   const c = ensureCtx();
   if (!c) return;
-  if (type === 'bell') playBell(1);
-  else if (type === 'chime') playChime(1);
-  else if (type === 'custom' && customUrl) await playCustom(customUrl, 1);
+  if (c.state === 'suspended') {
+    try { await c.resume(); } catch (e) {}
+  }
+
+  if (type === 'bell') {
+    playBell(1, c.destination);
+  } else if (type === 'chime') {
+    playChime(1, c.destination);
+  } else if (type === 'custom' && customUrl) {
+    await playCustom(customUrl, 1, c.destination);
+  }
 }

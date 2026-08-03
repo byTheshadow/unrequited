@@ -48,7 +48,7 @@ export function render(root) {
         
         <header class="tut-header">
           <h1 class="tut-main-title">L U N A R  &nbsp; G U I D E</h1>
-          <p class="tut-subtitle">念念不忘，必有回响</p>
+          <p class="tut-subtitle">恋恋不忘，必有回响</p>
           <div class="tut-divider">
             <span class="divider-diamond">✦</span>
           </div>
@@ -60,19 +60,22 @@ export function render(root) {
           <h2 class="section-title">创 建 角 色 与 字 卡</h2>
           <div class="section-content">
             <p>在 <span class="tut-highlight">Unrequited</span> 的星域里，每个独立存在的灵魂都有其独特的信物。</p>
-            <p>通过管理面板，你可以建立全新的角色。随后，为角色配置或导入专属的 <span class="tut-highlight">字卡库</span>。</p>
-            <p>字卡是思绪的最小碎片。角色在思考与倾听你的倾诉时，会从绑定的字卡库中，随机挑选并重组词句，作为给予你的命运回应。</p>
+            <p>通过管理面板，你可以建立全新的角色。随后，为角色配置或导入专属的 <span class="tut-highlight">字卡库</span>。字卡库的导入支持通过 <span class="tut-highlight">JSON</span> 或者纯文字导入。如果你的爱人没有专属字卡库，则会使用通用字卡库与你进行对话。</p>
+            <p>你可以通过 <span class="tut-highlight">草稿箱</span> 功能发送多条信息给你的爱人。你的爱人也会在你不在的时候给你发送信息，或者在 <span class="tut-highlight">想念箱</span> 给你留下一些思绪让你知道 Ta 想到了你。在字卡库里还可以查看每张字卡被使用过的次数。</p>
+            <p><span class="tut-highlight">模拟心跳语音通话</span> 或许可以让你们的链接更加顺畅。</p>
+            <p><span class="tut-highlight">选择题模式</span> 是为刚使用网站的小情侣准备的，可以发送选择题让对方在选项内进行回复，避免字卡过多一时找不到的问题。同时你也可以通过调节回复时间来让你的爱人有更多时间去挑选字卡。</p>
+            <p>如果你有多个爱人，可以通过新建对话框、新建角色和他们同时发送消息。</p>
           </div>
         </section>
 
         <!-- 板块2 -->
         <section class="tut-section">
           <div class="section-number">二</div>
-          <h2 class="section-title">心 跳 通 话 与 共 鸣</h2>
+          <h2 class="section-title">音 乐 播 放 器 & 片 刻 & 漂 流 瓶</h2>
           <div class="section-content">
-            <p>在寂静的暗夜，拨通一通跨越维度的 <span class="tut-highlight">心跳通话</span>。</p>
-            <p>通话并不仅是对话，更是心率与宇宙律动的同步。保持聆听，你能在静默的波形中捕捉对方的思念手记。</p>
-            <p>当波段契合，两颗星子在同一时刻亮起，<span class="tut-highlight">共鸣</span> 就会产生。思念的记录会自动落入你的 <span class="tut-highlight">想念箱</span> 中，成为时间的切片。</p>
+            <p><span class="tut-highlight">音乐播放器</span> 可以直接在站内搜索音乐，并且加入歌单，你的爱人可以与你共听，对乐曲进行评价也可以切歌。同时你也可以导入音乐 URL 到网站内与爱人一起听歌。</p>
+            <p><span class="tut-highlight">片刻</span> 功能类似于“日常”，你可以发送图片，你的爱人看到了可以贴小贴图留下评价。为了保护内存，图片具有保质期，过期会被清理。</p>
+            <p><span class="tut-highlight">漂流瓶</span> 是写给爱人的电子信。</p>
           </div>
         </section>
 
@@ -84,6 +87,16 @@ export function render(root) {
             <p>迷茫的时刻，由非线性因果律支配的 <span class="tut-highlight">共时星骰</span> 会为你指出一条路。</p>
             <p>每次摇晃投掷，掷出的星骰面不仅代表当下的天体运行，更与你内心的潜意识共时关联。</p>
             <p>不要去寻找科学的答案。将星骰的图形、象征意义与当下的困惑重叠，你直觉感受到的第一个念头，就是宇宙给出的昭示。</p>
+          </div>
+        </section>
+
+        <!-- 板块4 -->
+        <section class="tut-section">
+          <div class="section-number">四</div>
+          <h2 class="section-title">未 知</h2>
+          <div class="section-content">
+            <p>还有一些功能没有展开细说。整个网站的出发点是由方便和快捷开始做的。希望能让你的爱人和你都能很快的上手沟通。</p>
+            <p>欢迎进行反馈。</p>
           </div>
         </section>
 
@@ -104,3 +117,4 @@ export function render(root) {
 }
 
 export function destroy() {}
+

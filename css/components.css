@@ -2632,242 +2632,7 @@
   100% { transform: translateY(-150px) scale(1.2) rotate(180deg); opacity: 0; }
 }
 
-/* ==========================================================================
-   五、 星图指引 (Tutorial) 特有样式与星座动效
-   ========================================================================== */
 
-.tutorial-container {
-  position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  display: flex;
-  flex-direction: column;
-  overflow-x: hidden;
-  padding-bottom: 60px;
-}
-
-/* 星图背景与动效容器 */
-.star-grid-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.constellation-svg {
-  width: 100%;
-  height: 100%;
-}
-
-/* --- 星座移动动效机制 --- */
-
-/* 星群1：缓慢做椭圆轨迹漂浮 */
-.constellation-group.group-1 {
-  animation: driftStarGroup1 35s ease-in-out infinite alternate;
-  transform-origin: 200px 150px;
-}
-
-/* 星群2：反向漂浮并伴随极慢的自转 */
-.constellation-group.group-2 {
-  animation: driftStarGroup2 40s ease-in-out infinite alternate;
-  transform-origin: 200px 500px;
-}
-
-/* 轨道虚线流动动效 */
-.orbit-path {
-  stroke-dasharray: 4, 8;
-  animation: orbitFlow 60s linear infinite;
-}
-.orbit-path.path-2 {
-  animation-direction: reverse;
-  animation-duration: 80s;
-}
-
-/* 单个星子的独立呼吸闪烁 */
-.twinkle-star {
-  animation: starTwinkle 4s ease-in-out infinite;
-}
-.twinkle-star:nth-child(2) { animation-delay: 1.5s; animation-duration: 5s; }
-.twinkle-star:nth-child(3) { animation-delay: 3s; animation-duration: 3.5s; }
-
-/* 星座连线的呼吸淡入淡出 */
-.constellation-line {
-  animation: linePulse 6s ease-in-out infinite alternate;
-}
-
-/* 动效关键帧 */
-@keyframes driftStarGroup1 {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  50% { transform: translate(15px, -20px) rotate(1deg); }
-  100% { transform: translate(-10px, 15px) rotate(-1.5deg); }
-}
-
-@keyframes driftStarGroup2 {
-  0% { transform: translate(0, 0) rotate(0deg); }
-  50% { transform: translate(-20px, 15px) rotate(-1.5deg); }
-  100% { transform: translate(12px, -15px) rotate(1deg); }
-}
-
-@keyframes orbitFlow {
-  to {
-    stroke-dashoffset: -500;
-  }
-}
-
-@keyframes starTwinkle {
-  0%, 100% { opacity: 0.3; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.15); }
-}
-
-@keyframes linePulse {
-  0% { opacity: 0.15; }
-  100% { opacity: 0.45; }
-}
-
-/* --- 静态手账排版样式 --- */
-.tutorial-top-bar {
-  position: relative;
-  z-index: 5;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
-}
-.tut-btn-circle {
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--color-text-secondary);
-  display: inline-flex; align-items: center; justify-content: center;
-  transition: background 0.2s, color 0.2s;
-}
-.tut-btn-circle:active {
-  background: rgba(255, 255, 255, 0.08);
-}
-.tut-title {
-  font-size: 13px;
-  letter-spacing: 6px;
-  font-weight: 500;
-  opacity: 0.8;
-}
-
-.tutorial-scroll-body {
-  position: relative;
-  z-index: 4;
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px 24px 40px;
-  display: flex;
-  flex-direction: column;
-}
-
-.tut-header {
-  text-align: center;
-  margin-top: 10px;
-  margin-bottom: 40px;
-}
-.tut-main-title {
-  font-family: serif, system-ui;
-  font-size: 20px;
-  font-weight: 300;
-  letter-spacing: 5px;
-  color: var(--color-text-primary);
-  margin-bottom: 8px;
-}
-.tut-subtitle {
-  font-size: 11px;
-  letter-spacing: 6px;
-  color: var(--color-text-secondary);
-  opacity: 0.6;
-}
-.tut-divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 16px;
-}
-.tut-divider::before, .tut-divider::after {
-  content: '';
-  width: 40px; height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-border));
-}
-.tut-divider::after {
-  background: linear-gradient(270deg, transparent, var(--color-border));
-}
-.divider-diamond {
-  font-size: 10px;
-  color: var(--color-accent);
-  margin: 0 8px;
-  opacity: 0.7;
-}
-
-.tut-section {
-  position: relative;
-  margin-bottom: 40px;
-  background: rgba(255, 255, 255, 0.01);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 24px 20px;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.section-number {
-  position: absolute;
-  top: -14px; left: 20px;
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  width: 26px; height: 26px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px;
-  color: var(--color-accent);
-  font-weight: 500;
-  z-index: 2;
-}
-.section-title {
-  font-size: 13px;
-  letter-spacing: 3px;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  margin-bottom: 14px;
-  border-left: 2px solid var(--color-accent);
-  padding-left: 8px;
-}
-.section-content {
-  font-size: 12px;
-  line-height: 1.8;
-  letter-spacing: 2px;
-  color: var(--color-text-secondary);
-  text-align: justify;
-}
-.section-content p {
-  margin-bottom: 10px;
-}
-.section-content p:last-child {
-  margin-bottom: 0;
-}
-.tut-highlight {
-  color: var(--color-accent);
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.05);
-  font-weight: 500;
-}
-
-.tut-footer {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 10px;
-  letter-spacing: 3px;
-  color: var(--color-text-tertiary);
-  line-height: 2;
-}
-.star-cluster {
-  margin-top: 10px;
-  color: var(--color-accent);
-  opacity: 0.5;
-  letter-spacing: 6px;
-}
 /* ==========================================================================
    四、 漂流瓶 (Drift) 与 教程 (Tutorial) 特有样式与动效
    ========================================================================== */
@@ -6452,4 +6217,456 @@
   border: 2px solid var(--color-bg-primary) !important;
   box-shadow: 0 0 6px #10b981 !important;
   box-sizing: border-box !important;
+}
+
+/* ==========================================================================
+   五、 星图指引 (Tutorial) 特有样式与星座动效
+   ========================================================================== */
+
+.tutorial-container {
+  position: relative;
+  height: 100vh;
+  height: 100dvh; /* 使用固定高度，防止双滚动条 */
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 裁剪外层溢出 */
+}
+
+/* 星图背景与动效容器 */
+.star-grid-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.constellation-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* --- 星座移动动效机制 --- */
+
+/* 星群1：缓慢做椭圆轨迹漂浮 */
+.constellation-group.group-1 {
+  animation: driftStarGroup1 35s ease-in-out infinite alternate;
+  transform-origin: 200px 150px;
+  will-change: transform; /* 开启硬件加速 */
+}
+
+/* 星群2：反向漂浮并伴随极慢的自转 */
+.constellation-group.group-2 {
+  animation: driftStarGroup2 40s ease-in-out infinite alternate;
+  transform-origin: 200px 500px;
+  will-change: transform; /* 开启硬件加速 */
+}
+
+/* 轨道虚线流动动效 */
+.orbit-path {
+  stroke-dasharray: 4, 8;
+  animation: orbitFlow 60s linear infinite;
+}
+.orbit-path.path-2 {
+  animation-direction: reverse;
+  animation-duration: 80s;
+}
+
+/* 单个星子的独立呼吸闪烁 */
+.twinkle-star {
+  animation: starTwinkle 4s ease-in-out infinite;
+  transform-origin: center;     /* 确保以星星自身中心点缩放 */
+  transform-box: fill-box;       /* 规范 SVG 盒模型定位 */
+  will-change: transform, opacity;
+}
+.twinkle-star:nth-child(2) { animation-delay: 1.5s; animation-duration: 5s; }
+.twinkle-star:nth-child(3) { animation-delay: 3s; animation-duration: 3.5s; }
+
+/* 星座连线的呼吸淡入淡出 */
+.constellation-line {
+  animation: linePulse 6s ease-in-out infinite alternate;
+  will-change: opacity;
+}
+
+/* 动效关键帧 */
+@keyframes driftStarGroup1 {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(15px, -20px) rotate(1deg); }
+  100% { transform: translate(-10px, 15px) rotate(-1.5deg); }
+}
+
+@keyframes driftStarGroup2 {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  50% { transform: translate(-20px, 15px) rotate(-1.5deg); }
+  100% { transform: translate(12px, -15px) rotate(1deg); }
+}
+
+@keyframes orbitFlow {
+  to {
+    stroke-dashoffset: -500;
+  }
+}
+
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+@keyframes linePulse {
+  0% { opacity: 0.15; }
+  100% { opacity: 0.45; }
+}
+
+/* --- 静态手账排版样式 --- */
+.tutorial-top-bar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(14px + env(safe-area-inset-top)) 16px 10px;
+}
+.tut-btn-circle {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--color-text-secondary);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.tut-btn-circle:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+.tut-title {
+  font-size: 13px;
+  letter-spacing: 6px;
+  font-weight: 500;
+  opacity: 0.8;
+}
+
+.tutorial-scroll-body {
+  position: relative;
+  z-index: 4;
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* 优化 iOS 滚动回弹 */
+  padding: 10px 24px calc(60px + env(safe-area-inset-bottom)); /* 移入底部 Padding，适配安全区 */
+  display: flex;
+  flex-direction: column;
+}
+
+.tut-header {
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 40px;
+}
+.tut-main-title {
+  font-family: serif, system-ui;
+  font-size: 20px;
+  font-weight: 300;
+  letter-spacing: 5px;
+  color: var(--color-text-primary);
+  margin-bottom: 8px;
+}
+.tut-subtitle {
+  font-size: 11px;
+  letter-spacing: 6px;
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+.tut-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+}
+.tut-divider::before, .tut-divider::after {
+  content: '';
+  width: 40px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-border));
+}
+.tut-divider::after {
+  background: linear-gradient(270deg, transparent, var(--color-border));
+}
+.divider-diamond {
+  font-size: 10px;
+  color: var(--color-accent);
+  margin: 0 8px;
+  opacity: 0.7;
+}
+
+.tut-section {
+  position: relative;
+  margin-bottom: 40px;
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.section-number {
+  position: absolute;
+  top: -14px; left: 20px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px;
+  color: var(--color-accent);
+  font-weight: 500;
+  z-index: 2;
+}
+.section-title {
+  font-size: 13px;
+  letter-spacing: 3px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-bottom: 14px;
+  border-left: 2px solid var(--color-accent);
+  padding-left: 8px;
+}
+.section-content {
+  font-size: 12px;
+  line-height: 1.8;
+  letter-spacing: 2px;
+  color: var(--color-text-secondary);
+  text-align: justify;
+}
+.section-content p {
+  margin-bottom: 10px;
+}
+.section-content p:last-child {
+  margin-bottom: 0;
+}
+.tut-highlight {
+  color: var(--color-accent);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.05);
+  font-weight: 500;
+}
+
+.tut-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--color-text-tertiary);
+  line-height: 2;
+}
+.star-cluster {
+  margin-top: 10px;
+  color: var(--color-accent);
+  opacity: 0.5;
+  letter-spacing: 6px;
+}
+/* ==========================================================================
+   六、 通灵仪式 (Commune) 与写信冲动特有样式 (适配 theme.css 规范)
+   ========================================================================== */
+
+/* 通灵撰写中 timeline 卡片 */
+.drift-timeline-item.item-impulse {
+  opacity: 0.85;
+}
+
+.drift-timeline-card.impulse-card {
+  border: 1px dashed var(--color-accent) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.01) 0%, rgba(128, 90, 213, 0.05) 100%);
+  box-shadow: 0 0 12px rgba(128, 90, 213, 0.15);
+  animation: impulsePulse 3s infinite ease-in-out;
+}
+
+@keyframes impulsePulse {
+  0%, 100% { 
+    box-shadow: 0 0 12px rgba(128, 90, 213, 0.15); 
+    border-color: rgba(128, 90, 213, 0.4) !important; 
+  }
+  50% { 
+    box-shadow: 0 0 20px rgba(128, 90, 213, 0.35); 
+    border-color: var(--color-accent) !important; 
+  }
+}
+
+.impulse-writing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--color-accent);
+  margin-top: 8px;
+}
+
+.impulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-accent);
+  border-radius: 50%;
+  animation: impulseDotPulse 1.2s infinite alternate;
+}
+.impulse-dot:nth-child(2) { animation-delay: 0.3s; }
+.impulse-dot:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes impulseDotPulse {
+  0% { opacity: 0.2; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
+
+/* 全屏通灵仪式遮罩 */
+.commune-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--color-bg-primary);
+  /* 使用毛玻璃提供深空交错感 */
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 渐变遮罩用于在浅色主题下调谐暗度 */
+.commune-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.3) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.commune-overlay.show {
+  opacity: 0.98;
+  pointer-events: auto;
+}
+
+.commune-portal {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portal-ring-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  opacity: 0.5;
+}
+
+.portal-ring-active {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 2px solid transparent;
+  border-top-color: var(--color-accent);
+  border-right-color: var(--color-text-secondary);
+  border-radius: 50%;
+  transform: rotate(0deg);
+  transition: transform 3s cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+
+.commune-overlay.charging .portal-ring-active {
+  transform: rotate(1080deg);
+}
+
+.portal-core {
+  width: 130px;
+  height: 130px;
+  background: radial-gradient(circle, rgba(128, 90, 213, 0.2) 0%, transparent 70%);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 0 20px rgba(128, 90, 213, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.portal-core:active {
+  transform: scale(0.96);
+  background-color: rgba(128, 90, 213, 0.1);
+  box-shadow: 0 0 35px rgba(128, 90, 213, 0.4);
+}
+
+.commune-title {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-top: 32px;
+  letter-spacing: 3px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.commune-desc {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: 12px;
+  max-width: 260px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.commune-close {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.commune-close:active {
+  opacity: 0.7;
+}
+
+/* 在线共鸣屏幕边缘微光波纹特效 */
+.resonance-ripple {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  box-shadow: inset 0 0 80px rgba(128, 90, 213, 0);
+  pointer-events: none;
+  z-index: 1999;
+  opacity: 0;
+  transition: opacity 1.5s ease-out;
+}
+
+.resonance-ripple.play {
+  animation: ripplePulse 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes ripplePulse {
+  0% { 
+    opacity: 0; 
+    box-shadow: inset 0 0 20px rgba(128, 90, 213, 0); 
+  }
+  20% { 
+    opacity: 0.85; 
+    box-shadow: inset 0 0 70px var(--color-accent); 
+  }
+  100% { 
+    opacity: 0; 
+    box-shadow: inset 0 0 30px rgba(128, 90, 213, 0); 
+  }
 }

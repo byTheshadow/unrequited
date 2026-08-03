@@ -39,8 +39,45 @@ class MusicPlayer {
     // 5. 监听全局自定义事件
     this.bindGlobalEvents();
 
-    // 6. 轮询对齐主界面上的月相图标
+    // 6. 注入手机端适配的布局防缩水/防拉伸样式修复
+    this.injectFixStyles();
+
+    // 7. 轮询对齐主界面上的月相图标
     this.startAlignWithMoonIcon();
+  }
+
+  // 注入样式修复：锁死音乐触发按钮大小，防止月相文字折行
+  injectFixStyles() {
+    if (document.getElementById('music-player-fix-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'music-player-fix-styles';
+    style.textContent = `
+      /* 强制约束音乐触发按钮的物理尺寸，防止其被 Flex 弹性拉伸 */
+      #music-page-trigger-btn {
+        flex: 0 0 38px !important;
+        width: 38px !important;
+        height: 38px !important;
+        min-width: 38px !important;
+        max-width: 38px !important;
+        min-height: 38px !important;
+        max-height: 38px !important;
+        box-sizing: border-box !important;
+        padding: 9px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        margin-left: 8px !important;
+      }
+      
+      /* 保护月相组件本身不被挤压变形 */
+      #moon-phase, 
+      .moon-phase, 
+      [class*="moon-phase"] {
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+      }
+    `;
+    document.head.appendChild(style);
   }
 
   async loadConfigFromDB() {
@@ -300,6 +337,10 @@ class MusicPlayer {
         Array.from(document.querySelectorAll('button, a, div, span')).find(el => el.textContent.includes('月相'));
 
       if (moonElement) {
+        // 双重保险：强制防止月相组件在真机布局下因空间挤压而垂直换行
+        moonElement.style.flexShrink = '0';
+        moonElement.style.whiteSpace = 'nowrap';
+
         if (!document.querySelector('#music-page-trigger-btn')) {
           const musicPageBtn = document.createElement(moonElement.tagName.toLowerCase() === 'button' ? 'button' : 'div');
           musicPageBtn.id = 'music-page-trigger-btn';
@@ -427,7 +468,7 @@ class MusicPlayer {
         if (!char) return;
 
         const switchReasons = [
-          "这首歌的频率太重了，我换一首了。",
+          "这首歌的频率太快了，我换一首了。",
           "节奏有点沉重，我想听点别的。",
           "换个心情吧，这首曲子太容易让人陷进回忆里。",
           "突然想听下一首了，你应该不会介意吧？",
@@ -523,3 +564,4 @@ class MusicPlayer {
 }
 
 export const playerInstance = new MusicPlayer();
+

@@ -1048,7 +1048,7 @@ function startCommuneRitual(choice) {
       }
 
       const charName = await getCharacterName(finalCharId);
-      title.innerText = '连接锁定！';
+      title.innerText = '连接锁定';
       desc.innerText = `你与 ${charName} 成功达成心灵羁绊。`;
       
       const now = Date.now();

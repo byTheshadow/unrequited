@@ -173,15 +173,37 @@ async function openNewConversationSheet() {
     close();
     navigate('/characters?new=1');
   });
-  root.querySelectorAll('.sheet-list-item').forEach((el) => {
+
+    root.querySelectorAll('.sheet-list-item').forEach((el) => {
     el.addEventListener('click', async () => {
       const cid = Number(el.getAttribute('data-cid'));
-      // 已存在的对话 → 直接进入；否则新建
+      
+      // 先关闭“选择角色”弹窗，避免与后面的确认弹窗重叠
+      close();
+      
+      // 检查是否已存在该角色的对话
       const existing = await db.conversations.where('characterId').equals(cid).first();
       let convoId;
+      
       if (existing) {
-        convoId = existing.id;
+        // 弹窗询问：确认（返回 true）则新建，取消（返回 false）则进入旧对话
+        const createNew = await confirmSheet('已存在该角色的对话，是否创建新对话？', {
+          okText: '新建对话',
+          cancelText: '进入旧对话'
+        });
+        
+        if (createNew) {
+          convoId = await db.conversations.add({
+            characterId: cid, title: '', wallpaper: '',
+            musicBar: null, lastMessage: '',
+            lastMessageTime: Date.now(), pinned: false,
+            createdAt: Date.now(),
+          });
+        } else {
+          convoId = existing.id;
+        }
       } else {
+        // 如果原本就没有对话，直接创建新对话
         convoId = await db.conversations.add({
           characterId: cid, title: '', wallpaper: '',
           musicBar: null, lastMessage: '',
@@ -189,10 +211,12 @@ async function openNewConversationSheet() {
           createdAt: Date.now(),
         });
       }
-      close();
+      
+      // 跳转到对应的聊天框
       navigate(`/chat?id=${convoId}`);
     });
   });
+
 }
 
 async function openConvActions(convId) {

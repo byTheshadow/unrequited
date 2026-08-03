@@ -3,15 +3,15 @@ import { goBack } from '../router.js';
 
 // 定义纯 SVG 图标以符合无 emoji 的规范
 const SVG_ICONS = {
-  back: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
+  back: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
   camera: `<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`,
   close: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-  trash: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
-  // 角色态度 SVG 图标 (代替情绪 Emoji)
-  like: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" class="reaction-heart"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
-  sparkle: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
-  star: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
-  moon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+  trash: `<svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
+  // 角色态度 SVG 图标面板
+  like: `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="color: #db5a5a;"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
+  sparkle: `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="color: #e2c067;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
+  star: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #6fb6cc;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
+  moon: `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="color: #a78bfa;"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
 };
 
 let timerInterval = null;
@@ -21,10 +21,10 @@ let timerInterval = null;
  */
 function formatCountdown(targetMs) {
   const diff = targetMs - Date.now();
-  if (diff <= 0) return '已消逝';
+  if (diff <= 0) return '已逝去';
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  return `余 ${hours}小时${mins}分`;
+  return `${hours}小时${mins}分后抹去`;
 }
 
 /**
@@ -52,8 +52,8 @@ function compressImage(file) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // 输出为 jpeg，画质 0.75
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+        // 输出为 jpeg，画质 0.7
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
         resolve(dataUrl);
       };
       img.onerror = () => reject(new Error('图片加载失败'));
@@ -79,14 +79,14 @@ async function cleanExpiredMoments() {
 /**
  * 新建片刻，并在后台排程模拟角色的字卡评价
  */
-async function addMoment(imageDataUrl, contentText, expiryHours) {
+async function addMoment(imageDataUrl, caption, expiryHours) {
   const now = Date.now();
   const expiryTimestamp = now + expiryHours * 60 * 60 * 1000;
 
-  // 1. 保存片刻实体与用户留字描述
+  // 1. 保存片刻实体与配文
   const momentId = await db.moments.add({
     image: imageDataUrl,
-    content: contentText.trim(),
+    caption: caption || '',
     timestamp: now,
     expiryTimestamp: expiryTimestamp
   });
@@ -102,9 +102,9 @@ async function addMoment(imageDataUrl, contentText, expiryHours) {
     }
   }
 
-  // 3. 读取真实角色表
+  // 3. 摇骰子决定哪些角色会评价，并预定在 24 小时内（或过期前）的随机时间评出
   let characters = await db.characters.toArray();
-  // Mock 兜底数据以保证在新账户无角色时可以演示
+  // 如果数据库里暂无任何角色，我们 Mock 三个默认人物以保证交互性
   if (characters.length === 0) {
     characters = [
       { id: 901, name: '林川' },
@@ -113,56 +113,42 @@ async function addMoment(imageDataUrl, contentText, expiryHours) {
     ];
   }
 
-  // 4. 读取真实字卡库数据
+  // 从玩家的字卡库中选择可用的字卡
   const allDecks = await db.decks.toArray();
+  let fragmentPool = [];
+  allDecks.forEach(d => {
+    if (d.fragments && Array.isArray(d.fragments)) {
+      fragmentPool.push(...d.fragments);
+    }
+  });
+
+  // fallback
+  if (fragmentPool.length === 0) {
+    fragmentPool = ["想你", "同频", "在思考", "安静", "刚好", "流动的光", "被发现了", "心动", "温柔", "晚安", "独自一人"];
+  }
 
   const icons = ['like', 'sparkle', 'star', 'moon'];
 
   for (const char of characters) {
-    // 摇骰子决定角色是否评价（75% 概率评价）
-    if (Math.random() < 0.75) {
-      // 随机分配 24小时 (或过期前) 的任意时间点进行评价
+    // 摇骰子：80% 概率会进行评价
+    if (Math.random() < 0.8) {
+      // 随机评价延迟：1分钟到 24小时内，或者保质期截止之前
       const maxDelay = Math.min(expiryHours * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
-      const minDelay = 60 * 1000; // 至少 1 分钟后出现评价，防穿帮
+      const minDelay = 60 * 1000; 
       const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay)) + minDelay;
       const scheduledTime = now + randomDelay;
 
-      // 提取针对该角色的专属字卡包，以及无角色绑定的通用字卡包
-      const specificDecks = allDecks.filter(d => d.bindCharacterId === char.id);
-      const generalDecks = allDecks.filter(d => !d.bindCharacterId);
-
-      let characterFragments = [];
-      specificDecks.forEach(d => {
-        if (d.fragments && Array.isArray(d.fragments)) {
-          characterFragments.push(...d.fragments);
-        }
-      });
-
-      // 如果专属字卡包词汇较少，混入通用字卡包词汇
-      if (characterFragments.length < 15) {
-        generalDecks.forEach(d => {
-          if (d.fragments && Array.isArray(d.fragments)) {
-            characterFragments.push(...d.fragments);
-          }
-        });
-      }
-
-      // 如果没有任何字卡（即库空状态下），提供情感词作为保底
-      if (characterFragments.length === 0) {
-        characterFragments = ["心动", "温柔", "同频", "想见你", "独自一人", "安静", "宇宙", "时空的缝隙", "灵魂共鸣"];
-      }
-
-      // 角色自主拼接：随机选择 2 至 4 张字卡
+      // 角色自行选择：从玩家字卡池随机抽取 2-4 个字卡拼接成评价
       const wordCount = Math.floor(Math.random() * 3) + 2;
       const selectedFragments = [];
       for (let i = 0; i < wordCount; i++) {
-        const rIdx = Math.floor(Math.random() * characterFragments.length);
-        selectedFragments.push(characterFragments[rIdx]);
+        const idx = Math.floor(Math.random() * fragmentPool.length);
+        selectedFragments.push(fragmentPool[idx]);
       }
 
+      // 角色选择一个态度 SVG 类型
       const reactionIcon = icons[Math.floor(Math.random() * icons.length)];
 
-      // 预存进互动表
       await db.momentInteractions.add({
         momentId: momentId,
         characterId: char.id,
@@ -184,24 +170,25 @@ export async function render(root) {
   const currentUploadCount = todaysMoments.length;
   const remainingUploads = Math.max(0, 3 - currentUploadCount);
 
+  // 渲染主体结构
   root.innerHTML = `
     <div class="moment-container">
-      
-      <!-- 极简悬浮返回键 -->
-      <button class="moment-floating-btn moment-back-btn" id="btn-moment-back" aria-label="返回">
+      <!-- 极简悬浮返回按钮，抛弃笨重长条 Header -->
+      <button class="moment-back-floating" id="btn-moment-back" aria-label="返回">
         ${SVG_ICONS.back}
       </button>
 
-      <!-- 极简悬浮额度气泡 -->
-      <div class="moment-floating-quota">
-        今日剩余 ${remainingUploads}/3
+      <!-- 顶部的今日余量极简提示 -->
+      <div class="moment-top-indicator">
+        <span class="indicator-tag">片刻</span>
+        <span class="indicator-quota">今日剩余 ${remainingUploads}/3 留存额度</span>
       </div>
 
       <main class="moment-feed" id="moment-feed-list">
         <!-- 动态加载列表 -->
       </main>
 
-      <!-- 极简相机上传按钮 -->
+      <!-- 悬浮相机按钮 -->
       <button class="moment-fab" id="btn-moment-upload-trigger" aria-label="定格瞬间" style="display: ${remainingUploads > 0 ? 'flex' : 'none'}">
         ${SVG_ICONS.camera}
       </button>
@@ -210,7 +197,7 @@ export async function render(root) {
       <div class="moment-sheet-overlay" id="moment-upload-sheet">
         <div class="moment-sheet">
           <div class="sheet-header">
-            <h3>定格此刻</h3>
+            <h3>定格当下</h3>
             <button class="sheet-close" id="btn-sheet-close">${SVG_ICONS.close}</button>
           </div>
           <div class="sheet-body">
@@ -218,23 +205,25 @@ export async function render(root) {
               <input type="file" id="moment-file-input" accept="image/*" style="display: none;" />
               <div class="picker-placeholder" id="picker-placeholder">
                 ${SVG_ICONS.camera}
-                <span>选择瞬时的光影记录</span>
+                <span>选择此刻的一幅画面</span>
               </div>
               <img id="photo-picker-preview" src="" style="display: none;" />
             </div>
 
-            <!-- 用户文字说明输入框 -->
-            <textarea class="moment-caption-input" id="moment-caption-input" placeholder="这一刻，你在想什么... (可选)" rows="2" maxlength="150"></textarea>
+            <!-- 配文输入区 -->
+            <div class="input-caption-box">
+              <textarea id="moment-caption-input" placeholder="输入此刻的心境与文字..." rows="3" maxlength="150"></textarea>
+            </div>
 
             <div class="expiry-selector">
-              <span class="selector-label">存在期限</span>
+              <span class="selector-label">保质期</span>
               <div class="selector-options">
                 <button class="expiry-opt-btn active" data-hours="24">24 小时</button>
                 <button class="expiry-opt-btn" data-hours="48">48 小时</button>
               </div>
             </div>
 
-            <button class="moment-submit-btn" id="btn-moment-submit" disabled>留存片刻</button>
+            <button class="moment-submit-btn" id="btn-moment-submit" disabled>定格留存</button>
           </div>
         </div>
       </div>
@@ -249,16 +238,15 @@ export async function render(root) {
         color: var(--color-text);
         font-family: inherit;
         position: relative;
-        padding-top: 60px; /* 避开顶部悬浮按钮的留白 */
+        padding-top: 24px;
       }
-      
-      /* 极简悬浮式返回键与额度标 */
-      .moment-floating-btn {
+      /* 极简悬浮返回 */
+      .moment-back-floating {
         position: fixed;
-        top: 16px;
-        left: 16px;
-        width: 34px;
-        height: 34px;
+        top: 20px;
+        left: 20px;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         background: var(--glass-bg);
         backdrop-filter: blur(var(--glass-blur));
@@ -269,38 +257,46 @@ export async function render(root) {
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        z-index: 100;
-        transition: transform 0.2s, color 0.2s;
+        z-index: 99;
+        transition: color 0.2s, background 0.2s;
       }
-      .moment-floating-btn:active {
-        transform: scale(0.9);
+      .moment-back-floating:active {
         color: var(--color-accent);
       }
-      .moment-floating-quota {
-        position: fixed;
-        top: 16px;
-        right: 16px;
-        padding: 6px 12px;
+      /* 顶部状态提示 */
+      .moment-top-indicator {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        gap: 4px;
+      }
+      .indicator-tag {
+        font-size: 14px;
+        letter-spacing: 0.2em;
+        font-weight: 300;
+        color: var(--color-text-primary);
+      }
+      .indicator-quota {
         font-size: 11px;
-        border-radius: 20px;
-        background: var(--glass-bg);
-        backdrop-filter: blur(var(--glass-blur));
-        -webkit-backdrop-filter: blur(var(--glass-blur));
-        border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
-        letter-spacing: 1px;
-        z-index: 100;
-        opacity: 0.8;
+        opacity: 0.6;
+        letter-spacing: 0.05em;
       }
 
+      /* 瀑布式的极简信息流 */
       .moment-feed {
         flex: 1;
+        padding: 16px;
         display: flex;
         flex-direction: column;
         gap: 32px;
-        padding: 16px 0 100px 0; /* 底部预留悬浮按钮位移 */
+        max-width: 480px;
+        margin: 0 auto;
+        width: 100%;
+        box-sizing: border-box;
       }
-      
       .empty-feed {
         display: flex;
         flex-direction: column;
@@ -308,26 +304,25 @@ export async function render(root) {
         justify-content: center;
         text-align: center;
         color: var(--color-text-secondary);
-        padding-top: 140px;
+        padding-top: 120px;
         font-size: 13px;
         line-height: 2;
         letter-spacing: 0.08em;
         opacity: 0.5;
       }
-
-      /* 极简 INS 风格卡片设计 */
+      
+      /* IG 风格卡片 */
       .moment-card {
+        background: transparent;
         display: flex;
         flex-direction: column;
-        background: transparent;
-        border-bottom: 1px solid rgba(var(--color-border-rgb, 255, 255, 255), 0.05);
-        padding-bottom: 24px;
       }
       .card-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0 16px 10px 16px;
+        margin-bottom: 8px;
+        padding: 0 4px;
       }
       .card-author {
         display: flex;
@@ -335,68 +330,52 @@ export async function render(root) {
         gap: 8px;
       }
       .author-avatar {
-        width: 28px;
-        height: 28px;
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
         background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--color-text-secondary);
-        border: 1px solid var(--color-border);
-      }
-      .author-name {
-        font-size: 13px;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-      }
-      .card-timer {
         font-size: 10px;
         color: var(--color-text-secondary);
+      }
+      .author-name {
+        font-size: 12.5px;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+      }
+      .card-timer {
+        font-size: 10.5px;
+        color: var(--color-text-secondary);
         opacity: 0.6;
-        font-variant-numeric: tabular-nums;
       }
 
+      /* 图片包裹区 */
       .card-image-wrapper {
         position: relative;
         width: 100%;
-        background: #000;
+        border-radius: 6px;
         overflow: hidden;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
       }
       .card-image {
         display: block;
         width: 100%;
         max-height: 380px;
         object-fit: cover;
-        transition: opacity 0.3s;
-        filter: brightness(0.85) contrast(1.02); /* 略带复古灰度微调 */
+        filter: brightness(0.85) contrast(1.02); /* 略带复古暗色的克制滤镜 */
       }
 
-      .card-footer {
+      /* 底部操作区 (极简删除) */
+      .card-meta-bar {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 8px 16px;
+        padding: 8px 4px 4px 4px;
       }
-
-      /* 用户发表的说明 (Caption) */
-      .card-user-caption {
-        padding: 0 16px 12px 16px;
-        font-size: 13px;
-        line-height: 1.6;
-        letter-spacing: 0.2px;
-      }
-      .caption-author {
-        font-weight: 600;
-        margin-right: 6px;
-      }
-      .caption-text {
-        color: var(--color-text-primary);
-        word-break: break-all;
-      }
-
       .delete-btn {
         background: none;
         border: none;
@@ -406,69 +385,71 @@ export async function render(root) {
         padding: 4px;
         display: flex;
         align-items: center;
-        transition: opacity 0.2s, color 0.2s;
+        transition: opacity 0.2s;
       }
       .delete-btn:hover {
-        opacity: 1;
-        color: var(--color-accent);
+        opacity: 0.8;
       }
 
-      /* INS 风格评论组 */
-      .card-interactions {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 0 16px;
-        margin-top: 4px;
-        border-top: 1px solid rgba(var(--color-border-rgb, 255, 255, 255), 0.03);
-        padding-top: 12px;
+      /* 自定义文字配文区 (Caption) */
+      .card-caption {
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--color-text-primary);
+        padding: 2px 4px 8px 4px;
+        letter-spacing: 0.02em;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       }
-      .interaction-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        font-size: 12px;
-        line-height: 1.6;
-      }
-      .interaction-content {
+
+      /* 表情包/态度面板区 */
+      .card-reactions-panel {
         display: flex;
         flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 4px;
+      }
+      .reaction-pill {
+        display: inline-flex;
         align-items: center;
-        gap: 3px;
-        flex: 1;
+        gap: 4px;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        border-radius: 12px;
+        padding: 2px 8px;
+        font-size: 11px;
+        color: var(--color-text-secondary);
       }
-      .interactor-name {
-        font-weight: 600;
-        margin-right: 6px;
+
+      /* 角色字卡拼贴评论区 */
+      .card-comments {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 4px 4px 8px 4px;
+      }
+      .comment-row {
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: var(--color-text-secondary);
+      }
+      .commenter-name {
+        font-weight: 500;
         color: var(--color-text-primary);
+        margin-right: 6px;
       }
-      
-      /* 行内块状字卡 */
-      .card-word-block {
+      .comment-word-block {
         display: inline-flex;
         align-items: center;
         background: var(--color-bg-secondary);
         border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
-        font-size: 11px;
+        font-size: 10.5px;
         padding: 1px 5px;
-        border-radius: 3px;
-        letter-spacing: 0.02em;
-        margin: 1px 0;
-      }
-      .interaction-reaction {
-        display: flex;
-        align-items: center;
-        color: var(--color-text-secondary);
-        opacity: 0.5;
-        padding-left: 10px;
-        flex-shrink: 0;
-      }
-      .reaction-heart {
-        color: #d85c5c;
+        border-radius: 4px;
+        margin-right: 3px;
       }
 
-      /* 悬浮上传相机按钮 (微调为玻璃底座与线条色) */
+      /* 悬浮上传按钮 */
       .moment-fab {
         position: fixed;
         bottom: 24px;
@@ -476,32 +457,30 @@ export async function render(root) {
         width: 48px;
         height: 48px;
         border-radius: 50%;
-        background: var(--glass-bg);
-        backdrop-filter: blur(var(--glass-blur));
-        -webkit-backdrop-filter: blur(var(--glass-blur));
+        background: var(--color-bg-secondary);
         border: 1px solid var(--color-border);
         color: var(--color-accent);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 16px var(--color-shadow);
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
         cursor: pointer;
-        z-index: 99;
+        z-index: 90;
         transition: transform 0.2s;
       }
       .moment-fab:active {
         transform: scale(0.9);
       }
 
-      /* 遮罩面板 */
+      /* 底部弹窗 */
       .moment-sheet-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.7);
-        z-index: 1000;
+        background: rgba(0, 0, 0, 0.65);
+        z-index: 100;
         display: none;
         align-items: flex-end;
       }
@@ -510,11 +489,11 @@ export async function render(root) {
         max-width: 480px;
         margin: 0 auto;
         background: var(--color-bg);
-        border-top-left-radius: 16px;
-        border-top-right-radius: 16px;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
         border-top: 1px solid var(--color-border);
-        animation: slideUp 0.35s cubic-bezier(0.15, 0.85, 0.6, 1);
-        padding-bottom: env(safe-area-inset-bottom);
+        animation: slideUp 0.25s cubic-bezier(0.1, 0.76, 0.55, 0.94);
+        padding-bottom: 24px;
       }
       @keyframes slideUp {
         from { transform: translateY(100%); }
@@ -524,7 +503,7 @@ export async function render(root) {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 16px 20px;
+        padding: 14px 20px;
         border-bottom: 1px solid var(--color-border);
       }
       .sheet-header h3 {
@@ -544,13 +523,13 @@ export async function render(root) {
         padding: 20px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 14px;
       }
       .photo-picker-box {
         width: 100%;
         aspect-ratio: 4/3;
         border: 1px dashed var(--color-border);
-        border-radius: 8px;
+        border-radius: 6px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -563,10 +542,10 @@ export async function render(root) {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         color: var(--color-text-secondary);
         font-size: 12px;
-        opacity: 0.6;
+        opacity: 0.7;
       }
       #photo-picker-preview {
         width: 100%;
@@ -574,29 +553,28 @@ export async function render(root) {
         object-fit: cover;
       }
       
-      /* 文字输入框 */
-      .moment-caption-input {
+      /* 配文输入样式 */
+      .input-caption-box textarea {
         width: 100%;
         background: var(--color-bg-secondary);
         border: 1px solid var(--color-border);
-        color: var(--color-text);
         border-radius: 6px;
-        padding: 10px;
-        font-size: 13px;
+        padding: 8px 12px;
+        color: var(--color-text);
         font-family: inherit;
+        font-size: 13px;
         resize: none;
         outline: none;
+        box-sizing: border-box;
       }
-      .moment-caption-input::placeholder {
-        color: var(--color-text-secondary);
-        opacity: 0.6;
+      .input-caption-box textarea:focus {
+        border-color: var(--color-accent);
       }
 
       .expiry-selector {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-top: 4px;
       }
       .expiry-selector .selector-label {
         font-size: 12px;
@@ -610,7 +588,7 @@ export async function render(root) {
         background: var(--color-bg-secondary);
         border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
-        padding: 5px 12px;
+        padding: 5px 10px;
         border-radius: 4px;
         font-size: 11px;
         cursor: pointer;
@@ -618,14 +596,14 @@ export async function render(root) {
       .expiry-opt-btn.active {
         border-color: var(--color-accent);
         color: var(--color-accent);
-        background: rgba(var(--color-accent-rgb, 200, 200, 200), 0.06);
+        background: rgba(255, 255, 255, 0.02);
       }
       .moment-submit-btn {
         width: 100%;
-        background: var(--color-text);
+        background: var(--color-text-primary);
         color: var(--color-bg);
         border: none;
-        padding: 12px;
+        padding: 10px;
         border-radius: 6px;
         font-size: 13px;
         font-weight: 500;
@@ -640,7 +618,6 @@ export async function render(root) {
     </style>
   `;
 
-  // 初始化 DOM 元素引用
   const feedList = root.querySelector('#moment-feed-list');
   const btnBack = root.querySelector('#btn-moment-back');
   const btnUploadTrigger = root.querySelector('#btn-moment-upload-trigger');
@@ -657,7 +634,7 @@ export async function render(root) {
   let selectedImageDataUrl = null;
   let selectedExpiryHours = 24;
 
-  // 加载数据与渲染列表
+  // 加载列表与渲染
   async function refreshFeed() {
     await cleanExpiredMoments();
     const moments = await db.moments.orderBy('timestamp').reverse().toArray();
@@ -676,7 +653,7 @@ export async function render(root) {
     let feedHtml = '';
 
     for (const m of moments) {
-      // 查询当前可展示的角色评论 (已到达计划展示时间 scheduledTime <= now)
+      // 获取当前可展示的角色评论和态度
       const interactions = await db.momentInteractions
         .where('momentId')
         .equals(m.id)
@@ -685,30 +662,34 @@ export async function render(root) {
 
       const timeStr = formatCountdown(m.expiryTimestamp);
 
-      // 用户自己的文字描述区域
-      const userCaptionHtml = m.content ? `
-        <div class="card-user-caption">
-          <span class="caption-author">我</span>
-          <span class="caption-text">${escapeHtml(m.content)}</span>
-        </div>
-      ` : '';
+      // 1. 构建角色态度表情面板
+      let reactionsPanelHtml = '';
+      if (interactions.length > 0) {
+        reactionsPanelHtml = `
+          <div class="card-reactions-panel">
+            ${interactions.map(item => {
+              const svgReaction = SVG_ICONS[item.reactionIcon] || SVG_ICONS.star;
+              return `
+                <div class="reaction-pill" title="${escapeHtml(item.characterName)} 的回应">
+                  ${svgReaction}
+                  <span>${escapeHtml(item.characterName)}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
 
-      // 组装评论列表的 html
+      // 2. 构建角色字卡拼接评论区
       let commentsHtml = '';
       if (interactions.length > 0) {
         commentsHtml = `
-          <div class="card-interactions">
+          <div class="card-comments">
             ${interactions.map(item => {
-              const reactionIconSvg = SVG_ICONS[item.reactionIcon] || SVG_ICONS.star;
               return `
-                <div class="interaction-row">
-                  <div class="interaction-content">
-                    <span class="interactor-name">${escapeHtml(item.characterName)}</span>
-                    ${(item.fragments || []).map(word => `<span class="card-word-block">${escapeHtml(word)}</span>`).join('')}
-                  </div>
-                  <div class="interaction-reaction" title="态度">
-                    ${reactionIconSvg}
-                  </div>
+                <div class="comment-row">
+                  <span class="commenter-name">${escapeHtml(item.characterName)}</span>
+                  ${(item.fragments || []).map(word => `<span class="comment-word-block">${escapeHtml(word)}</span>`).join('')}
                 </div>
               `;
             }).join('')}
@@ -725,16 +706,25 @@ export async function render(root) {
             </div>
             <span class="card-timer" data-expiry="${m.expiryTimestamp}">${timeStr}</span>
           </div>
+
           <div class="card-image-wrapper">
-            <img class="card-image" src="${m.image}" alt="瞬间" loading="lazy" />
+            <img class="card-image" src="${m.image}" alt="片刻" loading="lazy" />
           </div>
-          ${userCaptionHtml}
-          <div class="card-footer">
-            <button class="delete-btn" data-act="delete" data-id="${m.id}" title="擦除此瞬间">
+
+          <!-- 自定义配文 -->
+          ${m.caption ? `<div class="card-caption">${escapeHtml(m.caption)}</div>` : ''}
+
+          <!-- 态度微表情面板 -->
+          ${reactionsPanelHtml}
+
+          <!-- 字卡拼贴互动 -->
+          ${commentsHtml}
+
+          <div class="card-meta-bar">
+            <button class="delete-btn" data-act="delete" data-id="${m.id}" title="提前抹去">
               ${SVG_ICONS.trash}
             </button>
           </div>
-          ${commentsHtml}
         </div>
       `;
     }
@@ -752,25 +742,25 @@ export async function render(root) {
     uploadSheet.style.display = 'flex';
   });
 
-  // 绑定事件：关闭上传抽屉
+  // 绑定事件：关闭上传抽屉并重置表单
   const resetUploadForm = () => {
     uploadSheet.style.display = 'none';
     fileInput.value = '';
+    captionInput.value = '';
     previewImg.style.display = 'none';
     previewImg.src = '';
     placeholder.style.display = 'flex';
     selectedImageDataUrl = null;
-    captionInput.value = '';
     btnSubmit.disabled = true;
   };
   btnSheetClose.addEventListener('click', resetUploadForm);
 
-  // 绑定事件：拉起文件选择器
+  // 绑定事件：拉起相册
   photoPicker.addEventListener('click', () => {
     fileInput.click();
   });
 
-  // 绑定事件：图片文件选择与压缩
+  // 绑定事件：选择与压缩
   fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -784,16 +774,16 @@ export async function render(root) {
       previewImg.style.display = 'block';
       placeholder.style.display = 'none';
       btnSubmit.disabled = false;
-      btnSubmit.innerText = '留存片刻';
+      btnSubmit.innerText = '定格存下';
     } catch (err) {
       console.error(err);
       alert('图片压缩失败，请重试');
-      btnSubmit.innerText = '留存片刻';
+      btnSubmit.innerText = '定格留存';
       btnSubmit.disabled = true;
     }
   });
 
-  // 绑定事件：选择有效期
+  // 选择时效
   expiryBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       expiryBtns.forEach(b => b.classList.remove('active'));
@@ -802,26 +792,28 @@ export async function render(root) {
     });
   });
 
-  // 绑定事件：提交片刻
+  // 提交片刻
   btnSubmit.addEventListener('click', async () => {
     if (!selectedImageDataUrl) return;
 
     btnSubmit.disabled = true;
     btnSubmit.innerText = '定格中...';
 
+    const caption = captionInput.value.trim();
+
     try {
-      await addMoment(selectedImageDataUrl, captionInput.value, selectedExpiryHours);
+      await addMoment(selectedImageDataUrl, caption, selectedExpiryHours);
       resetUploadForm();
       await render(root);
     } catch (err) {
       console.error(err);
       alert('发布失败，请重试');
       btnSubmit.disabled = false;
-      btnSubmit.innerText = '留存片刻';
+      btnSubmit.innerText = '定格留存';
     }
   });
 
-  // 绑定事件：删除片刻操作
+  // 删除片刻
   feedList.addEventListener('click', async (e) => {
     const deleteBtn = e.target.closest('[data-act="delete"]');
     if (!deleteBtn) return;
@@ -833,10 +825,9 @@ export async function render(root) {
     }
   });
 
-  // 核心功能：首次渲染并启动倒计时高频计时器
   await refreshFeed();
 
-  // 启动 15 秒更新一次的计时器，自动刷新倒计时并执行物理过期清理
+  // 定时倒计时刷新与物理过期清理
   timerInterval = setInterval(async () => {
     const timers = feedList.querySelectorAll('.card-timer');
     const now = Date.now();

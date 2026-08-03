@@ -56,7 +56,7 @@ db.version(4).stores({
   musicPlaylist: '++id, name, url, bindCharacterId'
 });
 
-// 升级至版本 7：更新片刻 (moments) 支持保存用户文字描述 (content) 与 片刻互动表 (momentInteractions)
+// 升级至版本 7：将 moments 升级，支持 caption 字段，强刷本地缓存
 db.version(7).stores({
   user: '++id',
   characters: '++id, name, createdAt',
@@ -70,7 +70,7 @@ db.version(7).stores({
   driftLetters: '++id, characterId, timestamp, type, isRead',
   longFragments: '++id, content, createdAt',
   musicPlaylist: '++id, name, url, bindCharacterId',
-  moments: '++id, image, content, timestamp, expiryTimestamp', // 存储图片Base64、用户留字描述、发布时间与过期时间
+  moments: '++id, image, caption, timestamp, expiryTimestamp', // 增加 caption 存储用户配文
   momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments' // 角色评价计划表
 });
 

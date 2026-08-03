@@ -1225,7 +1225,7 @@ function scheduleTimers() {
     startThinkingUI(['正在感知留言...', '静心寻觅字面...', '正在拼凑字卡...']);
   }
 
-
+}
 
 
 function cancelTimers({ keepSubtitle } = {}) {

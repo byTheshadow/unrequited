@@ -696,22 +696,31 @@ class MusicPlayer {
         <button class="mp-page-search-item-add-btn">添加</button>
       `;
       
-      item.querySelector('.mp-page-search-item-add-btn').addEventListener('click', async (e) => {
+      const addBtn = item.querySelector('.mp-page-search-item-add-btn');
+      addBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const btn = e.currentTarget;
-        btn.textContent = '添加中...';
-        btn.disabled = true;
         
-        await this.addSongToPlaylist(song);
+        const originalText = addBtn.textContent;
+        addBtn.textContent = '添加中...';
+        addBtn.disabled = true;
         
-        btn.textContent = '已添加';
-        
-        if (this.playlistPage) {
-          if (typeof this.playlistPage.loadSongs === 'function') this.playlistPage.loadSongs();
-          else if (typeof this.playlistPage.loadSongsFromDB === 'function') this.playlistPage.loadSongsFromDB();
-          else if (typeof this.playlistPage.render === 'function') this.playlistPage.render();
-          else if (typeof this.playlistPage.renderList === 'function') this.playlistPage.renderList();
-          else if (typeof this.playlistPage.init === 'function') this.playlistPage.init();
+        try {
+          await this.addSongToPlaylist(song);
+          addBtn.textContent = '已添加';
+          
+          if (this.playlistPage) {
+            if (typeof this.playlistPage.loadSongs === 'function') this.playlistPage.loadSongs();
+            else if (typeof this.playlistPage.loadSongsFromDB === 'function') this.playlistPage.loadSongsFromDB();
+            else if (typeof this.playlistPage.render === 'function') this.playlistPage.render();
+            else if (typeof this.playlistPage.renderList === 'function') this.playlistPage.renderList();
+            else if (typeof this.playlistPage.init === 'function') this.playlistPage.init();
+          }
+        } catch (err) {
+          addBtn.textContent = '失败';
+          setTimeout(() => {
+            addBtn.textContent = originalText;
+            addBtn.disabled = false;
+          }, 2000);
         }
       });
       
@@ -760,7 +769,25 @@ class MusicPlayer {
       
       item.addEventListener('click', async (e) => {
         e.stopPropagation();
-        await this.addSongToPlaylist(song);
+        
+        if (item.classList.contains('adding')) return;
+        item.classList.add('adding');
+        
+        const addBtn = item.querySelector('.mp-search-item-add');
+        const originalSvg = addBtn.innerHTML;
+        addBtn.innerHTML = '⏳';
+        
+        try {
+          await this.addSongToPlaylist(song);
+          addBtn.innerHTML = '✓';
+        } catch (err) {
+          addBtn.innerHTML = '✗';
+        } finally {
+          setTimeout(() => {
+            item.classList.remove('adding');
+            addBtn.innerHTML = originalSvg;
+          }, 2000);
+        }
       });
       
       this.searchResults.appendChild(item);
@@ -771,26 +798,44 @@ class MusicPlayer {
   async addSongToPlaylist(songData) {
     const artistName = Array.isArray(songData.artist) ? songData.artist.join('/') : (songData.artist || '未知歌手');
     const songName = `${songData.name} - ${artistName}`;
-    const playUrl = songData.url || `https://music.163.com/song/media/outer/url?id=${songData.id}.mp3`;
+    let playUrl = songData.url || `https://music.163.com/song/media/outer/url?id=${songData.id}.mp3`;
 
-    // 查重：若列表存在这首歌，则直接切到那首歌播放即可
+    // 安全升级协议：强制将 http:// 升级为 https:// 以适配 GitHub Pages 环境，避免 Mixed Content 限制
+    if (playUrl.startsWith('http://')) {
+      playUrl = playUrl.replace('http://', 'https://');
+    }
+
+    this.showBubble("系统提示", `正在连接音源并加入列表...`);
+
+    // 内存查重
     const existsIdx = this.songs.findIndex(s => s.url === playUrl || s.name === songName);
     if (existsIdx !== -1) {
       this.isPlaying = true;
       await this.selectSong(existsIdx);
       if (this.audio.paused) {
-        this.audio.play().catch(err => console.log("播放被浏览器拦截:", err));
+        this.audio.play().catch(err => {
+          console.warn("播放受浏览器拦截:", err);
+          this.showBubble("系统提示", "播放受阻，请手动点击播放");
+        });
       }
+      this.showBubble("系统提示", `已切换到列表已有歌曲: ${songData.name}`);
       return;
     }
 
     try {
+      // 携带随机 id 主键，防止有些本地 IndexedDB schema 缺少主键自增造成抛错
       const newSong = {
+        id: Date.now() + Math.floor(Math.random() * 1000), 
         name: songName,
         url: playUrl
       };
-      // 写入 IndexedDB
-      await db.musicPlaylist.add(newSong);
+      
+      // 写入 IndexedDB (双保险，如果 add 被冲突，使用 put 覆盖)
+      try {
+        await db.musicPlaylist.add(newSong);
+      } catch (dbErr) {
+        await db.musicPlaylist.put(newSong);
+      }
       
       // 更新状态列表并取得最新数据
       await this.loadSongsFromDB();
@@ -801,15 +846,46 @@ class MusicPlayer {
         this.isPlaying = true;
         await this.selectSong(newIndex);
         if (this.audio.paused) {
-          this.audio.play().catch(err => console.log("播放被浏览器拦截:", err));
+          this.audio.play().catch(err => {
+            console.warn("自动播放受拦截:", err);
+          });
         }
       }
+      this.showBubble("系统提示", `已成功添加并播放: ${songData.name}`);
     } catch (e) {
       console.error("写入数据库失败:", e);
+      this.showBubble("系统提示", `数据库写入错误: ${e.message}`);
+      throw e; // 抛回给按钮事件以便能重置“添加”按钮状态
     }
   }
 
   bindAudioEvents() {
+    // 监听网络连接状态
+    this.audio.addEventListener('loadstart', () => {
+      this.songStatus.textContent = "正在连接...";
+    });
+
+    this.audio.addEventListener('waiting', () => {
+      this.songStatus.textContent = "音频缓冲中...";
+    });
+
+    this.audio.addEventListener('canplay', () => {
+      if (this.isPlaying) {
+        this.songStatus.textContent = "正在共鸣";
+      } else {
+        this.songStatus.textContent = "准备就绪";
+      }
+    });
+
+    // 监控音源异常事件（例如连接超时、403、跨域拦截）
+    this.audio.addEventListener('error', (e) => {
+      console.error("音频加载失败或跨域受阻:", e);
+      this.isPlaying = false;
+      this.updatePlayBtnVisual(false);
+      this.songStatus.textContent = "音源链接失效";
+      this.showBubble("系统提示", "抱歉，由于版权封锁或音源直链超时，此歌曲当前无法载入。");
+    });
+
     this.audio.addEventListener('timeupdate', () => {
       this.updateProgress();
       this.checkRoleAutoSwitch();
@@ -1081,3 +1157,4 @@ class MusicPlayer {
 }
 
 export const playerInstance = new MusicPlayer();
+

@@ -56,8 +56,8 @@ db.version(4).stores({
   musicPlaylist: '++id, name, url, bindCharacterId'
 });
 
-// 升级至版本 5：新增片刻 (moments) 与 片刻互动表 (momentInteractions)
-db.version(5).stores({
+// 升级至版本 7：更新片刻 (moments) 支持保存用户文字描述 (content) 与 片刻互动表 (momentInteractions)
+db.version(7).stores({
   user: '++id',
   characters: '++id, name, createdAt',
   conversations: '++id, characterId, pinned, lastMessageTime',
@@ -70,7 +70,7 @@ db.version(5).stores({
   driftLetters: '++id, characterId, timestamp, type, isRead',
   longFragments: '++id, content, createdAt',
   musicPlaylist: '++id, name, url, bindCharacterId',
-  moments: '++id, image, timestamp, expiryTimestamp', // 存储压缩后的图片 Base64、发布时间与过期时间
+  moments: '++id, image, content, timestamp, expiryTimestamp', // 存储图片Base64、用户留字描述、发布时间与过期时间
   momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments' // 角色评价计划表
 });
 

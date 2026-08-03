@@ -3,15 +3,15 @@ import { goBack } from '../router.js';
 
 // 定义纯 SVG 图标以符合无 emoji 的规范
 const SVG_ICONS = {
-  back: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
-  camera: `<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`,
+  back: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>`,
+  camera: `<svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>`,
   close: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
-  trash: `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
+  trash: `<svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`,
   // 角色态度 SVG 图标 (代替情绪 Emoji)
-  like: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" class="reaction-heart"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
-  sparkle: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
-  star: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
-  moon: `<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+  like: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor" class="reaction-heart"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
+  sparkle: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`,
+  star: `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
+  moon: `<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
 };
 
 let timerInterval = null;
@@ -21,7 +21,7 @@ let timerInterval = null;
  */
 function formatCountdown(targetMs) {
   const diff = targetMs - Date.now();
-  if (diff <= 0) return '即将逝去';
+  if (diff <= 0) return '已消逝';
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   return `余 ${hours}小时${mins}分`;
@@ -52,8 +52,8 @@ function compressImage(file) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
 
-        // 输出为 jpeg，画质 0.7
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        // 输出为 jpeg，画质 0.75
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
         resolve(dataUrl);
       };
       img.onerror = () => reject(new Error('图片加载失败'));
@@ -69,11 +69,9 @@ function compressImage(file) {
  */
 async function cleanExpiredMoments() {
   const now = Date.now();
-  // 查找过期的片刻
   const expired = await db.moments.filter(m => m.expiryTimestamp <= now).toArray();
   for (const m of expired) {
     await db.moments.delete(m.id);
-    // 级联删除相关的互动记录
     await db.momentInteractions.where('momentId').equals(m.id).delete();
   }
 }
@@ -81,13 +79,14 @@ async function cleanExpiredMoments() {
 /**
  * 新建片刻，并在后台排程模拟角色的字卡评价
  */
-async function addMoment(imageDataUrl, expiryHours) {
+async function addMoment(imageDataUrl, contentText, expiryHours) {
   const now = Date.now();
   const expiryTimestamp = now + expiryHours * 60 * 60 * 1000;
 
-  // 1. 保存片刻实体
+  // 1. 保存片刻实体与用户留字描述
   const momentId = await db.moments.add({
     image: imageDataUrl,
+    content: contentText.trim(),
     timestamp: now,
     expiryTimestamp: expiryTimestamp
   });
@@ -103,9 +102,9 @@ async function addMoment(imageDataUrl, expiryHours) {
     }
   }
 
-  // 3. 摇骰子决定哪些角色会评价，并预定在 24 小时内（或过期前）的随机时间评出
+  // 3. 读取真实角色表
   let characters = await db.characters.toArray();
-  // 如果数据库里暂无任何角色，我们 Mock 三个默认人物以保证交互性
+  // Mock 兜底数据以保证在新账户无角色时可以演示
   if (characters.length === 0) {
     characters = [
       { id: 901, name: '林川' },
@@ -114,43 +113,56 @@ async function addMoment(imageDataUrl, expiryHours) {
     ];
   }
 
-  // 获取系统的字卡库字词作为预设拼接池
+  // 4. 读取真实字卡库数据
   const allDecks = await db.decks.toArray();
-  let fragmentPool = [];
-  allDecks.forEach(d => {
-    if (d.fragments && Array.isArray(d.fragments)) {
-      fragmentPool.push(...d.fragments);
-    }
-  });
-
-  // 如果字卡库没有词，使用默认词池
-  if (fragmentPool.length === 0) {
-    fragmentPool = ["想你", "同频", "在思考", "安静", "刚好", "流动的光", "被发现了", "心动", "温柔", "晚安", "独自一人"];
-  }
 
   const icons = ['like', 'sparkle', 'star', 'moon'];
 
   for (const char of characters) {
-    // 摇骰子：70% 概率会进行评价
-    if (Math.random() < 0.7) {
-      // 随机评价延迟：在当前往后的 1 分钟到（保质期时长或 24 小时）之间
+    // 摇骰子决定角色是否评价（75% 概率评价）
+    if (Math.random() < 0.75) {
+      // 随机分配 24小时 (或过期前) 的任意时间点进行评价
       const maxDelay = Math.min(expiryHours * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
-      const minDelay = 60 * 1000; // 最少 1 分钟后出现，制造“对方正在看且评论”的体验
+      const minDelay = 60 * 1000; // 至少 1 分钟后出现评价，防穿帮
       const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay)) + minDelay;
       const scheduledTime = now + randomDelay;
 
-      // 角色自行选择：随机抽取 2-4 个字卡拼接成评语
-      const wordCount = Math.floor(Math.random() * 3) + 2; // 2到4个词
-      const selectedFragments = [];
-      for (let i = 0; i < wordCount; i++) {
-        const idx = Math.floor(Math.random() * fragmentPool.length);
-        selectedFragments.push(fragmentPool[idx]);
+      // 提取针对该角色的专属字卡包，以及无角色绑定的通用字卡包
+      const specificDecks = allDecks.filter(d => d.bindCharacterId === char.id);
+      const generalDecks = allDecks.filter(d => !d.bindCharacterId);
+
+      let characterFragments = [];
+      specificDecks.forEach(d => {
+        if (d.fragments && Array.isArray(d.fragments)) {
+          characterFragments.push(...d.fragments);
+        }
+      });
+
+      // 如果专属字卡包词汇较少，混入通用字卡包词汇
+      if (characterFragments.length < 15) {
+        generalDecks.forEach(d => {
+          if (d.fragments && Array.isArray(d.fragments)) {
+            characterFragments.push(...d.fragments);
+          }
+        });
       }
 
-      // 角色随机选择一个情感态度图标
+      // 如果没有任何字卡（即库空状态下），提供情感词作为保底
+      if (characterFragments.length === 0) {
+        characterFragments = ["心动", "温柔", "同频", "想见你", "独自一人", "安静", "宇宙", "时空的缝隙", "灵魂共鸣"];
+      }
+
+      // 角色自主拼接：随机选择 2 至 4 张字卡
+      const wordCount = Math.floor(Math.random() * 3) + 2;
+      const selectedFragments = [];
+      for (let i = 0; i < wordCount; i++) {
+        const rIdx = Math.floor(Math.random() * characterFragments.length);
+        selectedFragments.push(characterFragments[rIdx]);
+      }
+
       const reactionIcon = icons[Math.floor(Math.random() * icons.length)];
 
-      // 写入互动表
+      // 预存进互动表
       await db.momentInteractions.add({
         momentId: momentId,
         characterId: char.id,
@@ -164,7 +176,6 @@ async function addMoment(imageDataUrl, expiryHours) {
 }
 
 export async function render(root) {
-  // 进行过期清理
   await cleanExpiredMoments();
 
   // 获取今日发帖额度
@@ -173,20 +184,24 @@ export async function render(root) {
   const currentUploadCount = todaysMoments.length;
   const remainingUploads = Math.max(0, 3 - currentUploadCount);
 
-  // 渲染主体结构
   root.innerHTML = `
     <div class="moment-container">
-      <header class="moment-header">
-        <button class="header-btn" id="btn-moment-back" aria-label="返回">${SVG_ICONS.back}</button>
-        <h1 class="header-title">片刻</h1>
-        <span class="header-quota">今日剩余 ${remainingUploads}/3</span>
-      </header>
+      
+      <!-- 极简悬浮返回键 -->
+      <button class="moment-floating-btn moment-back-btn" id="btn-moment-back" aria-label="返回">
+        ${SVG_ICONS.back}
+      </button>
+
+      <!-- 极简悬浮额度气泡 -->
+      <div class="moment-floating-quota">
+        今日剩余 ${remainingUploads}/3
+      </div>
 
       <main class="moment-feed" id="moment-feed-list">
         <!-- 动态加载列表 -->
       </main>
 
-      <!-- 悬浮上传触发按钮 -->
+      <!-- 极简相机上传按钮 -->
       <button class="moment-fab" id="btn-moment-upload-trigger" aria-label="定格瞬间" style="display: ${remainingUploads > 0 ? 'flex' : 'none'}">
         ${SVG_ICONS.camera}
       </button>
@@ -203,10 +218,13 @@ export async function render(root) {
               <input type="file" id="moment-file-input" accept="image/*" style="display: none;" />
               <div class="picker-placeholder" id="picker-placeholder">
                 ${SVG_ICONS.camera}
-                <span>上传属于你的当下瞬间</span>
+                <span>选择瞬时的光影记录</span>
               </div>
               <img id="photo-picker-preview" src="" style="display: none;" />
             </div>
+
+            <!-- 用户文字说明输入框 -->
+            <textarea class="moment-caption-input" id="moment-caption-input" placeholder="这一刻，你在想什么... (可选)" rows="2" maxlength="150"></textarea>
 
             <div class="expiry-selector">
               <span class="selector-label">存在期限</span>
@@ -231,47 +249,58 @@ export async function render(root) {
         color: var(--color-text);
         font-family: inherit;
         position: relative;
+        padding-top: 60px; /* 避开顶部悬浮按钮的留白 */
       }
-      .moment-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 12px 16px;
-        border-bottom: 1px solid var(--color-border);
-        position: sticky;
-        top: 0;
-        background: var(--color-bg);
-        z-index: 10;
-      }
-      .header-btn {
-        background: none;
-        border: none;
+      
+      /* 极简悬浮式返回键与额度标 */
+      .moment-floating-btn {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
-        cursor: pointer;
-        padding: 4px;
         display: flex;
         align-items: center;
         justify-content: center;
+        cursor: pointer;
+        z-index: 100;
+        transition: transform 0.2s, color 0.2s;
       }
-      .header-title {
-        font-size: 16px;
-        font-weight: 500;
-        letter-spacing: 0.1em;
-        margin: 0;
+      .moment-floating-btn:active {
+        transform: scale(0.9);
+        color: var(--color-accent);
       }
-      .header-quota {
-        font-size: 12px;
+      .moment-floating-quota {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        padding: 6px 12px;
+        font-size: 11px;
+        border-radius: 20px;
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
+        border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
+        letter-spacing: 1px;
+        z-index: 100;
         opacity: 0.8;
       }
+
       .moment-feed {
         flex: 1;
-        padding: 16px;
         display: flex;
         flex-direction: column;
-        gap: 20px;
-        overflow-y: auto;
+        gap: 32px;
+        padding: 16px 0 100px 0; /* 底部预留悬浮按钮位移 */
       }
+      
       .empty-feed {
         display: flex;
         flex-direction: column;
@@ -279,23 +308,26 @@ export async function render(root) {
         justify-content: center;
         text-align: center;
         color: var(--color-text-secondary);
-        padding-top: 100px;
+        padding-top: 140px;
         font-size: 13px;
         line-height: 2;
-        letter-spacing: 0.05em;
-        opacity: 0.6;
+        letter-spacing: 0.08em;
+        opacity: 0.5;
       }
+
+      /* 极简 INS 风格卡片设计 */
       .moment-card {
-        background: var(--color-bg-secondary);
-        border-radius: 12px;
-        padding: 12px;
-        border: 1px solid var(--color-border);
+        display: flex;
+        flex-direction: column;
+        background: transparent;
+        border-bottom: 1px solid rgba(var(--color-border-rgb, 255, 255, 255), 0.05);
+        padding-bottom: 24px;
       }
       .card-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        padding: 0 16px 10px 16px;
       }
       .card-author {
         display: flex;
@@ -303,150 +335,173 @@ export async function render(root) {
         gap: 8px;
       }
       .author-avatar {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         border-radius: 50%;
-        background: var(--color-border);
+        background: var(--color-bg-secondary);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 10px;
+        font-size: 11px;
+        font-weight: 500;
         color: var(--color-text-secondary);
         border: 1px solid var(--color-border);
       }
       .author-name {
         font-size: 13px;
         font-weight: 600;
+        letter-spacing: 0.5px;
       }
       .card-timer {
-        font-size: 11px;
+        font-size: 10px;
         color: var(--color-text-secondary);
+        opacity: 0.6;
         font-variant-numeric: tabular-nums;
-        border: 1px solid var(--color-border);
-        padding: 2px 6px;
-        border-radius: 10px;
-        opacity: 0.8;
       }
+
       .card-image-wrapper {
         position: relative;
         width: 100%;
-        border-radius: 8px;
+        background: #000;
         overflow: hidden;
-        margin-bottom: 12px;
-        background: var(--color-bg);
       }
       .card-image {
         display: block;
         width: 100%;
-        max-height: 280px;
+        max-height: 380px;
         object-fit: cover;
-        filter: brightness(0.9) contrast(1.05); /* 低饱和克制滤镜 */
+        transition: opacity 0.3s;
+        filter: brightness(0.85) contrast(1.02); /* 略带复古灰度微调 */
       }
+
       .card-footer {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid var(--color-border);
-        padding-bottom: 8px;
-        margin-bottom: 8px;
+        padding: 8px 16px;
       }
+
+      /* 用户发表的说明 (Caption) */
+      .card-user-caption {
+        padding: 0 16px 12px 16px;
+        font-size: 13px;
+        line-height: 1.6;
+        letter-spacing: 0.2px;
+      }
+      .caption-author {
+        font-weight: 600;
+        margin-right: 6px;
+      }
+      .caption-text {
+        color: var(--color-text-primary);
+        word-break: break-all;
+      }
+
       .delete-btn {
         background: none;
         border: none;
         color: var(--color-text-secondary);
-        opacity: 0.5;
+        opacity: 0.4;
         cursor: pointer;
         padding: 4px;
         display: flex;
         align-items: center;
-        transition: opacity 0.2s;
+        transition: opacity 0.2s, color 0.2s;
       }
       .delete-btn:hover {
         opacity: 1;
         color: var(--color-accent);
       }
-      /* 社交评论区样式（模拟 Instagram 风格） */
+
+      /* INS 风格评论组 */
       .card-interactions {
         display: flex;
         flex-direction: column;
         gap: 8px;
+        padding: 0 16px;
+        margin-top: 4px;
+        border-top: 1px solid rgba(var(--color-border-rgb, 255, 255, 255), 0.03);
+        padding-top: 12px;
       }
       .interaction-row {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        font-size: 13px;
-        line-height: 1.5;
+        font-size: 12px;
+        line-height: 1.6;
       }
       .interaction-content {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 4px;
+        gap: 3px;
         flex: 1;
       }
       .interactor-name {
         font-weight: 600;
         margin-right: 6px;
-        color: var(--color-text);
+        color: var(--color-text-primary);
       }
-      /* 块状字卡块样式 */
+      
+      /* 行内块状字卡 */
       .card-word-block {
         display: inline-flex;
         align-items: center;
-        background: var(--color-bg);
+        background: var(--color-bg-secondary);
         border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
         font-size: 11px;
-        padding: 1px 6px;
-        border-radius: 4px;
-        margin: 1px;
-        letter-spacing: 0.03em;
+        padding: 1px 5px;
+        border-radius: 3px;
+        letter-spacing: 0.02em;
+        margin: 1px 0;
       }
       .interaction-reaction {
         display: flex;
         align-items: center;
         color: var(--color-text-secondary);
-        opacity: 0.6;
+        opacity: 0.5;
         padding-left: 10px;
         flex-shrink: 0;
       }
       .reaction-heart {
-        color: #e57373; /* 仅在态度心形中赋予轻微的暗红色强调，其余保持主题色 */
+        color: #d85c5c;
       }
 
-      /* 悬浮上传按钮 */
+      /* 悬浮上传相机按钮 (微调为玻璃底座与线条色) */
       .moment-fab {
         position: fixed;
         bottom: 24px;
         right: 24px;
-        width: 50px;
-        height: 50px;
+        width: 48px;
+        height: 48px;
         border-radius: 50%;
-        background: var(--color-bg-secondary);
+        background: var(--glass-bg);
+        backdrop-filter: blur(var(--glass-blur));
+        -webkit-backdrop-filter: blur(var(--glass-blur));
         border: 1px solid var(--color-border);
         color: var(--color-accent);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 16px var(--color-shadow);
         cursor: pointer;
-        z-index: 9;
+        z-index: 99;
         transition: transform 0.2s;
       }
       .moment-fab:active {
         transform: scale(0.9);
       }
 
-      /* 半透明遮罩底栏弹窗 */
+      /* 遮罩面板 */
       .moment-sheet-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: 100;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
         display: none;
         align-items: flex-end;
       }
@@ -458,8 +513,8 @@ export async function render(root) {
         border-top-left-radius: 16px;
         border-top-right-radius: 16px;
         border-top: 1px solid var(--color-border);
-        animation: slideUp 0.3s cubic-bezier(0.1, 0.76, 0.55, 0.94);
-        padding-bottom: 24px;
+        animation: slideUp 0.35s cubic-bezier(0.15, 0.85, 0.6, 1);
+        padding-bottom: env(safe-area-inset-bottom);
       }
       @keyframes slideUp {
         from { transform: translateY(100%); }
@@ -474,7 +529,7 @@ export async function render(root) {
       }
       .sheet-header h3 {
         margin: 0;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 500;
         letter-spacing: 0.05em;
       }
@@ -510,22 +565,41 @@ export async function render(root) {
         align-items: center;
         gap: 8px;
         color: var(--color-text-secondary);
-        font-size: 13px;
-        opacity: 0.7;
+        font-size: 12px;
+        opacity: 0.6;
       }
       #photo-picker-preview {
         width: 100%;
         height: 100%;
         object-fit: cover;
       }
+      
+      /* 文字输入框 */
+      .moment-caption-input {
+        width: 100%;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        color: var(--color-text);
+        border-radius: 6px;
+        padding: 10px;
+        font-size: 13px;
+        font-family: inherit;
+        resize: none;
+        outline: none;
+      }
+      .moment-caption-input::placeholder {
+        color: var(--color-text-secondary);
+        opacity: 0.6;
+      }
+
       .expiry-selector {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-top: 8px;
+        margin-top: 4px;
       }
       .expiry-selector .selector-label {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--color-text-secondary);
       }
       .selector-options {
@@ -536,15 +610,15 @@ export async function render(root) {
         background: var(--color-bg-secondary);
         border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: 5px 12px;
+        border-radius: 4px;
+        font-size: 11px;
         cursor: pointer;
       }
       .expiry-opt-btn.active {
         border-color: var(--color-accent);
         color: var(--color-accent);
-        background: rgba(var(--color-accent-rgb, 200, 200, 200), 0.05);
+        background: rgba(var(--color-accent-rgb, 200, 200, 200), 0.06);
       }
       .moment-submit-btn {
         width: 100%;
@@ -552,11 +626,11 @@ export async function render(root) {
         color: var(--color-bg);
         border: none;
         padding: 12px;
-        border-radius: 8px;
-        font-size: 14px;
+        border-radius: 6px;
+        font-size: 13px;
         font-weight: 500;
         cursor: pointer;
-        margin-top: 12px;
+        margin-top: 8px;
         transition: opacity 0.2s;
       }
       .moment-submit-btn:disabled {
@@ -578,6 +652,7 @@ export async function render(root) {
   const placeholder = root.querySelector('#picker-placeholder');
   const btnSubmit = root.querySelector('#btn-moment-submit');
   const expiryBtns = root.querySelectorAll('.expiry-opt-btn');
+  const captionInput = root.querySelector('#moment-caption-input');
 
   let selectedImageDataUrl = null;
   let selectedExpiryHours = 24;
@@ -609,6 +684,14 @@ export async function render(root) {
         .toArray();
 
       const timeStr = formatCountdown(m.expiryTimestamp);
+
+      // 用户自己的文字描述区域
+      const userCaptionHtml = m.content ? `
+        <div class="card-user-caption">
+          <span class="caption-author">我</span>
+          <span class="caption-text">${escapeHtml(m.content)}</span>
+        </div>
+      ` : '';
 
       // 组装评论列表的 html
       let commentsHtml = '';
@@ -645,8 +728,9 @@ export async function render(root) {
           <div class="card-image-wrapper">
             <img class="card-image" src="${m.image}" alt="瞬间" loading="lazy" />
           </div>
+          ${userCaptionHtml}
           <div class="card-footer">
-            <button class="delete-btn" data-act="delete" data-id="${m.id}" title="删除此片刻">
+            <button class="delete-btn" data-act="delete" data-id="${m.id}" title="擦除此瞬间">
               ${SVG_ICONS.trash}
             </button>
           </div>
@@ -676,6 +760,7 @@ export async function render(root) {
     previewImg.src = '';
     placeholder.style.display = 'flex';
     selectedImageDataUrl = null;
+    captionInput.value = '';
     btnSubmit.disabled = true;
   };
   btnSheetClose.addEventListener('click', resetUploadForm);
@@ -725,9 +810,8 @@ export async function render(root) {
     btnSubmit.innerText = '定格中...';
 
     try {
-      await addMoment(selectedImageDataUrl, selectedExpiryHours);
+      await addMoment(selectedImageDataUrl, captionInput.value, selectedExpiryHours);
       resetUploadForm();
-      // 重新加载视图
       await render(root);
     } catch (err) {
       console.error(err);
@@ -767,7 +851,6 @@ export async function render(root) {
       }
     });
 
-    // 若有失效数据，直接全局刷新（包含重新获取 DB 互动展示）
     if (hasExpired) {
       await refreshFeed();
     }

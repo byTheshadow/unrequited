@@ -7,6 +7,7 @@ class MusicPlayer {
     this.songs = [];
     this.currentIndex = -1;
     this.isPlaying = false;
+    this.toastTimer = null;
     
     // 初始化配置，增加“是否显示悬浮球”变量
     this.config = {
@@ -313,8 +314,53 @@ class MusicPlayer {
         background: rgba(255, 255, 255, 0.2);
         color: #fff;
       }
+
+      /* ================= 新增：全局 Toast 前台通知样式 ================= */
+      .mp-toast {
+        position: fixed;
+        top: 30px;
+        left: 50%;
+        transform: translate(-50%, -20px);
+        background: rgba(20, 20, 25, 0.95);
+        color: #fff;
+        padding: 10px 22px;
+        border-radius: 30px;
+        font-size: 13px;
+        font-weight: 500;
+        z-index: 9999999;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+        pointer-events: none;
+        opacity: 0;
+        transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        border: 1px solid rgba(255,255,255,0.15);
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      .mp-toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
     `;
     document.head.appendChild(style);
+  }
+
+  // 优雅的前端 Toast 通知工具
+  showToast(message, duration = 3000) {
+    let toast = document.getElementById('mp-global-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'mp-global-toast';
+      toast.className = 'mp-toast';
+      document.body.appendChild(toast);
+    }
+    
+    toast.textContent = message;
+    toast.classList.add('show');
+    
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastTimer = setTimeout(() => {
+      toast.classList.remove('show');
+    }, duration);
   }
 
   async loadConfigFromDB() {
@@ -700,6 +746,8 @@ class MusicPlayer {
       addBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         
+        if (addBtn.disabled) return;
+        
         const originalText = addBtn.textContent;
         addBtn.textContent = '添加中...';
         addBtn.disabled = true;
@@ -708,32 +756,39 @@ class MusicPlayer {
           await this.addSongToPlaylist(song);
           addBtn.textContent = '已添加';
           
-          // 强制刷新设置界面列表
+          // 强制刷新设置界面列表：同步内存数据并调用所有可能的加载与渲染方法
           if (this.playlistPage) {
+            this.playlistPage.songs = this.songs; // 同步数据给歌单页面
             const page = this.playlistPage;
-            const refreshMethods = ['loadSongs', 'loadSongsFromDB', 'render', 'renderList', 'init', 'updateList'];
-            let refreshed = false;
-            for (const method of refreshMethods) {
-              if (typeof page[method] === 'function') {
-                page[method]();
-                refreshed = true;
+            
+            // 数据重载
+            const loadMethods = ['loadSongs', 'loadSongsFromDB', 'initData'];
+            for (const m of loadMethods) {
+              if (typeof page[m] === 'function') {
+                try { page[m](); } catch(err) { console.error(err); }
               }
             }
-            if (!refreshed) {
-              console.warn("未找到标准的刷新方法，尝试强制刷新页面 DOM");
+            
+            // 界面重绘
+            const renderMethods = ['render', 'renderList', 'renderSongs', 'renderPlaylist', 'refresh', 'refreshList', 'update', 'updateList', 'init'];
+            for (const m of renderMethods) {
+              if (typeof page[m] === 'function') {
+                try { page[m](); } catch(err) { console.error(err); }
+              }
             }
           }
         } catch (err) {
-          // 如果是因为浏览器拦截了播放导致的报错，但实际上歌曲已经存入 this.songs，我们依然认为添加成功了
+          // 检查是否其实已经添加成功了（如果只是自动播放被阻碍的话，仍然算添加成功）
           const exists = this.songs.some(s => s.name.includes(song.name));
           if (exists) {
             addBtn.textContent = '已添加';
-            if (this.playlistPage && typeof this.playlistPage.init === 'function') {
-              this.playlistPage.init();
+            if (this.playlistPage) {
+              this.playlistPage.songs = this.songs;
+              if (typeof this.playlistPage.init === 'function') this.playlistPage.init();
             }
           } else {
             addBtn.textContent = '失败';
-            alert(`添加失败，请检查网络或数据库状态: ${err.message || err}`);
+            this.showToast(`添加失败: ${err.message || err}`);
             setTimeout(() => {
               addBtn.textContent = originalText;
               addBtn.disabled = false;
@@ -823,9 +878,9 @@ class MusicPlayer {
       playUrl = playUrl.replace('http://', 'https://');
     }
 
-    // 同时在气泡和控制台/通知栏输出提示
+    // 前台弹窗通告用户正在拉取音频连接
+    this.showToast(`正在连接音源并加入列表...`);
     this.showBubble("系统提示", `正在连接音源并加入列表...`);
-    console.log(`[MusicPlayer] 正在连接音源并加入列表: ${songName}`);
 
     // 内存查重
     const existsIdx = this.songs.findIndex(s => s.url === playUrl || s.name === songName);
@@ -837,7 +892,7 @@ class MusicPlayer {
           await this.audio.play();
         } catch (err) {
           console.warn("播放受浏览器拦截:", err);
-          alert("已定位到已有歌曲，但自动播放受浏览器安全策略拦截，请手动点击播放面板的『播放』按钮。");
+          this.showToast("已切换已有歌曲。自动播放受限，请手动点击播放");
         }
       }
       this.showBubble("系统提示", `已切换到列表已有歌曲: ${songData.name}`);
@@ -866,22 +921,19 @@ class MusicPlayer {
       const newIndex = this.songs.length - 1;
       if (newIndex >= 0) {
         this.isPlaying = true;
-        await this.selectSong(newIndex);
-        if (this.audio.paused) {
-          try {
-            await this.audio.play();
-          } catch (err) {
-            console.warn("自动播放受拦截:", err);
-            // 提示用户需要交互才能播放
-            alert(`已成功添加《${songData.name}》到播放列表！\n由于浏览器安全限制，请手动点击播放面板的播放按钮开始播放。`);
-          }
+        try {
+          await this.selectSong(newIndex);
+        } catch (playErr) {
+          console.warn("自动播放受浏览器拦截:", playErr);
+          this.showToast(`已成功添加《${songData.name}》。请手动点击播放。`);
         }
       }
       this.showBubble("系统提示", `已成功添加并播放: ${songData.name}`);
+      this.showToast(`已成功添加并开始共鸣: ${songData.name}`);
     } catch (e) {
       console.error("写入数据库失败:", e);
       this.showBubble("系统提示", `数据库写入错误: ${e.message}`);
-      alert(`添加歌曲失败：${e.message || 'IndexedDB 写入异常'}`);
+      this.showToast(`添加失败: ${e.message}`);
       throw e; // 抛回给按钮事件以便能重置“添加”按钮状态
     }
   }
@@ -890,10 +942,12 @@ class MusicPlayer {
     // 监听网络连接状态
     this.audio.addEventListener('loadstart', () => {
       this.songStatus.textContent = "正在连接...";
+      this.showToast("正在连接音源...", 1500);
     });
 
     this.audio.addEventListener('waiting', () => {
       this.songStatus.textContent = "音频缓冲中...";
+      this.showToast("音频缓冲中...", 1500);
     });
 
     this.audio.addEventListener('canplay', () => {
@@ -910,8 +964,7 @@ class MusicPlayer {
       this.isPlaying = false;
       this.updatePlayBtnVisual(false);
       this.songStatus.textContent = "音源链接失效";
-      // 弹出明确提示，防止用户以为“卡住”了
-      alert("抱歉，由于版权封锁或音源直链超时，此歌曲当前无法载入。请尝试搜索其他歌曲。");
+      this.showToast("抱歉，由于版权封锁或音源直链超时，此歌曲当前无法载入。");
       this.showBubble("系统提示", "抱歉，由于版权封锁或音源直链超时，此歌曲当前无法载入。");
     });
 
@@ -1000,7 +1053,10 @@ class MusicPlayer {
     if (this.isPlaying) {
       this.audio.pause();
     } else {
-      this.audio.play().catch(e => console.log("播放被浏览器拦截，需用户手动交互激活:", e));
+      this.audio.play().catch(e => {
+        console.log("播放被浏览器拦截，需用户手动交互激活:", e);
+        this.showToast("播放受阻，请手动点击播放按钮激活");
+      });
     }
   }
 
@@ -1013,12 +1069,16 @@ class MusicPlayer {
     this.audio.src = song.url;
     this.updatePanelDisplay();
     
-    if (this.isPlaying) {
-      try {
-        await this.audio.play();
-      } catch (e) {
-        console.log("媒体切换受阻:", e);
-      }
+    // 强制更改为播放状态，无论之前是否暂停
+    this.isPlaying = true;
+    this.updatePlayBtnVisual(true);
+    
+    try {
+      await this.audio.play();
+    } catch (e) {
+      console.warn("媒体切换/自动播放受阻:", e);
+      this.songStatus.textContent = "播放受阻";
+      this.showToast("自动播放受阻，请手动点击播放按钮激活");
     }
     
     this.triggerReactionBubble(false);
@@ -1186,5 +1246,4 @@ class MusicPlayer {
 }
 
 export const playerInstance = new MusicPlayer();
-
 

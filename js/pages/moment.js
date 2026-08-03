@@ -1,3 +1,4 @@
+
 import { db } from '../db.js';
 import { goBack } from '../router.js';
 
@@ -102,63 +103,43 @@ async function addMoment(imageDataUrl, caption, expiryHours) {
     }
   }
 
-  // 3. 摇骰子决定哪些角色会评价，并预定在 24 小时内（或过期前）的随机时间评出
-  let characters = await db.characters.toArray();
-  // 如果数据库里暂无任何角色，我们 Mock 三个默认人物以保证交互性
-  if (characters.length === 0) {
-    characters = [
-      { id: 901, name: '林川' },
-      { id: 902, name: '苏眠' },
-      { id: 903, name: '陆白' }
-    ];
-  }
+  // 3. 动态触发角色回应（例如 1~8 秒内）
+  setTimeout(async () => {
+    try {
+      const activeChar = await db.characters.toArray();
+      if (!activeChar || activeChar.length === 0) return;
+      
+      const numInteractions = Math.min(activeChar.length, Math.floor(Math.random() * 2) + 1);
+      const shuffled = [...activeChar].sort(() => 0.5 - Math.random());
+      
+      for (let i = 0; i < numInteractions; i++) {
+        const char = shuffled[i];
+        const delay = (i + 1) * (1000 + Math.random() * 2000);
+        
+        const reactionIcons = ['like', 'sparkle', 'star', 'moon'];
+        const randomIcon = reactionIcons[Math.floor(Math.random() * reactionIcons.length)];
+        
+        const possibleFragments = ['好美', '这一刻', '定格', '记录', '光影', '温柔', '日常', '心动', '瞬间', '流逝'];
+        const randomFragments = [];
+        const fragCount = Math.floor(Math.random() * 3) + 1;
+        for (let j = 0; j < fragCount; j++) {
+          const w = possibleFragments[Math.floor(Math.random() * possibleFragments.length)];
+          if (!randomFragments.includes(w)) randomFragments.push(w);
+        }
 
-  // 从玩家的字卡库中选择可用的字卡
-  const allDecks = await db.decks.toArray();
-  let fragmentPool = [];
-  allDecks.forEach(d => {
-    if (d.fragments && Array.isArray(d.fragments)) {
-      fragmentPool.push(...d.fragments);
-    }
-  });
-
-  // 兜底字卡词池
-  if (fragmentPool.length === 0) {
-    fragmentPool = ["想你", "同频", "在思考", "安静", "刚好", "流动的光", "被发现了", "心动", "温柔", "晚安", "独自一人"];
-  }
-
-  const icons = ['like', 'sparkle', 'star', 'moon'];
-
-  for (const char of characters) {
-    // 摇骰子：80% 概率会进行评价
-    if (Math.random() < 0.8) {
-      // 随机评价延迟：1分钟到 24小时内，或者保质期截止之前
-      const maxDelay = Math.min(expiryHours * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
-      const minDelay = 60 * 1000; 
-      const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay)) + minDelay;
-      const scheduledTime = now + randomDelay;
-
-      // 角色自行选择：从玩家字卡池随机抽取 2-4 个字卡拼接成评价
-      const wordCount = Math.floor(Math.random() * 3) + 2;
-      const selectedFragments = [];
-      for (let i = 0; i < wordCount; i++) {
-        const idx = Math.floor(Math.random() * fragmentPool.length);
-        selectedFragments.push(fragmentPool[idx]);
+        await db.momentInteractions.add({
+          momentId: momentId,
+          characterId: char.id,
+          characterName: char.name,
+          reactionIcon: randomIcon,
+          fragments: randomFragments,
+          scheduledTime: Date.now() + delay
+        });
       }
-
-      // 角色选择一个态度 SVG 类型
-      const reactionIcon = icons[Math.floor(Math.random() * icons.length)];
-
-      await db.momentInteractions.add({
-        momentId: momentId,
-        characterId: char.id,
-        characterName: char.name,
-        scheduledTime: scheduledTime,
-        reactionIcon: reactionIcon,
-        fragments: selectedFragments
-      });
+    } catch (e) {
+      console.error('自动分配评价报错', e);
     }
-  }
+  }, 100);
 }
 
 export async function render(root) {
@@ -193,38 +174,84 @@ export async function render(root) {
         ${SVG_ICONS.camera}
       </button>
 
-      <!-- 上传底部弹窗 -->
+      <!-- 全新全屏重构：Instagram Story 编辑风格的上传弹窗 -->
       <div class="moment-sheet-overlay" id="moment-upload-sheet">
-        <div class="moment-sheet">
-          <div class="sheet-header">
-            <h3>定格当下</h3>
-            <button class="sheet-close" id="btn-sheet-close">${SVG_ICONS.close}</button>
-          </div>
-          <div class="sheet-body">
-            <div class="photo-picker-box" id="photo-picker-trigger">
-              <input type="file" id="moment-file-input" accept="image/*" style="display: none;" />
-              <div class="picker-placeholder" id="picker-placeholder">
-                ${SVG_ICONS.camera}
-                <span>选择此刻的一幅画面</span>
+        <div class="story-editor-container">
+          
+          <!-- 主预览及创作区 -->
+          <div class="story-editor-main" id="photo-picker-trigger">
+            <input type="file" id="moment-file-input" accept="image/*" style="display: none;" />
+            
+            <!-- 占位提示符（未选择图片时） -->
+            <div class="picker-placeholder" id="picker-placeholder">
+              <div class="picker-camera-icon">${SVG_ICONS.camera}</div>
+              <span>选择此刻的一幅画面</span>
+            </div>
+
+            <!-- 背景预览大图 -->
+            <img id="photo-picker-preview" src="" style="display: none;" />
+            
+            <!-- 顶部悬浮工具栏 -->
+            <div class="story-top-tools">
+              <button class="tool-btn" id="btn-sheet-close" type="button" title="关闭">
+                ${SVG_ICONS.close}
+              </button>
+              
+              <div class="right-tools-col" id="editor-tools-group" style="display: none;">
+                <button class="tool-btn" style="font-weight: bold; font-size: 15px;">Aa</button>
+                <button class="tool-btn">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                </button>
+                <button class="tool-btn">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                </button>
+                <button class="tool-btn">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6 6 3-6 3-3 6-3-6-6-3 6-3z"></path></svg>
+                </button>
+                <button class="tool-btn">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                </button>
+                <button class="tool-btn">
+                  <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
               </div>
-              <img id="photo-picker-preview" src="" style="display: none;" />
             </div>
 
-            <!-- 配文输入区 -->
-            <div class="input-caption-box">
-              <textarea id="moment-caption-input" placeholder="输入此刻的心境与文字..." rows="3" maxlength="150"></textarea>
+            <!-- 底部悬浮文案输入框 -->
+            <div class="caption-input-wrapper" id="caption-wrapper" style="display: none;">
+              <input type="text" id="moment-caption-input" placeholder="キャプションを追加..." maxlength="150" autocomplete="off" />
             </div>
-
-            <div class="expiry-selector">
-              <span class="selector-label">保质期</span>
-              <div class="selector-options">
-                <button class="expiry-opt-btn active" data-hours="24">24 小时</button>
-                <button class="expiry-opt-btn" data-hours="48">48 小时</button>
-              </div>
-            </div>
-
-            <button class="moment-submit-btn" id="btn-moment-submit" disabled>定格留存</button>
           </div>
+
+          <!-- 最底部操作控制栏 -->
+          <div class="story-bottom-actions">
+            <!-- 触发重新选图/显示状态 -->
+            <button class="action-pill-btn" id="btn-story-select-trigger" type="button">
+              <div class="action-icon-circle">
+                <span style="font-size: 10px; font-weight: bold;">私</span>
+              </div>
+              <span id="txt-story-stories-btn">ストーリーズ</span>
+            </button>
+            
+            <!-- 保质期选择（复用密友UI，点击循环切换 24h -> 48h） -->
+            <button class="action-pill-btn" id="btn-story-expiry-toggle" type="button">
+              <div class="action-icon-circle green-star-bg">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+              </div>
+              <span id="txt-expiry-label">保质期 24h</span>
+            </button>
+            
+            <!-- 发送/发布 -->
+            <button class="send-btn" id="btn-moment-submit" disabled type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
@@ -450,7 +477,7 @@ export async function render(root) {
         margin-right: 3px;
       }
 
-      /* 悬浮上传按钮 */
+      /* 原悬浮上传按钮 */
       .moment-fab {
         position: fixed;
         bottom: 24px;
@@ -473,149 +500,220 @@ export async function render(root) {
         transform: scale(0.9);
       }
 
-      /* 底部弹窗 */
+      /* ======================================================== */
+      /* 全屏 Instagram Story 界面重构样式                       */
+      /* ======================================================== */
       .moment-sheet-overlay {
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(0, 0, 0, 0.65);
+        background: #000;
         z-index: 100;
         display: none;
-        align-items: flex-end;
+        flex-direction: column;
+        box-sizing: border-box;
       }
-      .moment-sheet {
-        width: 100%;
-        max-width: 480px;
-        margin: 0 auto;
-        background: var(--color-bg-secondary);
-        border-top-left-radius: 12px;
-        border-top-right-radius: 12px;
-        border-top: 1px solid var(--color-border);
-        animation: slideUp 0.25s cubic-bezier(0.1, 0.76, 0.55, 0.94);
-        padding-bottom: 24px;
-      }
-      @keyframes slideUp {
-        from { transform: translateY(100%); }
-        to { transform: translateY(0); }
-      }
-      .sheet-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 14px 20px;
-        border-bottom: 1px solid var(--color-border);
-      }
-      .sheet-header h3 {
-        margin: 0;
-        font-size: 14px;
-        font-weight: 500;
-        letter-spacing: 0.05em;
-        color: var(--color-text-primary);
-      }
-      .sheet-close {
-        background: none;
-        border: none;
-        color: var(--color-text-secondary);
-        cursor: pointer;
-        padding: 4px;
-      }
-      .sheet-body {
-        padding: 20px;
+      
+      .story-editor-container {
         display: flex;
         flex-direction: column;
-        gap: 14px;
-      }
-      .photo-picker-box {
         width: 100%;
-        aspect-ratio: 4/3;
-        border: 1px dashed var(--color-border);
-        border-radius: 6px;
+        height: 100%;
+        max-width: 480px;
+        margin: 0 auto;
+        background: #000;
+        box-sizing: border-box;
+        overflow: hidden;
+      }
+
+      /* 上方主编辑画板区 */
+      .story-editor-main {
+        flex: 1;
+        margin: 12px 10px 0 10px;
+        border-radius: 16px;
+        background-color: #151515;
+        position: relative;
+        overflow: hidden;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        position: relative;
+        border: 1px solid rgba(255,255,255,0.05);
         cursor: pointer;
-        overflow: hidden;
-        background: var(--color-bg-tertiary);
       }
+
+      /* 预览图片填充整卡 */
+      #photo-picker-preview {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: 1;
+      }
+
+      /* 点击上传提示 */
       .picker-placeholder {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 6px;
-        color: var(--color-text-secondary);
-        font-size: 12px;
-        opacity: 0.7;
-      }
-      #photo-picker-preview {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-      }
-      
-      /* 配文输入样式 */
-      .input-caption-box textarea {
-        width: 100%;
-        background: var(--color-bg-tertiary);
-        border: 1px solid var(--color-border);
-        border-radius: 6px;
-        padding: 8px 12px;
-        color: var(--color-text-primary);
-        font-family: inherit;
+        gap: 12px;
+        color: #888;
         font-size: 13px;
-        resize: none;
-        outline: none;
-        box-sizing: border-box;
+        letter-spacing: 0.05em;
+        z-index: 2;
+        pointer-events: none;
       }
-      .input-caption-box textarea:focus {
-        border-color: var(--color-accent);
+      .picker-camera-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #aaa;
       }
 
-      .expiry-selector {
+      /* 顶部状态与工具组 */
+      .story-top-tools {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        right: 16px;
+        display: flex;
+        justify-content: space-between;
+        z-index: 10;
+        pointer-events: none;
+      }
+      .story-top-tools button {
+        pointer-events: auto; /* 让子控件可以被点击 */
+      }
+
+      /* 圆形毛玻璃按钮 */
+      .tool-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.45);
+        border: none;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+      .tool-btn:active {
+        transform: scale(0.92);
+      }
+
+      /* 右侧功能堆叠 */
+      .right-tools-col {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      /* 悬浮文案输入 */
+      .caption-input-wrapper {
+        position: absolute;
+        bottom: 24px;
+        left: 16px;
+        right: 16px;
+        z-index: 10;
+      }
+      .caption-input-wrapper input {
+        width: 100%;
+        background: transparent;
+        border: none;
+        color: #fff;
+        font-size: 15px;
+        outline: none;
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+        caret-color: #4a8bff;
+      }
+      .caption-input-wrapper input::placeholder {
+        color: rgba(255, 255, 255, 0.7);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+      }
+
+      /* 底部控制栏 */
+      .story-bottom-actions {
+        padding: 14px 10px 24px 10px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-      }
-      .expiry-selector .selector-label {
-        font-size: 12px;
-        color: var(--color-text-secondary);
-      }
-      .selector-options {
-        display: flex;
         gap: 8px;
+        background-color: #000;
+        z-index: 11;
       }
-      .expiry-opt-btn {
-        background: var(--color-bg-tertiary);
-        border: 1px solid var(--color-border);
-        color: var(--color-text-secondary);
-        padding: 5px 10px;
-        border-radius: 4px;
-        font-size: 11px;
-        cursor: pointer;
-      }
-      .expiry-opt-btn.active {
-        border-color: var(--color-accent);
-        color: var(--color-accent);
-        background: var(--color-bg-secondary);
-      }
-      .moment-submit-btn {
-        width: 100%;
-        background: var(--color-accent);
-        color: var(--color-bg-primary);
+
+      /* 胶囊状发布端按钮 */
+      .action-pill-btn {
+        flex: 1;
+        height: 44px;
+        background-color: #1e1e1e;
         border: none;
-        padding: 10px;
-        border-radius: 6px;
-        font-size: 13px;
+        border-radius: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        color: #fff;
+        font-size: 12px;
         font-weight: 500;
         cursor: pointer;
-        margin-top: 8px;
-        transition: opacity 0.2s;
+        transition: background-color 0.2s;
       }
-      .moment-submit-btn:disabled {
-        opacity: 0.3;
+      .action-pill-btn:active {
+        background-color: #2b2b2b;
+      }
+
+      /* 胶囊小圆圈 */
+      .action-icon-circle {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background-color: #444;
+        color: #fff;
+      }
+      .green-star-bg {
+        background-color: #00d856;
+      }
+
+      /* 发送大蓝圆钮 */
+      .send-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background-color: #4a8bff;
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.2s, opacity 0.2s;
+      }
+      .send-btn:disabled {
+        background-color: #2b2b2b;
+        opacity: 0.5;
         cursor: not-allowed;
+      }
+      .send-btn:active:not(:disabled) {
+        transform: scale(0.92);
+      }
+      .send-btn svg {
+        color: #fff;
       }
     </style>
   `;
@@ -624,14 +722,23 @@ export async function render(root) {
   const btnBack = root.querySelector('#btn-moment-back');
   const btnUploadTrigger = root.querySelector('#btn-moment-upload-trigger');
   const uploadSheet = root.querySelector('#moment-upload-sheet');
+  
+  // 重构后的控件绑定
   const btnSheetClose = root.querySelector('#btn-sheet-close');
   const photoPicker = root.querySelector('#photo-picker-trigger');
   const fileInput = root.querySelector('#moment-file-input');
   const previewImg = root.querySelector('#photo-picker-preview');
   const placeholder = root.querySelector('#picker-placeholder');
   const btnSubmit = root.querySelector('#btn-moment-submit');
-  const expiryBtns = root.querySelectorAll('.expiry-opt-btn');
+  
+  const btnExpiryToggle = root.querySelector('#btn-story-expiry-toggle');
+  const txtExpiryLabel = root.querySelector('#txt-expiry-label');
+  const btnSelectTrigger = root.querySelector('#btn-story-select-trigger');
+  
   const captionInput = root.querySelector('#moment-caption-input');
+  const captionWrapper = root.querySelector('#caption-wrapper');
+  const editorToolsGroup = root.querySelector('#editor-tools-group');
+  const txtStoriesBtn = root.querySelector('#txt-story-stories-btn');
 
   let selectedImageDataUrl = null;
   let selectedExpiryHours = 24;
@@ -754,13 +861,27 @@ export async function render(root) {
     placeholder.style.display = 'flex';
     selectedImageDataUrl = null;
     btnSubmit.disabled = true;
+    
+    // 还原上传状态下的工具栏和配置
+    editorToolsGroup.style.display = 'none';
+    captionWrapper.style.display = 'none';
+    txtStoriesBtn.textContent = 'ストーリーズ';
   };
-  btnSheetClose.addEventListener('click', resetUploadForm);
-
-  // 绑定事件：拉起相册
-  photoPicker.addEventListener('click', () => {
-    fileInput.click();
+  btnSheetClose.addEventListener('click', (e) => {
+    e.stopPropagation(); // 阻止向父容器传递触发重新选图
+    resetUploadForm();
   });
+
+  // 绑定事件：拉起相册 (点击主卡片区域或左下角胶囊按钮)
+  const triggerFileSelection = (e) => {
+    // 阻止非点击自身或子区域的冒泡导致反复弹窗
+    if (e.target.tagName === 'INPUT' || e.target.closest('.tool-btn') || e.target.closest('#moment-caption-input') || e.target.closest('#btn-story-expiry-toggle') || e.target.closest('#btn-moment-submit')) {
+      return;
+    }
+    fileInput.click();
+  };
+  photoPicker.addEventListener('click', triggerFileSelection);
+  btnSelectTrigger.addEventListener('click', triggerFileSelection);
 
   // 绑定事件：选择与压缩
   fileInput.addEventListener('change', async (e) => {
@@ -769,37 +890,46 @@ export async function render(root) {
 
     try {
       btnSubmit.disabled = true;
-      btnSubmit.innerText = '压缩中...';
+      txtStoriesBtn.textContent = '圧縮中...';
       const compressed = await compressImage(file);
       selectedImageDataUrl = compressed;
       previewImg.src = compressed;
       previewImg.style.display = 'block';
       placeholder.style.display = 'none';
+      
+      // 显示故事相关的附加功能 (Aa特效组、写配文输入框)
+      editorToolsGroup.style.display = 'flex';
+      captionWrapper.style.display = 'block';
+      
       btnSubmit.disabled = false;
-      btnSubmit.innerText = '定格存下';
+      txtStoriesBtn.textContent = 'ストーリーズ';
     } catch (err) {
       console.error(err);
       alert('图片压缩失败，请重试');
-      btnSubmit.innerText = '定格留存';
+      txtStoriesBtn.textContent = 'エラー';
       btnSubmit.disabled = true;
     }
   });
 
-  // 选择时效
-  expiryBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      expiryBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedExpiryHours = parseInt(btn.dataset.hours, 10);
-    });
+  // 选择时效：点击保质期胶囊（绿星按钮），在 24h 与 48h 之间快速来回切换
+  btnExpiryToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (selectedExpiryHours === 24) {
+      selectedExpiryHours = 48;
+      txtExpiryLabel.textContent = '保质期 48h';
+    } else {
+      selectedExpiryHours = 24;
+      txtExpiryLabel.textContent = '保质期 24h';
+    }
   });
 
-  // 提交片刻
-  btnSubmit.addEventListener('click', async () => {
+  // 提交片刻 (右下角大蓝按钮)
+  btnSubmit.addEventListener('click', async (e) => {
+    e.stopPropagation();
     if (!selectedImageDataUrl) return;
 
     btnSubmit.disabled = true;
-    btnSubmit.innerText = '定格中...';
+    txtStoriesBtn.textContent = 'アップロード中...';
 
     const caption = captionInput.value.trim();
 
@@ -811,7 +941,7 @@ export async function render(root) {
       console.error(err);
       alert('发布失败，请重试');
       btnSubmit.disabled = false;
-      btnSubmit.innerText = '定格留存';
+      txtStoriesBtn.textContent = 'ストーリーズ';
     }
   });
 

@@ -6220,6 +6220,219 @@
 }
 
 /* ==========================================================================
+   六、 通灵仪式 (Commune) 与写信冲动特有样式 (完美适配 theme.css 规范)
+   ========================================================================== */
+
+/* 通灵撰写中 timeline 卡片 */
+.drift-timeline-item.item-impulse {
+  opacity: 0.85;
+}
+
+.drift-timeline-card.impulse-card {
+  border: 1px dashed var(--color-accent) !important;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.01) 0%, color-mix(in srgb, var(--color-accent) 5%, transparent) 100%);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 15%, transparent);
+  animation: impulsePulse 3s infinite ease-in-out;
+}
+
+@keyframes impulsePulse {
+  0%, 100% { 
+    box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 15%, transparent); 
+    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent) !important; 
+  }
+  50% { 
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent); 
+    border-color: var(--color-accent) !important; 
+  }
+}
+
+.item-impulse .drift-timeline-badge {
+  background: var(--color-accent) !important;
+  color: var(--color-bg-primary) !important;
+  border-color: var(--color-accent) !important;
+}
+
+.impulse-writing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--color-accent);
+  margin-top: 8px;
+}
+
+.impulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--color-accent);
+  border-radius: 50%;
+  animation: impulseDotPulse 1.2s infinite alternate;
+}
+.impulse-dot:nth-child(2) { animation-delay: 0.3s; }
+.impulse-dot:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes impulseDotPulse {
+  0% { opacity: 0.2; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.2); }
+}
+
+/* 全屏通灵仪式遮罩 (背景比背景色微暗，烘托深空感) */
+.commune-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: color-mix(in srgb, var(--color-bg-primary) 95%, #000);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.commune-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.35) 100%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.commune-overlay.show {
+  opacity: 0.98;
+  pointer-events: auto;
+}
+
+.commune-portal {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portal-ring-bg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  opacity: 0.4;
+}
+
+.portal-ring-active {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 2px solid transparent;
+  border-top-color: var(--color-accent);
+  border-right-color: var(--color-text-secondary);
+  border-radius: 50%;
+  transform: rotate(0deg);
+  transition: transform 3s cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+
+.commune-overlay.charging .portal-ring-active {
+  transform: rotate(1080deg);
+}
+
+.portal-core {
+  width: 130px;
+  height: 130px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 20%, transparent) 0%, transparent 70%);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 5%, transparent);
+  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+}
+
+.portal-core:active {
+  transform: scale(0.96);
+  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
+  box-shadow: 0 0 35px color-mix(in srgb, var(--color-accent) 40%, transparent);
+}
+
+.commune-title {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  margin-top: 32px;
+  letter-spacing: 3px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.commune-desc {
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  margin-top: 12px;
+  max-width: 260px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.commune-close {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top));
+  right: 16px;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+
+.commune-close:active {
+  opacity: 0.7;
+}
+
+/* 在线共鸣屏幕边缘微光波纹特效 */
+.resonance-ripple {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  box-shadow: inset 0 0 80px rgba(128, 90, 213, 0);
+  pointer-events: none;
+  z-index: 1999;
+  opacity: 0;
+  transition: opacity 1.5s ease-out;
+}
+
+.resonance-ripple.play {
+  animation: ripplePulse 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes ripplePulse {
+  0% { 
+    opacity: 0; 
+    box-shadow: inset 0 0 20px rgba(128, 90, 213, 0); 
+  }
+  20% { 
+    opacity: 0.85; 
+    box-shadow: inset 0 0 70px var(--color-accent); 
+  }
+  100% { 
+    opacity: 0; 
+    box-shadow: inset 0 0 30px rgba(128, 90, 213, 0); 
+  }
+}
+/* ==========================================================================
    五、 星图指引 (Tutorial) 特有样式与星座动效
    ========================================================================== */
 
@@ -6436,7 +6649,7 @@
   text-align: justify;
 }
 .section-content p {
-  margin-bottom: 10px;
+  margin-bottom: 16px; /* 调整段落间距（从10px增加到16px），便于长文本阅读 */
 }
 .section-content p:last-child {
   margin-bottom: 0;
@@ -6450,6 +6663,7 @@
 .tut-footer {
   text-align: center;
   margin-top: 20px;
+  padding-bottom: 40px; /* 保证滑动到底部时有足够的呼吸感 */
   font-size: 10px;
   letter-spacing: 3px;
   color: var(--color-text-tertiary);
@@ -6461,216 +6675,18 @@
   opacity: 0.5;
   letter-spacing: 6px;
 }
-/* ==========================================================================
-   六、 通灵仪式 (Commune) 与写信冲动特有样式 (完美适配 theme.css 规范)
-   ========================================================================== */
 
-/* 通灵撰写中 timeline 卡片 */
-.drift-timeline-item.item-impulse {
-  opacity: 0.85;
+/* 署名及说明性小字区 */
+.author-credits {
+  margin-top: 24px;
+  font-size: 11px;
+  line-height: 1.8;
+  letter-spacing: 1px;
+  opacity: 0.6;
 }
-
-.drift-timeline-card.impulse-card {
-  border: 1px dashed var(--color-accent) !important;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.01) 0%, color-mix(in srgb, var(--color-accent) 5%, transparent) 100%);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 15%, transparent);
-  animation: impulsePulse 3s infinite ease-in-out;
+.author-credits p {
+  margin-bottom: 8px;
 }
-
-@keyframes impulsePulse {
-  0%, 100% { 
-    box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 15%, transparent); 
-    border-color: color-mix(in srgb, var(--color-accent) 40%, transparent) !important; 
-  }
-  50% { 
-    box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent); 
-    border-color: var(--color-accent) !important; 
-  }
-}
-
-.item-impulse .drift-timeline-badge {
-  background: var(--color-accent) !important;
-  color: var(--color-bg-primary) !important;
-  border-color: var(--color-accent) !important;
-}
-
-.impulse-writing-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.85rem;
-  color: var(--color-accent);
-  margin-top: 8px;
-}
-
-.impulse-dot {
-  width: 6px;
-  height: 6px;
-  background-color: var(--color-accent);
-  border-radius: 50%;
-  animation: impulseDotPulse 1.2s infinite alternate;
-}
-.impulse-dot:nth-child(2) { animation-delay: 0.3s; }
-.impulse-dot:nth-child(3) { animation-delay: 0.6s; }
-
-@keyframes impulseDotPulse {
-  0% { opacity: 0.2; transform: scale(0.8); }
-  100% { opacity: 1; transform: scale(1.2); }
-}
-
-/* 全屏通灵仪式遮罩 (背景比背景色微暗，烘托深空感) */
-.commune-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: color-mix(in srgb, var(--color-bg-primary) 95%, #000);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index: 2000;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.commune-overlay::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, transparent 40%, rgba(0, 0, 0, 0.35) 100%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-.commune-overlay.show {
-  opacity: 0.98;
-  pointer-events: auto;
-}
-
-.commune-portal {
-  position: relative;
-  width: 220px;
-  height: 220px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.portal-ring-bg {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  opacity: 0.4;
-}
-
-.portal-ring-active {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 2px solid transparent;
-  border-top-color: var(--color-accent);
-  border-right-color: var(--color-text-secondary);
-  border-radius: 50%;
-  transform: rotate(0deg);
-  transition: transform 3s cubic-bezier(0.1, 0.8, 0.3, 1);
-}
-
-.commune-overlay.charging .portal-ring-active {
-  transform: rotate(1080deg);
-}
-
-.portal-core {
-  width: 130px;
-  height: 130px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 20%, transparent) 0%, transparent 70%);
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--color-text-primary);
-  cursor: pointer;
-  user-select: none;
-  -webkit-user-select: none;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 5%, transparent);
-  transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
-}
-
-.portal-core:active {
-  transform: scale(0.96);
-  background-color: color-mix(in srgb, var(--color-accent) 10%, transparent);
-  box-shadow: 0 0 35px color-mix(in srgb, var(--color-accent) 40%, transparent);
-}
-
-.commune-title {
-  font-size: 1.15rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  margin-top: 32px;
-  letter-spacing: 3px;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.commune-desc {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-  margin-top: 12px;
-  max-width: 260px;
-  text-align: center;
-  line-height: 1.6;
-}
-
-.commune-close {
-  position: absolute;
-  top: calc(16px + env(safe-area-inset-top));
-  right: 16px;
-  width: 36px;
-  height: 36px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--color-border);
-  border-radius: 50%;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.2s;
-}
-
-.commune-close:active {
-  opacity: 0.7;
-}
-
-/* 在线共鸣屏幕边缘微光波纹特效 */
-.resonance-ripple {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  box-shadow: inset 0 0 80px rgba(128, 90, 213, 0);
-  pointer-events: none;
-  z-index: 1999;
-  opacity: 0;
-  transition: opacity 1.5s ease-out;
-}
-
-.resonance-ripple.play {
-  animation: ripplePulse 3.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-}
-
-@keyframes ripplePulse {
-  0% { 
-    opacity: 0; 
-    box-shadow: inset 0 0 20px rgba(128, 90, 213, 0); 
-  }
-  20% { 
-    opacity: 0.85; 
-    box-shadow: inset 0 0 70px var(--color-accent); 
-  }
-  100% { 
-    opacity: 0; 
-    box-shadow: inset 0 0 30px rgba(128, 90, 213, 0); 
-  }
+.author-credits p:last-child {
+  margin-bottom: 0;
 }

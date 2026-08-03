@@ -42,9 +42,38 @@ async function checkAndRotateCharacterStatus(character) {
   });
 
   character.status = nextStatus;
+    character.status = nextStatus;
   character.nextStatusRotationTime = nextRotationTime;
+
+  // 🟢 角色轮转状态时，有概率自动开启/关闭静默投递模式
+  if (state.convId) {
+    db.conversations.get(state.convId).then(async (currentConv) => {
+      if (!currentConv) return;
+      const shouldGoSilent = Math.random() < 0.3; // 30% 概率去忙碌
+      if (shouldGoSilent) {
+        await db.conversations.update(state.convId, { 
+          silentMode: true,
+          pendingReplyAt: null // 去忙碌了，取消当前的普通回复
+        });
+        state.silentMode = true;
+      } else if (currentConv.silentMode) {
+        // 如果原本在静默（忙碌），现在自动恢复了 -> 触发 1-20 分钟内随机回复周期
+        const minMin = 1;
+        const maxMin = 20;
+        const delayMs = Math.round((minMin * 60 + Math.random() * (maxMin - minMin) * 60) * 1000);
+        const targetTime = Date.now() + delayMs;
+        await db.conversations.update(state.convId, { 
+          silentMode: false,
+          pendingReplyAt: targetTime
+        });
+        state.silentMode = false;
+      }
+    }).catch(() => {});
+  }
+
   return character;
 }
+
 
 async function loadData() {
   const conversations = await db.conversations.orderBy('lastMessageTime').reverse().toArray();

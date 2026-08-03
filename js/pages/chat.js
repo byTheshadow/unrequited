@@ -88,6 +88,9 @@ const SVG_PLAY = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentC
 const SVG_PHONE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v2.2a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.45 19.45 0 0 1-6-6A19.8 19.8 0 0 1 2.12 3.38 2 2 0 0 1 4.11 1.2h2.2a2 2 0 0 1 2 1.72c.13.96.35 1.9.66 2.8a2 2 0 0 1-.45 2.11L7.6 8.75a16 16 0 0 0 7.65 7.65l.92-.92a2 2 0 0 1 2.11-.45c.9.31 1.84.53 2.8.66A2 2 0 0 1 22 16.92Z"/></svg>`;
 const SVG_PHONE_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.7 5.1 10 2.6A2 2 0 0 0 8.07 1.2H5.84A2 2 0 0 0 3.86 3.5a19.7 19.7 0 0 0 5.23 9.65"/><path d="M14.8 18.45a19.6 19.6 0 0 0 5.7 1.66 2 2 0 0 0 2.3-1.98v-2.2a2 2 0 0 0-1.72-1.98l-2.55-.37a2 2 0 0 0-1.78.58l-.92.92"/><path d="m2 2 20 20"/></svg>`;
 const SVG_MINIMIZE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+const SVG_SILENT_ON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+const SVG_SILENT_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+
 
 /* ---------- 工具 ---------- */
 function shouldShowTimeSep(prev, curr) {
@@ -163,8 +166,36 @@ async function checkAndRotateCharacterStatus(character) {
 
   character.status = nextStatus;
   character.nextStatusRotationTime = nextRotationTime;
+
+  // 🟢 角色轮转状态时，30% 概率触发静默投递模式开关
+  if (state.convId) {
+    const currentConv = await db.conversations.get(state.convId);
+    if (currentConv) {
+      const shouldGoSilent = Math.random() < 0.3;
+      if (shouldGoSilent) {
+        await db.conversations.update(state.convId, { 
+          silentMode: true,
+          pendingReplyAt: null // 忙碌去了，取消普通回复
+        });
+        state.silentMode = true;
+      } else if (currentConv.silentMode) {
+        // 原来是静默模式，现在忙完了自动恢复，进入 9-20 分钟内随机回复周期
+        const minMin = 9;
+        const maxMin = 20;
+        const delayMs = Math.round((minMin * 60 + Math.random() * (maxMin - minMin) * 60) * 1000);
+        const targetTime = Date.now() + delayMs;
+        await db.conversations.update(state.convId, { 
+          silentMode: false,
+          pendingReplyAt: targetTime
+        });
+        state.silentMode = false;
+      }
+    }
+  }
+
   return character;
 }
+
 
 function parseManualChoiceText(text) {
   const raw = String(text || '').trim();
@@ -439,20 +470,30 @@ function shuffleHTML(character) {
 
 
 /* ---------- 数据加载 ---------- */
+
 async function loadAll(convId) {
   const conv = await db.conversations.get(convId);
   if (!conv) throw new Error('对话不存在');
+  
+  // 🟢 在执行角色状态轮询前，让 state 能读取到会话的 silentMode 初始状态
+  state.silentMode = !!conv.silentMode;
+
   let character = await db.characters.get(conv.characterId);
-if (character) {
-  character = await checkAndRotateCharacterStatus(character);
-}
+  if (character) {
+    character = await checkAndRotateCharacterStatus(character);
+  }
   let user = (await db.user.toArray())[0];
   if (!user) {
     const uid = await db.user.add({ name: '我', avatar: '', status: '', signature: '' });
     user = await db.user.get(uid);
   }
   const messages = await db.messages.where('conversationId').equals(convId).sortBy('timestamp');
-  return { conv, character, user, messages };
+  
+  // 🟢 最终加载到的对话可能在 checkAndRotateCharacterStatus 中被更新过，再次校正 state
+  const freshConv = await db.conversations.get(convId);
+  state.silentMode = !!freshConv.silentMode;
+
+  return { conv: freshConv, character, user, messages };
 }
 
 /* ---------- 消息渲染 ---------- */
@@ -501,6 +542,14 @@ function appendMessage(msg) {
   scrollToBottom(true);
   bindBubbleEvents();
   updateMessageCount();
+
+  // 🟢 新增：如果收到角色发来的消息，且原定有计时器在倒计时，说明角色提前完成了回复，
+  // 我们直接打断并清空 pendingReplyAt，避免二次触发系统保底。
+  if (msg.sender === 'character' && state.conv && state.conv.pendingReplyAt) {
+    db.conversations.update(state.convId, { pendingReplyAt: null }).catch(()=>{});
+    state.conv.pendingReplyAt = null;
+    cancelTimers();
+  }
 }
 
 async function persistConvSummary() {
@@ -645,8 +694,16 @@ async function sendUserMessage() {
   updateSendBtn();
 
   await persistConvSummary();
-  await schedulePendingReply();
+   await persistConvSummary();
+  
+  // 如果开启了静默投递，弹出提示，不触发即时回复
+  if (state.silentMode) {
+    toast('讯息已静默投递');
+  } else {
+    await schedulePendingReply();
+  }
 }
+
 
 
 function openChoiceCreatorSheet() {
@@ -1018,11 +1075,18 @@ function openDraftSheet() {
       lastMessage: msgs[msgs.length - 1],
       lastMessageTime: Date.now()
     });
-
-    state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
+    
+       state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
     renderMessages();
-    await schedulePendingReply();
+
+    // 如果开启了静默投递，弹出提示，不触发即时回复
+    if (state.silentMode) {
+      toast('选择题已静默送达');
+    } else {
+      await schedulePendingReply();
+    }
   });
+
 
   rebindDeleteEvents();
 }
@@ -1097,9 +1161,15 @@ function hideShuffling() {
 }
 
 async function schedulePendingReply() {
+  // 🟢 新增：如果是静默投递模式，提示并直接返回，不触发回复倒计时
+  if (state.silentMode) {
+    toast('讯息已静默投递');
+    return;
+  }
+
   const cfg = (state.character && state.character.replyConfig) || {};
   const minD = Math.max(0, cfg.minReplyDelaySec || 0);
-  const maxD = Math.max(minD, cfg.maxReplyDelaySec || 0);
+
   if (maxD === 0) return;
 
   // 🟢 如果已经有等待回复的时间，且还没过期，直接沿用它，不重新计算
@@ -1136,7 +1206,6 @@ function showImmediateStatusIndicator() {
   startThinkingUI(hints);
 }
 
-
 function scheduleTimers() {
   cancelTimers({ keepSubtitle: true });
   if (!state.conv || !state.conv.pendingReplyAt) return;
@@ -1150,32 +1219,13 @@ function scheduleTimers() {
   const typingDurationMs = 3000;
   const shuffleDurationMs = 1500;
 
-  if (remain > typingDurationMs + shuffleDurationMs) {
-    state.thinkingTimer = setTimeout(() => {
-      if (state.destroyed) return;
-      showShuffling();
-
-      state.thinkingTimer = setTimeout(() => {
-        if (state.destroyed) return;
-        showTyping("正在输入...");
-      }, shuffleDurationMs);
-
-    }, remain - (typingDurationMs + shuffleDurationMs));
-  } else if (remain > typingDurationMs) {
-    showShuffling();
-    state.thinkingTimer = setTimeout(() => {
-      if (state.destroyed) return;
-      showTyping("正在输入...");
-    }, remain - typingDurationMs);
-  } else {
-    showTyping("正在输入...");
+  // 🟢 新增：如果剩余回复时间超过 1 分钟，隐藏下方的打字指示器，仅在顶部副标题显示感知状态
+  if (remain > 60000) {
+    hideTyping();
+    startThinkingUI(['正在感知留言...', '静心寻觅字面...', '正在拼凑字卡...']);
   }
 
-  state.replyTimer = setTimeout(() => {
-    if (state.destroyed) return;
-    executeReply();
-  }, remain);
-}
+
 
 
 function cancelTimers({ keepSubtitle } = {}) {
@@ -2731,6 +2781,24 @@ async function checkPendingReplyOnVisible() {
    render / destroy
    ============================================================ */
 
+   /* ---------- 静默投递 UI 同步 ---------- */
+function updateSilentModeUI() {
+  const btn = document.getElementById('silent-toggle-btn');
+  if (!btn) return;
+  if (state.silentMode) {
+    btn.innerHTML = SVG_SILENT_ON;
+    btn.title = '静默留言模式中';
+    const inputEl = document.getElementById('chat-input');
+    if (inputEl) inputEl.placeholder = '静默留言模式... 消息将静默投递';
+  } else {
+    btn.innerHTML = SVG_SILENT_OFF;
+    btn.title = '静默留言已关闭';
+    const inputEl = document.getElementById('chat-input');
+    if (inputEl) inputEl.placeholder = '说点什么...';
+  }
+}
+
+
 export async function render(root, params = {}) {
   state = {
   convId: Number(params.id),
@@ -2769,7 +2837,7 @@ export async function render(root, params = {}) {
     <div class="page chat-page" data-bubble-preset="preset-1">
       <div class="chat-wallpaper"></div>
 
-      <div class="chat-topbar">
+            <div class="chat-topbar">
   <button class="chat-nav-btn" data-act="back" aria-label="返回">${ICON.back}</button>
   <button class="chat-pill" data-act="toggle-panel" type="button">
     <span class="pill-avatar" id="chat-header-avatar"></span>
@@ -2780,8 +2848,10 @@ export async function render(root, params = {}) {
     <span class="pill-chev">${SVG_CHEV}</span>
   </button>
   <button class="chat-nav-btn" data-act="call-phone" aria-label="拨打电话">${SVG_PHONE}</button>
+  <button class="chat-nav-btn" data-act="toggle-silent" id="silent-toggle-btn" aria-label="静默留言状态"></button>
   <button class="chat-nav-btn" data-act="menu" aria-label="更多">${ICON.more}</button>
 </div>
+
 
 
       ${panelHTML()}
@@ -4251,6 +4321,8 @@ if (typeof renderMusicCard === 'function') renderMusicCard();
 
   renderMessages();
 renderQuoteBar();
+// 🟢 同步顶部静默按钮状态
+  updateSilentModeUI();
 
 root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
 root.querySelector('[data-act=call-phone]').addEventListener('click', async () => {
@@ -4269,6 +4341,43 @@ root.querySelector('[data-act=call-phone]').addEventListener('click', async () =
 });
 
 root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
+  // 🟢 绑定顶部静默按钮的点击事件
+  const silentToggleBtn = root.querySelector('[data-act=toggle-silent]');
+  if (silentToggleBtn) {
+    silentToggleBtn.addEventListener('click', async () => {
+      state.silentMode = !state.silentMode;
+      haptic(10);
+      
+      // 更新数据库
+      await db.conversations.update(state.convId, { silentMode: state.silentMode });
+      if (state.conv) state.conv.silentMode = state.silentMode;
+      
+      updateSilentModeUI();
+      
+      if (!state.silentMode) {
+        // 用户手动关闭静默模式 -> 触发 1 - 20 分钟内随机回复周期
+        const minMin = 1;
+        const maxMin = 20;
+        const delayMs = Math.round((minMin * 60 + Math.random() * (maxMin - minMin) * 60) * 1000);
+        const targetTime = Date.now() + delayMs;
+        
+        await db.conversations.update(state.convId, { pendingReplyAt: targetTime });
+        if (state.conv) state.conv.pendingReplyAt = targetTime;
+        
+        toast('对方已恢复接收，正在默默感知留言');
+        
+        // 启动后台计时器
+        scheduleTimers();
+      } else {
+        // 用户手动开启静默模式 -> 取消当前还没发生的回复倒计时
+        await db.conversations.update(state.convId, { pendingReplyAt: null });
+        if (state.conv) state.conv.pendingReplyAt = null;
+        cancelTimers();
+        toast('已开启静默投递');
+      }
+    });
+  }
+
 root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
 
 

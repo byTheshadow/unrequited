@@ -122,7 +122,7 @@ async function addMoment(imageDataUrl, caption, expiryHours) {
     }
   });
 
-  // fallback
+  // 兜底字卡词池
   if (fragmentPool.length === 0) {
     fragmentPool = ["想你", "同频", "在思考", "安静", "刚好", "流动的光", "被发现了", "心动", "温柔", "晚安", "独自一人"];
   }
@@ -173,7 +173,7 @@ export async function render(root) {
   // 渲染主体结构
   root.innerHTML = `
     <div class="moment-container">
-      <!-- 极简悬浮返回按钮，抛弃笨重长条 Header -->
+      <!-- 极简悬浮返回按钮 -->
       <button class="moment-back-floating" id="btn-moment-back" aria-label="返回">
         ${SVG_ICONS.back}
       </button>
@@ -234,8 +234,8 @@ export async function render(root) {
         display: flex;
         flex-direction: column;
         min-height: 100vh;
-        background: var(--color-bg);
-        color: var(--color-text);
+        background: var(--color-bg-primary);
+        color: var(--color-text-primary);
         font-family: inherit;
         position: relative;
         padding-top: 24px;
@@ -281,7 +281,7 @@ export async function render(root) {
       .indicator-quota {
         font-size: 11px;
         color: var(--color-text-secondary);
-        opacity: 0.6;
+        opacity: 0.8;
         letter-spacing: 0.05em;
       }
 
@@ -366,7 +366,7 @@ export async function render(root) {
         width: 100%;
         max-height: 380px;
         object-fit: cover;
-        filter: brightness(0.85) contrast(1.02); /* 略带复古暗色的克制滤镜 */
+        filter: brightness(0.85) contrast(1.02);
       }
 
       /* 底部操作区 (极简删除) */
@@ -389,6 +389,7 @@ export async function render(root) {
       }
       .delete-btn:hover {
         opacity: 0.8;
+        color: var(--color-accent);
       }
 
       /* 自定义文字配文区 (Caption) */
@@ -398,7 +399,7 @@ export async function render(root) {
         color: var(--color-text-primary);
         padding: 2px 4px 8px 4px;
         letter-spacing: 0.02em;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        border-bottom: 1px solid var(--color-border);
       }
 
       /* 表情包/态度面板区 */
@@ -440,7 +441,7 @@ export async function render(root) {
       .comment-word-block {
         display: inline-flex;
         align-items: center;
-        background: var(--color-bg-secondary);
+        background: var(--color-bg-tertiary);
         border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
         font-size: 10.5px;
@@ -463,7 +464,7 @@ export async function render(root) {
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        box-shadow: 0 4px 16px var(--color-shadow);
         cursor: pointer;
         z-index: 90;
         transition: transform 0.2s;
@@ -488,7 +489,7 @@ export async function render(root) {
         width: 100%;
         max-width: 480px;
         margin: 0 auto;
-        background: var(--color-bg);
+        background: var(--color-bg-secondary);
         border-top-left-radius: 12px;
         border-top-right-radius: 12px;
         border-top: 1px solid var(--color-border);
@@ -511,6 +512,7 @@ export async function render(root) {
         font-size: 14px;
         font-weight: 500;
         letter-spacing: 0.05em;
+        color: var(--color-text-primary);
       }
       .sheet-close {
         background: none;
@@ -536,7 +538,7 @@ export async function render(root) {
         position: relative;
         cursor: pointer;
         overflow: hidden;
-        background: var(--color-bg-secondary);
+        background: var(--color-bg-tertiary);
       }
       .picker-placeholder {
         display: flex;
@@ -556,11 +558,11 @@ export async function render(root) {
       /* 配文输入样式 */
       .input-caption-box textarea {
         width: 100%;
-        background: var(--color-bg-secondary);
+        background: var(--color-bg-tertiary);
         border: 1px solid var(--color-border);
         border-radius: 6px;
         padding: 8px 12px;
-        color: var(--color-text);
+        color: var(--color-text-primary);
         font-family: inherit;
         font-size: 13px;
         resize: none;
@@ -585,7 +587,7 @@ export async function render(root) {
         gap: 8px;
       }
       .expiry-opt-btn {
-        background: var(--color-bg-secondary);
+        background: var(--color-bg-tertiary);
         border: 1px solid var(--color-border);
         color: var(--color-text-secondary);
         padding: 5px 10px;
@@ -596,12 +598,12 @@ export async function render(root) {
       .expiry-opt-btn.active {
         border-color: var(--color-accent);
         color: var(--color-accent);
-        background: rgba(255, 255, 255, 0.02);
+        background: var(--color-bg-secondary);
       }
       .moment-submit-btn {
         width: 100%;
-        background: var(--color-text-primary);
-        color: var(--color-bg);
+        background: var(--color-accent);
+        color: var(--color-bg-primary);
         border: none;
         padding: 10px;
         border-radius: 6px;

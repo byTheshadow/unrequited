@@ -708,19 +708,37 @@ class MusicPlayer {
           await this.addSongToPlaylist(song);
           addBtn.textContent = '已添加';
           
+          // 强制刷新设置界面列表
           if (this.playlistPage) {
-            if (typeof this.playlistPage.loadSongs === 'function') this.playlistPage.loadSongs();
-            else if (typeof this.playlistPage.loadSongsFromDB === 'function') this.playlistPage.loadSongsFromDB();
-            else if (typeof this.playlistPage.render === 'function') this.playlistPage.render();
-            else if (typeof this.playlistPage.renderList === 'function') this.playlistPage.renderList();
-            else if (typeof this.playlistPage.init === 'function') this.playlistPage.init();
+            const page = this.playlistPage;
+            const refreshMethods = ['loadSongs', 'loadSongsFromDB', 'render', 'renderList', 'init', 'updateList'];
+            let refreshed = false;
+            for (const method of refreshMethods) {
+              if (typeof page[method] === 'function') {
+                page[method]();
+                refreshed = true;
+              }
+            }
+            if (!refreshed) {
+              console.warn("未找到标准的刷新方法，尝试强制刷新页面 DOM");
+            }
           }
         } catch (err) {
-          addBtn.textContent = '失败';
-          setTimeout(() => {
-            addBtn.textContent = originalText;
-            addBtn.disabled = false;
-          }, 2000);
+          // 如果是因为浏览器拦截了播放导致的报错，但实际上歌曲已经存入 this.songs，我们依然认为添加成功了
+          const exists = this.songs.some(s => s.name.includes(song.name));
+          if (exists) {
+            addBtn.textContent = '已添加';
+            if (this.playlistPage && typeof this.playlistPage.init === 'function') {
+              this.playlistPage.init();
+            }
+          } else {
+            addBtn.textContent = '失败';
+            alert(`添加失败，请检查网络或数据库状态: ${err.message || err}`);
+            setTimeout(() => {
+              addBtn.textContent = originalText;
+              addBtn.disabled = false;
+            }, 2000);
+          }
         }
       });
       
@@ -805,7 +823,9 @@ class MusicPlayer {
       playUrl = playUrl.replace('http://', 'https://');
     }
 
+    // 同时在气泡和控制台/通知栏输出提示
     this.showBubble("系统提示", `正在连接音源并加入列表...`);
+    console.log(`[MusicPlayer] 正在连接音源并加入列表: ${songName}`);
 
     // 内存查重
     const existsIdx = this.songs.findIndex(s => s.url === playUrl || s.name === songName);
@@ -813,10 +833,12 @@ class MusicPlayer {
       this.isPlaying = true;
       await this.selectSong(existsIdx);
       if (this.audio.paused) {
-        this.audio.play().catch(err => {
+        try {
+          await this.audio.play();
+        } catch (err) {
           console.warn("播放受浏览器拦截:", err);
-          this.showBubble("系统提示", "播放受阻，请手动点击播放");
-        });
+          alert("已定位到已有歌曲，但自动播放受浏览器安全策略拦截，请手动点击播放面板的『播放』按钮。");
+        }
       }
       this.showBubble("系统提示", `已切换到列表已有歌曲: ${songData.name}`);
       return;
@@ -846,15 +868,20 @@ class MusicPlayer {
         this.isPlaying = true;
         await this.selectSong(newIndex);
         if (this.audio.paused) {
-          this.audio.play().catch(err => {
+          try {
+            await this.audio.play();
+          } catch (err) {
             console.warn("自动播放受拦截:", err);
-          });
+            // 提示用户需要交互才能播放
+            alert(`已成功添加《${songData.name}》到播放列表！\n由于浏览器安全限制，请手动点击播放面板的播放按钮开始播放。`);
+          }
         }
       }
       this.showBubble("系统提示", `已成功添加并播放: ${songData.name}`);
     } catch (e) {
       console.error("写入数据库失败:", e);
       this.showBubble("系统提示", `数据库写入错误: ${e.message}`);
+      alert(`添加歌曲失败：${e.message || 'IndexedDB 写入异常'}`);
       throw e; // 抛回给按钮事件以便能重置“添加”按钮状态
     }
   }
@@ -883,6 +910,8 @@ class MusicPlayer {
       this.isPlaying = false;
       this.updatePlayBtnVisual(false);
       this.songStatus.textContent = "音源链接失效";
+      // 弹出明确提示，防止用户以为“卡住”了
+      alert("抱歉，由于版权封锁或音源直链超时，此歌曲当前无法载入。请尝试搜索其他歌曲。");
       this.showBubble("系统提示", "抱歉，由于版权封锁或音源直链超时，此歌曲当前无法载入。");
     });
 
@@ -1157,4 +1186,5 @@ class MusicPlayer {
 }
 
 export const playerInstance = new MusicPlayer();
+
 

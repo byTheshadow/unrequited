@@ -1,4 +1,4 @@
-const routes = {
+export const routes = {
   '/': () => import('./pages/launch.js'),
   '/home': () => import('./pages/home.js'),
   '/cards': () => import('./pages/cards.js'),
@@ -8,7 +8,8 @@ const routes = {
   '/settings': () => import('./pages/settings/index.js'),
   '/divination': () => import('./pages/divination/index.js'),
   '/drift': () => import('./pages/drift.js'),
-  '/tutorial': () => import('./pages/tutorial.js')
+  '/tutorial': () => import('./pages/tutorial.js'),
+  '/moment': () => import('./pages/moment.js') // 新增片刻功能路由
 };
 
 let currentPage = null;

@@ -60,11 +60,19 @@ const driftGlyph = `
   </svg>
 `;
 
-// 新增：小书本/手账样式的小指引图标 (放在月相左侧)
+// 小书本/手账样式的小指引图标 (放在月相左侧)
 const tutorialSmallIcon = `
   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+  </svg>
+`;
+
+// 新增：极简相机小图标 (用于顶部栏片刻入口)
+const momentSmallIcon = `
+  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+    <circle cx="12" cy="13" r="4"/>
   </svg>
 `;
 
@@ -95,8 +103,8 @@ function attachTilt(el) {
   });
 }
 
-// 已实装页面：添加 /drift 与 /tutorial
-const IMPLEMENTED = ['/home', '/cards', '/divination', '/settings', '/drift', '/tutorial'];
+// 已实装页面：添加 /drift、/tutorial 以及新增的 /moment 路由
+const IMPLEMENTED = ['/home', '/cards', '/divination', '/settings', '/drift', '/tutorial', '/moment'];
 
 export async function render(root) {
   const phase = getMoonPhase();
@@ -113,8 +121,12 @@ export async function render(root) {
   root.innerHTML = `
     <div class="home-page page">
       <header class="home-top">
+        <!-- 片刻相机入口按钮 (小尺寸，在指引按钮的左边) -->
+        <button class="top-btn" data-nav="/moment" title="记录片刻" aria-label="记录片刻">
+          ${momentSmallIcon}
+        </button>
         <!-- 指引手账按钮 (小尺寸，在月相左边) -->
-        <button class="tutorial-btn-top" data-nav="/tutorial" title="查看指引" aria-label="查看指引">
+        <button class="top-btn" data-nav="/tutorial" title="查看指引" aria-label="查看指引">
           ${tutorialSmallIcon}
         </button>
         <!-- 月相组件 -->
@@ -183,8 +195,8 @@ export async function render(root) {
         /* 顶部组件放置 */
         .home-top { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
         
-        /* 指引顶部圆按钮 (毛玻璃设计) */
-        .tutorial-btn-top {
+        /* 顶部功能按钮 (毛玻璃设计) */
+        .top-btn {
           display: inline-flex; align-items: center; justify-content: center;
           width: 32px; height: 32px; border-radius: 50%;
           color: var(--color-text-secondary);
@@ -193,7 +205,7 @@ export async function render(root) {
           transition: color 0.2s, background 0.2s, transform 0.2s;
           cursor: pointer;
         }
-        .tutorial-btn-top:active {
+        .top-btn:active {
           color: var(--color-accent);
           transform: scale(0.9);
         }

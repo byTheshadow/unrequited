@@ -579,15 +579,43 @@ class MusicPlayer {
     });
   }
 
-  // 跨域请求辅助函数：使用 allorigins 公共跨域代理获取数据
-  async fetchWithCorsProxy(url) {
-    // 包装为跨域代理 URL，绕过浏览器的同源 CORS 限制
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("跨域代理服务请求异常");
-    const container = await response.json();
-    // allorigins 会把源内容放在 contents 字段中
-    return JSON.parse(container.contents);
+  // 终极无跨域搜索服务（iTunes 100% 支持 HTTPS / CORS，全球直连）
+  async searchMusicAPI(query) {
+    // 方案 1: iTunes 官方音乐搜索 (支持 CORS、高并发、高音质预览直链)
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&limit=12`;
+    
+    try {
+      const response = await fetch(itunesUrl, { mode: 'cors' });
+      if (!response.ok) throw new Error("iTunes 请求失败");
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        return data.results.map(item => ({
+          id: item.trackId,
+          name: item.trackName,
+          artist: [item.artistName],
+          url: item.previewUrl // 30秒无跨域高保真MP3直链
+        }));
+      }
+    } catch (itunesError) {
+      console.warn("iTunes API 报错，尝试公共原生跨域网易云 API...", itunesError);
+    }
+
+    // 方案 2: 原生开放跨域的中文网易云解析源（无需任何代理）
+    const neteaseUrl = `https://netease.api.lovelive.tools.cool/search?keywords=${encodeURIComponent(query)}`;
+    const response = await fetch(neteaseUrl, { mode: 'cors' });
+    if (!response.ok) throw new Error("备选网易云搜索失败");
+    const data = await response.json();
+    
+    const songs = data.result?.songs;
+    if (!songs || songs.length === 0) throw new Error("未搜索到相关音乐");
+    
+    return songs.slice(0, 12).map(song => ({
+      id: song.id,
+      name: song.name,
+      artist: song.artists ? song.artists.map(a => a.name) : ["未知歌手"],
+      url: `https://music.163.com/song/media/outer/url?id=${song.id}.mp3`
+    }));
   }
 
   // 在设置/歌单管理页面中动态注入搜索模块
@@ -628,49 +656,11 @@ class MusicPlayer {
       resultsContainer.innerHTML = '<div class="mp-search-loading">弦音寻觅中...</div>';
       
       try {
-        // 使用跨域代理调用 Meting API
-        const targetUrl = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
-        const data = await this.fetchWithCorsProxy(targetUrl);
-        if (!Array.isArray(data) || data.length === 0) throw new Error("No Results");
-        
-        this.renderPlaylistPageSearchResults(data, resultsContainer);
+        const songs = await this.searchMusicAPI(query);
+        this.renderPlaylistPageSearchResults(songs, resultsContainer);
       } catch (e) {
-        console.warn("主搜索代理失败，尝试备选源...", e);
-        try {
-          // 备用：通过跨域代理请求公共网易云镜像接口
-          const targetUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
-          const backupData = await this.fetchWithCorsProxy(targetUrl);
-          const songs = backupData.result?.songs;
-          if (!songs || songs.length === 0) {
-            resultsContainer.innerHTML = '<div class="mp-search-empty">未找到该歌曲</div>';
-            return;
-          }
-          const formatted = songs.slice(0, 10).map(s => ({
-            id: s.id,
-            name: s.name,
-            artist: s.artists ? s.artists.map(a => a.name) : ["未知歌手"],
-            url: `https://music.163.com/song/media/outer/url?id=${s.id}.mp3`
-          }));
-          this.renderPlaylistPageSearchResults(formatted, resultsContainer);
-        } catch (err) {
-          // 终极备用方案：免代理免跨域的国产公共免签 API
-          try {
-            const directUrl = `https://api.lolimi.cn/API/wysearch/?word=${encodeURIComponent(query)}`;
-            const resp = await fetch(directUrl);
-            const resData = await resp.json();
-            if (resData.code === 200 && Array.isArray(resData.data)) {
-              const formatted = resData.data.slice(0, 10).map(s => ({
-                id: s.id,
-                name: s.songs,
-                artist: [s.singers],
-                url: s.url || `https://music.163.com/song/media/outer/url?id=${s.id}.mp3`
-              }));
-              this.renderPlaylistPageSearchResults(formatted, resultsContainer);
-              return;
-            }
-          } catch(err2) {}
-          resultsContainer.innerHTML = '<div class="mp-search-empty">寻音受阻，所有 API 请求均被跨域拦截，请检查网络</div>';
-        }
+        console.error("搜索彻底失败:", e);
+        resultsContainer.innerHTML = '<div class="mp-search-empty">未寻得此曲或网络超时</div>';
       }
     };
 
@@ -692,7 +682,7 @@ class MusicPlayer {
   // 渲染设置页面内的搜索列表
   renderPlaylistPageSearchResults(songs, container) {
     container.innerHTML = '';
-    songs.slice(0, 10).forEach(song => {
+    songs.forEach(song => {
       const item = document.createElement('div');
       item.className = 'mp-page-search-item';
       
@@ -737,49 +727,11 @@ class MusicPlayer {
     this.searchResults.innerHTML = '<div class="mp-search-loading">弦音寻觅中...</div>';
 
     try {
-      // 优先通过跨域代理访问 Meting API
-      const targetUrl = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
-      const data = await this.fetchWithCorsProxy(targetUrl);
-      if (!Array.isArray(data) || data.length === 0) throw new Error("No results");
-      
-      this.renderSearchResults(data);
+      const songs = await this.searchMusicAPI(query);
+      this.renderSearchResults(songs);
     } catch (e) {
-      console.warn("悬浮面板主搜索代理异常，启用备用源...", e);
-      try {
-        const targetUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
-        const backupData = await this.fetchWithCorsProxy(targetUrl);
-        const songs = backupData.result?.songs;
-        if (!songs || songs.length === 0) {
-          this.searchResults.innerHTML = '<div class="mp-search-empty">未寻得此曲</div>';
-          return;
-        }
-
-        const formattedData = songs.slice(0, 12).map(song => ({
-          id: song.id,
-          name: song.name,
-          artist: song.artists ? song.artists.map(a => a.name) : ["未知歌手"],
-          url: `https://music.163.com/song/media/outer/url?id=${song.id}.mp3`
-        }));
-        this.renderSearchResults(formattedData);
-      } catch (err) {
-        // 终极备用方案：免代理免跨域的国产公共免签 API
-        try {
-          const directUrl = `https://api.lolimi.cn/API/wysearch/?word=${encodeURIComponent(query)}`;
-          const resp = await fetch(directUrl);
-          const resData = await resp.json();
-          if (resData.code === 200 && Array.isArray(resData.data)) {
-            const formatted = resData.data.slice(0, 12).map(s => ({
-              id: s.id,
-              name: s.songs,
-              artist: [s.singers],
-              url: s.url || `https://music.163.com/song/media/outer/url?id=${s.id}.mp3`
-            }));
-            this.renderSearchResults(formatted);
-            return;
-          }
-        } catch(err2) {}
-        this.searchResults.innerHTML = `<div class="mp-search-empty">寻音受阻: 请求均被跨域拦截</div>`;
-      }
+      console.error("搜索彻底失败:", e);
+      this.searchResults.innerHTML = `<div class="mp-search-empty">寻音受阻: 网络连接异常</div>`;
     }
   }
 
@@ -787,7 +739,7 @@ class MusicPlayer {
   renderSearchResults(songs) {
     this.searchResults.innerHTML = '';
     
-    songs.slice(0, 12).forEach(song => {
+    songs.forEach(song => {
       const item = document.createElement('div');
       item.className = 'mp-search-item';
       
@@ -1129,6 +1081,3 @@ class MusicPlayer {
 }
 
 export const playerInstance = new MusicPlayer();
-
-
-

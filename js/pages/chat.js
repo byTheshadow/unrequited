@@ -1161,7 +1161,7 @@ function hideShuffling() {
 }
 
 async function schedulePendingReply() {
-  // 🟢 静默拦截：如果开启了静默投递，直接返回，不触发任何思考 UI 和排程
+  // 静默模式：消息已经保存，但不启动任何回复流程
   if (state.silentMode) {
     return;
   }
@@ -1169,24 +1169,44 @@ async function schedulePendingReply() {
   const cfg = (state.character && state.character.replyConfig) || {};
   const minD = Math.max(0, cfg.minReplyDelaySec || 0);
   const maxD = Math.max(minD, cfg.maxReplyDelaySec || 0);
+
   if (maxD === 0) return;
 
-  // 🟢 如果已经有等待回复的时间，且还没过期，直接沿用它，不重新计算
+  // 如果已经有等待中的回复，沿用原来的时间
   const currentConv = await db.conversations.get(state.convId);
-  if (currentConv && currentConv.pendingReplyAt && currentConv.pendingReplyAt > Date.now()) {
+
+  if (
+    currentConv &&
+    currentConv.pendingReplyAt &&
+    currentConv.pendingReplyAt > Date.now()
+  ) {
+    if (state.conv) {
+      state.conv.pendingReplyAt = currentConv.pendingReplyAt;
+    }
+
     scheduleTimers();
     return;
   }
 
-  const delayMs = Math.round((minD + Math.random() * (maxD - minD)) * 1000);
+  const delayMs = Math.round(
+    (minD + Math.random() * (maxD - minD)) * 1000
+  );
+
   const target = Date.now() + delayMs;
 
-  await db.conversations.update(state.convId, { pendingReplyAt: target });
-  if (state.conv) state.conv.pendingReplyAt = target;
+  await db.conversations.update(state.convId, {
+    pendingReplyAt: target,
+  });
 
+  if (state.conv) {
+    state.conv.pendingReplyAt = target;
+  }
+
+  // 保留你原有的自定义思考文案和思考阶段
   showImmediateStatusIndicator();
   scheduleTimers();
 }
+
 
 
 

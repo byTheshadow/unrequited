@@ -2848,7 +2848,6 @@ export async function render(root, params = {}) {
     <span class="pill-chev">${SVG_CHEV}</span>
   </button>
     <button class="chat-nav-btn" data-act="call-phone" aria-label="拨打电话">${SVG_PHONE}</button>
-  <!-- 🟢 新增：将默认的空心月亮 SVG 直接内联进 HTML 模板，这样初始就能看见 -->
   <button class="chat-nav-btn" data-act="toggle-silent" id="silent-toggle-btn" aria-label="静默投递" title="静默留言已关闭">
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
   </button>

@@ -46,7 +46,7 @@ class MusicPlayer {
     this.startAlignWithMoonIcon();
   }
 
-  // 注入样式修复：锁死音乐触发按钮大小，防止月相文字折行
+  // 注入样式修复：锁死音乐触发按钮大小，防止月相文字折行，并添加搜索组件相关 CSS 样式
   injectFixStyles() {
     if (document.getElementById('music-player-fix-styles')) return;
     const style = document.createElement('style');
@@ -75,6 +75,150 @@ class MusicPlayer {
       [class*="moon-phase"] {
         flex-shrink: 0 !important;
         white-space: nowrap !important;
+      }
+
+      /* ================= 新增搜索样式 ================= */
+      .mp-search-container {
+        padding: 10px;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        background: rgba(0, 0, 0, 0.25);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 185px;
+        box-sizing: border-box;
+      }
+      
+      .mp-search-box {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      
+      .mp-search-box input {
+        flex: 1;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 4px;
+        color: #fff;
+        padding: 5px 8px;
+        font-size: 11px;
+        outline: none;
+        box-sizing: border-box;
+      }
+      
+      .mp-search-box input:focus {
+        border-color: rgba(255,255,255,0.3);
+      }
+      
+      .mp-search-box button {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.12);
+        color: #e0e0e0;
+        padding: 5px 10px;
+        font-size: 11px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-sizing: border-box;
+        line-height: 1;
+      }
+      
+      .mp-search-box button:hover {
+        background: rgba(255,255,255,0.2);
+        color: #fff;
+      }
+      
+      .mp-search-results {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow-y: auto;
+        max-height: 125px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      
+      /* 美化滚动条 */
+      .mp-search-container::-webkit-scrollbar,
+      .mp-search-results::-webkit-scrollbar {
+        width: 4px;
+      }
+      .mp-search-container::-webkit-scrollbar-thumb,
+      .mp-search-results::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.15);
+        border-radius: 2px;
+      }
+      
+      .mp-search-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 8px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+        transition: background 0.2s;
+        box-sizing: border-box;
+      }
+      
+      .mp-search-item:hover {
+        background: rgba(255,255,255,0.08);
+      }
+      
+      .mp-search-item-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+        margin-right: 8px;
+        text-align: left;
+      }
+      
+      .mp-search-item-title {
+        color: #e0e0e0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 500;
+      }
+      
+      .mp-search-item-artist {
+        color: rgba(255,255,255,0.4);
+        font-size: 9px;
+        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      
+      .mp-search-item-add {
+        flex-shrink: 0;
+        color: rgba(255,255,255,0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .mp-search-item:hover .mp-search-item-add {
+        color: #fff;
+      }
+      
+      .mp-search-loading {
+        text-align: center;
+        padding: 12px;
+        color: rgba(255,255,255,0.4);
+        font-size: 11px;
+      }
+      
+      .mp-search-empty {
+        text-align: center;
+        padding: 12px;
+        color: rgba(255,255,255,0.3);
+        font-size: 11px;
       }
     `;
     document.head.appendChild(style);
@@ -145,7 +289,7 @@ class MusicPlayer {
       </div>
     `;
 
-    // 播放面板 HTML
+    // 播放面板 HTML (在头部加入搜索小图标按钮，在 header 下面加入搜索容器)
     const panelHTML = `
       <div class="music-player-panel" id="mp-panel">
         <div class="mp-panel-decor">
@@ -163,7 +307,14 @@ class MusicPlayer {
             <div class="mp-song-title" id="mp-song-title">未加载音乐</div>
             <div class="mp-song-status" id="mp-song-status">弦音静止</div>
           </div>
-          <div class="mp-header-actions">
+          <div class="mp-header-actions" style="display: flex; gap: 6px; align-items: center;">
+            <!-- 新增：搜索音乐触发按钮 -->
+            <button class="mp-icon-btn" id="mp-search-toggle-btn" title="搜索音乐">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
             <button class="mp-icon-btn" id="mp-setting-btn" title="偏好设置">
               <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"/>
@@ -171,6 +322,15 @@ class MusicPlayer {
               </svg>
             </button>
           </div>
+        </div>
+
+        <!-- 新增：搜索面板 UI -->
+        <div class="mp-search-container" id="mp-search-container" style="display: none;">
+          <div class="mp-search-box">
+            <input type="text" id="mp-search-input" placeholder="搜索歌名/歌手...">
+            <button id="mp-search-submit-btn">搜索</button>
+          </div>
+          <div class="mp-search-results" id="mp-search-results"></div>
         </div>
 
         <div class="mp-progress-container">
@@ -219,6 +379,13 @@ class MusicPlayer {
     this.prevBtn = this.container.querySelector('#mp-prev-btn');
     this.nextBtn = this.container.querySelector('#mp-next-btn');
     this.settingBtn = this.container.querySelector('#mp-setting-btn');
+
+    // 新增：获取搜索 DOM 元素
+    this.searchToggleBtn = this.container.querySelector('#mp-search-toggle-btn');
+    this.searchContainer = this.container.querySelector('#mp-search-container');
+    this.searchInput = this.container.querySelector('#mp-search-input');
+    this.searchSubmitBtn = this.container.querySelector('#mp-search-submit-btn');
+    this.searchResults = this.container.querySelector('#mp-search-results');
     
     this.songTitle = this.container.querySelector('#mp-song-title');
     this.songStatus = this.container.querySelector('#mp-song-status');
@@ -290,6 +457,156 @@ class MusicPlayer {
       const clickPercent = (e.clientX - rect.left) / rect.width;
       this.audio.currentTime = clickPercent * this.audio.duration;
     });
+
+    // 新增：绑定搜索交互事件
+    this.searchToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isSearchVisible = this.searchContainer.style.display !== 'none';
+      if (isSearchVisible) {
+        this.searchContainer.style.display = 'none';
+      } else {
+        this.searchContainer.style.display = 'flex';
+        this.searchInput.focus();
+      }
+    });
+
+    this.searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.stopPropagation();
+        this.handleSearch();
+      }
+    });
+
+    this.searchContainer.addEventListener('click', (e) => {
+      e.stopPropagation(); // 阻止点击搜索框内部折叠/隐藏面板
+    });
+
+    this.searchSubmitBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.handleSearch();
+    });
+  }
+
+  // 新增：调用第三方 API 搜索音乐
+  async handleSearch() {
+    const query = this.searchInput.value.trim();
+    if (!query) return;
+
+    this.searchResults.innerHTML = '<div class="mp-search-loading">弦音寻觅中...</div>';
+
+    try {
+      // 优先方案：Meting 备用 API（返回带歌曲直链的统一结构）
+      const url = `https://api.injahow.cn/meting/?type=search&keywords=${encodeURIComponent(query)}`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("首选 API 异常");
+      
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("无结果");
+      }
+      this.renderSearchResults(data);
+    } catch (e) {
+      console.warn("主搜索接口受限，正启用网易云备用源...", e);
+      try {
+        // 备选方案：Autumnfish 网易云公开镜像服务
+        const backupUrl = `https://autumnfish.cn/search?keywords=${encodeURIComponent(query)}`;
+        const backupResp = await fetch(backupUrl);
+        if (!backupResp.ok) throw new Error("备选 API 异常");
+        
+        const backupData = await backupResp.json();
+        const songs = backupData.result?.songs;
+        if (!songs || songs.length === 0) {
+          this.searchResults.innerHTML = '<div class="mp-search-empty">未寻得此曲</div>';
+          return;
+        }
+
+        // 整理为统一播放直链结构（利用网易云官方免跨域的 MP3 直链，高稳定性）
+        const formattedData = songs.slice(0, 15).map(song => ({
+          id: song.id,
+          name: song.name,
+          artist: song.artists ? song.artists.map(a => a.name) : ["未知歌手"],
+          url: `https://music.163.com/song/media/outer/url?id=${song.id}.mp3`
+        }));
+        this.renderSearchResults(formattedData);
+      } catch (err) {
+        console.error("音乐搜索解析失败:", err);
+        this.searchResults.innerHTML = `<div class="mp-search-empty">寻音受阻: ${err.message || '网络连接异常'}</div>`;
+      }
+    }
+  }
+
+  // 新增：渲染搜索列表
+  renderSearchResults(songs) {
+    this.searchResults.innerHTML = '';
+    
+    songs.slice(0, 12).forEach(song => {
+      const item = document.createElement('div');
+      item.className = 'mp-search-item';
+      
+      const artistName = Array.isArray(song.artist) ? song.artist.join('/') : (song.artist || '未知歌手');
+      
+      item.innerHTML = `
+        <div class="mp-search-item-info">
+          <div class="mp-search-item-title">${song.name}</div>
+          <div class="mp-search-item-artist">${artistName}</div>
+        </div>
+        <div class="mp-search-item-add" title="添加并共鸣">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </div>
+      `;
+      
+      item.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await this.addSongToPlaylist(song);
+      });
+      
+      this.searchResults.appendChild(item);
+    });
+  }
+
+  // 新增：将选择的歌曲添加进本地 IndexedDB 库并自动开始播放
+  async addSongToPlaylist(songData) {
+    const artistName = Array.isArray(songData.artist) ? songData.artist.join('/') : (songData.artist || '未知歌手');
+    const songName = `${songData.name} - ${artistName}`;
+    const playUrl = songData.url || `https://music.163.com/song/media/outer/url?id=${songData.id}.mp3`;
+
+    // 查重，如果已有此歌直接播放
+    const existsIdx = this.songs.findIndex(s => s.url === playUrl || s.name === songName);
+    if (existsIdx !== -1) {
+      this.isPlaying = true;
+      await this.selectSong(existsIdx);
+      if (this.audio.paused) {
+        this.audio.play().catch(err => console.log("播放受浏览器策略拦截:", err));
+      }
+      return;
+    }
+
+    try {
+      const newSong = {
+        name: songName,
+        url: playUrl
+      };
+      // 保存至 IndexedDB
+      await db.musicPlaylist.add(newSong);
+      
+      // 更新本地状态列表
+      await this.loadSongsFromDB();
+      
+      // 自动播放最新导入的这首歌
+      const newIndex = this.songs.length - 1;
+      if (newIndex >= 0) {
+        this.isPlaying = true;
+        await this.selectSong(newIndex);
+        if (this.audio.paused) {
+          this.audio.play().catch(err => console.log("播放受浏览器策略拦截:", err));
+        }
+      }
+    } catch (e) {
+      console.error("保存新歌曲到 IndexedDB 失败:", e);
+    }
   }
 
   bindAudioEvents() {

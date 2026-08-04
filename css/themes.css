@@ -335,6 +335,81 @@
     linear-gradient(180deg, #180f02 0%, #291503 100%);
 }
 
+/* ==================== 糖果与食物色系主题 ==================== */
+
+/* 1. 抹茶拿铁 (Matcha Latte) - 奶绿与米白交织，温润柔和 */
+[data-theme="matcha-latte"] {
+  --color-bg-primary: #f4fbf5;
+  --color-bg-secondary: rgba(255, 255, 255, 0.6);
+  --color-bg-tertiary: rgba(255, 255, 255, 0.8);
+  --color-text-primary: #2e4a36;
+  --color-text-secondary: rgba(46, 74, 54, 0.65);
+  --color-text-tertiary: rgba(46, 74, 54, 0.4);
+  --color-accent: #65a30d; /* 抹茶绿 */
+  --color-border: rgba(101, 163, 13, 0.15);
+  --color-bubble-user: rgba(163, 230, 53, 0.3);
+  --color-bubble-character: rgba(255, 255, 255, 0.8);
+  --color-bubble-text: #2e4a36;
+  --color-shadow: rgba(101, 163, 13, 0.1);
+  --glass-blur: 16px;
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  /* 奶绿与微黄的拿铁拉花渐变 */
+  --bg-image:
+    radial-gradient(circle at 15% 15%, rgba(217, 249, 157, 0.8) 0%, transparent 50%),
+    radial-gradient(circle at 85% 85%, rgba(187, 247, 208, 0.6) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(254, 252, 232, 0.7) 0%, transparent 60%),
+    linear-gradient(135deg, #f4fbf5 0%, #e6f6e8 100%);
+}
+
+/* 2. 葡萄水果糖 (Grape Fruit Candy) - 高反光、晶莹剔透的水果硬糖质感 */
+[data-theme="grape-candy"] {
+  --color-bg-primary: #f7f5ff;
+  --color-bg-secondary: rgba(255, 255, 255, 0.55);
+  --color-bg-tertiary: rgba(255, 255, 255, 0.75);
+  --color-text-primary: #3b2859;
+  --color-text-secondary: rgba(59, 40, 89, 0.65);
+  --color-text-tertiary: rgba(59, 40, 89, 0.4);
+  --color-accent: #9333ea; /* 鲜亮紫 */
+  --color-border: rgba(255, 255, 255, 0.6); /* 模拟硬糖的糖纸反光 */
+  --color-bubble-user: rgba(216, 180, 254, 0.4);
+  --color-bubble-character: rgba(255, 255, 255, 0.75);
+  --color-bubble-text: #3b2859;
+  --color-shadow: rgba(147, 51, 234, 0.12);
+  --glass-blur: 24px; /* 较强的折射感 */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  /* 葡萄紫与透亮的糖果色源 */
+  --bg-image:
+    radial-gradient(circle at 20% 25%, rgba(192, 132, 252, 0.5) 0%, transparent 50%),
+    radial-gradient(circle at 80% 75%, rgba(232, 121, 249, 0.4) 0%, transparent 50%),
+    radial-gradient(circle at 50% 10%, rgba(167, 139, 250, 0.3) 0%, transparent 60%),
+    linear-gradient(135deg, #f5f3ff 0%, #faf5ff 100%);
+}
+
+/* 3. 水蜜桃软糖 (Peach Gummy) - 柔焦偏哑光，带橘粉调的软弹感 */
+[data-theme="peach-gummy"] {
+  --color-bg-primary: #fff6f5;
+  --color-bg-secondary: rgba(255, 240, 240, 0.6);
+  --color-bg-tertiary: rgba(255, 255, 255, 0.8);
+  --color-text-primary: #5c2725;
+  --color-text-secondary: rgba(92, 39, 37, 0.65);
+  --color-text-tertiary: rgba(92, 39, 37, 0.4);
+  --color-accent: #f43f5e; /* 水蜜桃红 */
+  --color-border: rgba(251, 113, 133, 0.15);
+  --color-bubble-user: rgba(254, 163, 170, 0.35); /* 软糖橘粉 */
+  --color-bubble-character: rgba(255, 255, 255, 0.7);
+  --color-bubble-text: #5c2725;
+  --color-shadow: rgba(244, 63, 94, 0.1);
+  --glass-blur: 18px; /* 软糖独有的柔焦感 */
+  --glass-bg: rgba(255, 250, 250, 0.5);
+  /* 蜜桃粉橘暖色光源 */
+  --bg-image:
+    radial-gradient(circle at 10% 30%, rgba(253, 164, 175, 0.5) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(253, 186, 116, 0.45) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(254, 205, 211, 0.4) 0%, transparent 60%),
+    linear-gradient(135deg, #fff1f2 0%, #fff7ed 100%);
+}
+
+
 
 /* 动效开关：设置里可关闭 */
 [data-anim="off"] * {

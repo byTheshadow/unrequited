@@ -126,21 +126,35 @@ let ecgAnimationFrameId = null; // 新增：保存心电图进度条渲染帧
 // ==================== 入口渲染路由 ====================
 export async function render(root) {
   let launchStyle = 'classic';
+
   try {
     const row = await db.settings.get('launchStyle');
-    if (row) launchStyle = row.value;
+
+    if (row) {
+      launchStyle = row.value;
+    }
   } catch (e) {
     console.warn('Failed to load launchStyle from DB:', e);
   }
 
   if (launchStyle === 'ecg') {
+    // 启动动画：心跳播放器
     renderECGStyle(root);
+
   } else if (launchStyle === 'meditation') {
+    // 启动动画：静心冥想
     renderMeditationStyle(root);
+
+  } else if (launchStyle === 'sanctuary') {
+    // 启动动画：爱与誓约
+    renderSanctuaryStyle(root);
+
   } else {
+    // 默认启动动画：经典塔罗
     renderClassicStyle(root);
   }
 }
+
 
 
 // ==================== 动画风格1：经典塔罗 ====================
@@ -898,6 +912,276 @@ function renderMeditationStyle(root) {
   timers.push(setTimeout(go, 18500));
 }
 
+// ==================== 动画风格3：爱与誓约 (冥想避风港) ====================
+function renderSanctuaryStyle(root) {
+  // 冥想引导词（版本三）
+  const SANCTUARY_QUOTES = [
+    "以爱之名，立下神圣的屏障。",
+    "恐惧与阴霾，在此刻悉数消散。",
+    "在彼此的信任里，我们找到了最坚固的锚点。",
+    "任由时空变迁，我们心灵的连接不可动摇。",
+    "结界已定。你被保护着，你安全了。"
+  ];
+
+  // 渲染 HTML 与内联 CSS，所有变色逻辑与 CSS 均绑定项目的配色变量
+  root.innerHTML = `
+    <div class="launch-page page sanctuary-theme" id="launch-root">
+      <!-- 逐渐消散的浓雾 -->
+      <div class="ls-fog-layer"></div>
+
+      <div class="ls-content">
+        <!-- 视觉核心：小舟、水波与连接的纽带 -->
+        <div class="ls-boat-scene">
+          
+          <!-- 结界爆发的星芒 -->
+          <div class="ls-sanctuary-star"></div>
+
+          <!-- 代表双向连接的双螺旋光轨 -->
+          <svg class="ls-bond-spiral" viewBox="0 0 60 140" xmlns="http://www.w3.org/2000/svg">
+            <path class="ls-bond-path ls-path-left" d="M20,140 C-10,100 70,60 30,10" />
+            <path class="ls-bond-path ls-path-right" d="M40,140 C70,100 -10,60 30,10" />
+          </svg>
+
+          <!-- 孤舟 SVG -->
+          <svg class="ls-boat-svg" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="50,5 50,45 80,45" class="ls-boat-line"/>
+            <polygon points="50,15 50,45 25,45" class="ls-boat-line" style="opacity: 0.6;"/>
+            <path d="M10,45 L90,45 L75,55 L25,55 Z" class="ls-boat-line" fill="rgba(255, 255, 255, 0.05)"/>
+          </svg>
+
+          <!-- 水面涟漪 -->
+          <div class="ls-water-ripple ls-ripple-1"></div>
+          <div class="ls-water-ripple ls-ripple-2"></div>
+        </div>
+
+        <!-- 誓约冥想词容器 -->
+        <div class="ls-vow-container">
+          ${SANCTUARY_QUOTES.map((q, idx) => `
+            <p class="ls-vow-line ls-line-${idx + 1}">${q}</p>
+          `).join('')}
+        </div>
+
+        <div class="ls-hint" id="ls-hint">轻 触 屏 幕 进 入</div>
+      </div>
+
+      <style>
+        .sanctuary-theme {
+          --sanc-color: var(--color-text-primary, #e2e8f0);
+          --sanc-glow: var(--color-text-primary-glow, rgba(226, 232, 240, 0.4));
+          --sanc-bg: var(--color-bg-primary, #050b14);
+          
+          width: 100%; height: 100%;
+          background-color: var(--sanc-bg);
+          color: var(--sanc-color);
+          overflow: hidden;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+        }
+
+        /* 逐渐消散的浓雾（驱逐不好的能量） */
+        .ls-fog-layer {
+          position: absolute;
+          inset: -50%;
+          background: radial-gradient(circle at center, transparent 20%, var(--sanc-bg) 75%),
+                      repeating-radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0, rgba(255, 255, 255, 0.01) 10px, transparent 20px);
+          filter: blur(20px);
+          z-index: 10;
+          opacity: 1;
+          animation: lsBanishFog 12s ease-out forwards;
+          pointer-events: none;
+        }
+
+        .ls-content {
+          position: relative;
+          z-index: 5;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 100%; height: 100%;
+        }
+
+        .ls-boat-scene {
+          position: relative;
+          width: 200px;
+          height: 230px;
+          margin-bottom: 60px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-end;
+        }
+
+        /* 水面安全涟漪 */
+        .ls-water-ripple {
+          position: absolute;
+          bottom: 15px;
+          width: 110px;
+          height: 26px;
+          border-radius: 50%;
+          border: 1px solid var(--sanc-color);
+          box-shadow: 0 0 12px var(--sanc-glow);
+          transform: rotateX(75deg);
+          opacity: 0;
+        }
+        .ls-ripple-1 {
+          animation: lsRippleExpand 4s infinite ease-out 6s;
+        }
+        .ls-ripple-2 {
+          animation: lsRippleExpand 4s infinite ease-out 8s;
+        }
+
+        /* 孤舟 SVG */
+        .ls-boat-svg {
+          position: relative;
+          width: 55px;
+          height: 55px;
+          margin-bottom: 20px;
+          filter: drop-shadow(0 0 8px var(--sanc-glow));
+          animation: lsBoatRock 4s ease-in-out infinite;
+          z-index: 2;
+        }
+        .ls-boat-line {
+          fill: none;
+          stroke: var(--sanc-color);
+          stroke-width: 1.5;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+
+        /* 双螺旋连接光轨 */
+        .ls-bond-spiral {
+          position: absolute;
+          bottom: 52px;
+          width: 50px;
+          height: 120px;
+          z-index: 1;
+          opacity: 0;
+          animation: lsSpiralReveal 3s ease-in forwards 8s;
+        }
+        .ls-bond-path {
+          fill: none;
+          stroke: var(--sanc-color);
+          stroke-width: 1.2;
+          filter: drop-shadow(0 0 4px var(--sanc-color));
+          stroke-dasharray: 200;
+          stroke-dashoffset: 200;
+        }
+        .ls-path-left {
+          animation: lsDrawBond 4s ease-in-out forwards 8s, lsFloatBond 3s ease-in-out infinite 12s;
+        }
+        .ls-path-right {
+          animation: lsDrawBond 4s ease-in-out forwards 8.5s, lsFloatBond 3s ease-in-out infinite 12s;
+        }
+
+        /* 守护星芒爆发 */
+        .ls-sanctuary-star {
+          position: absolute;
+          top: 35px;
+          width: 2px; height: 2px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 0 10px 4px var(--sanc-color);
+          opacity: 0;
+          animation: lsStarBurst 3s ease-out forwards 11s;
+        }
+
+        /* 誓约文字排版 */
+        .ls-vow-container {
+          position: relative;
+          width: 85%;
+          max-width: 380px;
+          height: 50px;
+          text-align: center;
+        }
+        .ls-vow-line {
+          position: absolute;
+          inset: 0;
+          font-size: 14px;
+          line-height: 1.8;
+          letter-spacing: 2px;
+          color: var(--color-text-primary, rgba(255, 255, 255, 0.95));
+          text-shadow: 0 0 10px var(--sanc-glow);
+          opacity: 0;
+        }
+
+        /* 引导词出场顺序 */
+        .ls-line-1 { animation: lsVowFade 3.5s ease-in-out forwards 0.5s; }
+        .ls-line-2 { animation: lsVowFade 3.5s ease-in-out forwards 4s; }
+        .ls-line-3 { animation: lsVowFade 3.5s ease-in-out forwards 7.5s; }
+        .ls-line-4 { animation: lsVowFade 3.5s ease-in-out forwards 11s; }
+        .ls-line-5 { animation: lsVowStay 3s ease-out forwards 14.5s; }
+
+        /* 底部进入提示 */
+        .ls-hint {
+          position: absolute;
+          bottom: 45px;
+          font-size: 10px;
+          letter-spacing: 4px;
+          color: var(--color-text-tertiary, rgba(255, 255, 255, 0.35));
+          opacity: 0;
+          animation: lsHintIn 2s ease forwards 16s;
+          cursor: pointer;
+        }
+
+        /* Keyframes */
+        @keyframes lsBanishFog {
+          0% { opacity: 1; transform: scale(1) rotate(0deg); }
+          50% { opacity: 0.6; transform: scale(1.15) rotate(5deg); }
+          100% { opacity: 0; transform: scale(1.4) rotate(10deg); visibility: hidden; }
+        }
+        @keyframes lsBoatRock {
+          0%, 100% { transform: translateY(0) rotate(-3deg); }
+          50% { transform: translateY(-6px) rotate(3deg); }
+        }
+        @keyframes lsRippleExpand {
+          0% { transform: rotateX(75deg) scale(0.3); opacity: 0.7; stroke-width: 1.5px; }
+          100% { transform: rotateX(75deg) scale(1.8); opacity: 0; stroke-width: 0px; }
+        }
+        @keyframes lsSpiralReveal { to { opacity: 1; } }
+        @keyframes lsDrawBond { to { stroke-dashoffset: 0; } }
+        @keyframes lsFloatBond {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes lsStarBurst {
+          0% { opacity: 0; transform: scale(0.5); }
+          30% { opacity: 1; transform: scale(2.2); box-shadow: 0 0 25px 8px var(--sanc-color); }
+          100% { opacity: 0.8; transform: scale(1.4); box-shadow: 0 0 15px 4px var(--sanc-color); }
+        }
+        @keyframes lsVowFade {
+          0% { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+          18% { opacity: 1; transform: translateY(0); filter: blur(0); }
+          82% { opacity: 1; transform: translateY(0); filter: blur(0); }
+          100% { opacity: 0; transform: translateY(-8px); filter: blur(3px); }
+        }
+        @keyframes lsVowStay {
+          0% { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+          30% { opacity: 1; transform: translateY(0); filter: blur(0); }
+          100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        @keyframes lsHintIn { to { opacity: 1; } }
+      </style>
+    </div>
+  `;
+
+  // 18.5秒后未操作自动跳入 App，或随时点击进入
+  const go = () => {
+    if (didGo) return;
+    didGo = true;
+    haptic(6);
+    navigate('/home');
+  };
+
+  clickTarget = document.getElementById('launch-root');
+  clickHandler = go;
+  clickTarget.addEventListener('click', clickHandler);
+
+  timers.push(setTimeout(go, 18500));
+}
 
 // ==================== 统一的销毁逻辑 ====================
 export function destroy() {

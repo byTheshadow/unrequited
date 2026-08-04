@@ -367,6 +367,11 @@ async function generateDriftReply(sentContent, charId) {
     isRead: 1
   });
 
+  // 【新增】清除该角色当前可能存在的正在写信冲动状态，避免已产生沟通后仍显示“正在写信中”
+  await db.driftLetters
+    .filter(l => l.characterId === charId && l.status === 'impulse')
+    .delete();
+
   let replyText = '';
   let finalCharId = charId;
 

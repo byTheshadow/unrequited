@@ -291,7 +291,8 @@ function renderAppearanceSection() {
         <div class="chips inline">
           <button class="chip" data-act="pick-launch-style" data-val="classic" data-on="${state.launchStyle === 'classic' ? '1' : '0'}" type="button">经典塔罗</button>
           <button class="chip" data-act="pick-launch-style" data-val="ecg" data-on="${state.launchStyle === 'ecg' ? '1' : '0'}" type="button">心跳播放器</button>
-        </div>
+        <button class="chip" data-act="pick-launch-style" data-val="meditation" data-on="${state.launchStyle === 'meditation' ? '1' : '0'}" type="button">静心冥想</button>
+          </div>
       </div>
             <div class="row row-vertical">
         <div class="row-header">

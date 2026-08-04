@@ -135,10 +135,13 @@ export async function render(root) {
 
   if (launchStyle === 'ecg') {
     renderECGStyle(root);
+  } else if (launchStyle === 'meditation') {
+    renderMeditationStyle(root);
   } else {
     renderClassicStyle(root);
   }
 }
+
 
 // ==================== 动画风格1：经典塔罗 ====================
 function renderClassicStyle(root) {
@@ -522,6 +525,7 @@ function renderECGStyle(root) {
     </div>
   `;
 
+
   // 1. 加载治愈语
   fetch('./data/healingQuotes.json')
     .then((r) => r.json())
@@ -618,6 +622,282 @@ function renderECGStyle(root) {
   clickHandler = go;
   clickTarget.addEventListener('click', clickHandler);
 }
+// ==================== 动画风格3：静心冥想 ====================
+function renderMeditationStyle(root) {
+  // 冥想引导词（版本二）
+  const MEDITATION_QUOTES = [
+    "深呼吸，让时间的流沙缓慢停滞。",
+    "外界的纷扰，正随着沙粒被层层剥离。",
+    "我们正在为你构筑一个纯净的安全领域。",
+    "在这个只属于你的边界里，感受神圣的连接。",
+    "放下一切，你已安全抵达。"
+  ];
+
+  // 渲染 HTML 及内联 CSS，所有变色逻辑与 CSS 均绑定 themeManager / 系统的色值变量
+  // 我们使用 var(--color-text-primary) 或主色调，如果全局主题中定义了其他主题色也可以使用它。
+  // 在这我们默认使用当前页面的主色调配色。
+  root.innerHTML = `
+    <div class="launch-page page meditation-theme" id="launch-root">
+      <div class="lm-bg"></div>
+      <div class="lm-content">
+        <!-- 神圣结界与沙漏核心 -->
+        <div class="lm-sacred-geometry">
+          <div class="lm-ring lm-ring-3"></div>
+          <div class="lm-ring lm-ring-2"></div>
+          <div class="lm-ring lm-ring-1"></div>
+
+          <!-- 流沙光尘 -->
+          <div class="lm-dust lm-dust-1"></div>
+          <div class="lm-dust lm-dust-2"></div>
+          <div class="lm-dust lm-dust-3"></div>
+
+          <!-- 中心抽象沙漏 SVG -->
+          <svg class="lm-hourglass-svg" viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <filter id="lm-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="3.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            
+            <!-- 沙漏几何轮廓 -->
+            <polygon points="10,10 90,10 50,70" class="lm-hg-line" filter="url(#lm-glow)"/>
+            <polygon points="10,130 90,130 50,70" class="lm-hg-line" filter="url(#lm-glow)"/>
+            
+            <line x1="30" y1="40" x2="70" y2="40" class="lm-hg-line" opacity="0.3"/>
+            <line x1="30" y1="100" x2="70" y2="100" class="lm-hg-line" opacity="0.3"/>
+
+            <!-- 中心能量核 -->
+            <circle cx="50" cy="70" r="8" class="lm-hg-core-glow" filter="url(#lm-glow)"/>
+
+            <!-- 垂直流沙光线 -->
+            <line x1="50" y1="70" x2="50" y2="125" class="lm-hg-sand-stream" filter="url(#lm-glow)"/>
+          </svg>
+        </div>
+
+        <!-- 冥想词容器 -->
+        <div class="lm-quote-container">
+          ${MEDITATION_QUOTES.map((q, idx) => `
+            <p class="lm-quote-line lm-line-${idx + 1}">${q}</p>
+          `).join('')}
+        </div>
+
+        <div class="lm-hint" id="lm-hint">轻 触 屏 幕 进 入</div>
+      </div>
+
+      <style>
+        /* 样式隔离 */
+        .meditation-theme {
+          --meditation-color: var(--color-text-primary, #d4af37);
+          --meditation-bg: var(--color-bg-primary, #030305);
+          
+          width: 100%; height: 100%;
+          background-color: var(--meditation-bg);
+          color: var(--meditation-color);
+          overflow: hidden;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+        }
+
+        .lm-bg {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at center, rgba(255,255,255,0.02) 0%, transparent 60%);
+          z-index: 0;
+        }
+
+        .lm-content {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 100%; height: 100%;
+          perspective: 1000px;
+        }
+
+        .lm-sacred-geometry {
+          position: relative;
+          width: 200px;
+          height: 200px;
+          transform-style: preserve-3d;
+          margin-bottom: 70px;
+          animation: lmFloat 6s ease-in-out infinite;
+        }
+
+        /* 3D 星环 */
+        .lm-ring {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 0 15px inset rgba(255, 255, 255, 0.03),
+                      0 0 8px var(--meditation-color);
+        }
+        .lm-ring-1 {
+          border-top: 2px solid var(--meditation-color);
+          transform: rotateX(70deg) rotateY(15deg);
+          animation: lmSpinRing1 12s linear infinite;
+        }
+        .lm-ring-2 {
+          border-right: 2px solid var(--meditation-color);
+          transform: rotateX(60deg) rotateY(-30deg);
+          animation: lmSpinRing2 18s linear infinite reverse;
+          width: 110%; height: 110%;
+          top: -5%; left: -5%;
+          opacity: 0.6;
+        }
+        .lm-ring-3 {
+          border-bottom: 1px dashed var(--meditation-color);
+          transform: rotateX(80deg) rotateZ(45deg);
+          animation: lmSpinRing3 25s linear infinite;
+          width: 130%; height: 130%;
+          top: -15%; left: -15%;
+          opacity: 0.3;
+        }
+
+        /* 中心沙漏 */
+        .lm-hourglass-svg {
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -50%);
+          width: 70px;
+          height: 105px;
+          overflow: visible;
+          filter: drop-shadow(0 0 6px var(--meditation-color));
+        }
+        .lm-hg-line {
+          fill: none;
+          stroke: var(--meditation-color);
+          stroke-width: 1;
+          opacity: 0.8;
+        }
+        .lm-hg-sand-stream {
+          stroke: var(--meditation-color);
+          stroke-width: 1.5;
+          stroke-dasharray: 4 4;
+          animation: lmSandFlow 1s linear infinite;
+        }
+        .lm-hg-core-glow {
+          fill: var(--meditation-color);
+          opacity: 0;
+          animation: lmCorePulse 4s ease-in-out infinite;
+        }
+
+        /* 治愈语序列 */
+        .lm-quote-container {
+          position: relative;
+          width: 85%;
+          max-width: 360px;
+          height: 55px;
+          text-align: center;
+        }
+
+        .lm-quote-line {
+          position: absolute;
+          inset: 0;
+          font-size: 14px;
+          line-height: 1.8;
+          letter-spacing: 2px;
+          color: var(--color-text-primary, rgba(255, 255, 255, 0.95));
+          text-shadow: 0 0 8px var(--meditation-color);
+          opacity: 0;
+        }
+
+        /* 逐句循环播放动画设计 */
+        .lm-line-1 { animation: lmTextFadeInOut 3.5s ease-in-out forwards 0.5s; }
+        .lm-line-2 { animation: lmTextFadeInOut 3.5s ease-in-out forwards 4s; }
+        .lm-line-3 { animation: lmTextFadeInOut 3.5s ease-in-out forwards 7.5s; }
+        .lm-line-4 { animation: lmTextFadeInOut 3.5s ease-in-out forwards 11s; }
+        .lm-line-5 { animation: lmTextFadeInLast 3s ease-out forwards 14.5s; }
+
+        .lm-hint {
+          position: absolute;
+          bottom: 50px;
+          font-size: 10px;
+          letter-spacing: 4px;
+          color: var(--color-text-tertiary, rgba(255, 255, 255, 0.4));
+          opacity: 0;
+          animation: lmHintFadeIn 2s ease forwards 16s;
+          cursor: pointer;
+        }
+
+        /* 尘埃 */
+        .lm-dust {
+          position: absolute;
+          width: 2px; height: 2px;
+          background: var(--meditation-color);
+          border-radius: 50%;
+          box-shadow: 0 0 4px var(--meditation-color);
+          opacity: 0;
+        }
+        .lm-dust-1 { left: 42%; top: 58%; animation: lmRise 5s ease-in infinite 0s; }
+        .lm-dust-2 { left: 56%; top: 62%; animation: lmRise 6s ease-in infinite 1.5s; width: 1px; height: 1px; }
+        .lm-dust-3 { left: 47%; top: 66%; animation: lmRise 4.5s ease-in infinite 2.5s; width: 3px; height: 3px; }
+
+        /* keyframes 动画 */
+        @keyframes lmSpinRing1 { 0% { transform: rotateX(70deg) rotateY(15deg) rotateZ(0deg); } 100% { transform: rotateX(70deg) rotateY(15deg) rotateZ(360deg); } }
+        @keyframes lmSpinRing2 { 0% { transform: rotateX(60deg) rotateY(-30deg) rotateZ(0deg); } 100% { transform: rotateX(60deg) rotateY(-30deg) rotateZ(360deg); } }
+        @keyframes lmSpinRing3 { 0% { transform: rotateX(80deg) rotateZ(0deg); } 100% { transform: rotateX(80deg) rotateZ(360deg); } }
+        
+        @keyframes lmFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-12px); }
+        }
+        @keyframes lmSandFlow {
+          0% { stroke-dashoffset: 8; }
+          100% { stroke-dashoffset: 0; }
+        }
+        @keyframes lmCorePulse {
+          0%, 100% { opacity: 0.1; transform: scale(0.8) translate(-50%, -50%); }
+          50% { opacity: 0.6; transform: scale(1.4) translate(-50%, -50%); }
+        }
+        @keyframes lmTextFadeInOut {
+          0% { opacity: 0; transform: translateY(8px) scale(0.96); filter: blur(4px); }
+          18% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          82% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          100% { opacity: 0; transform: translateY(-8px) scale(1.04); filter: blur(4px); }
+        }
+        @keyframes lmTextFadeInLast {
+          0% { opacity: 0; transform: translateY(8px) scale(0.96); filter: blur(4px); }
+          30% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+        @keyframes lmHintFadeIn {
+          to { opacity: 1; }
+        }
+        @keyframes lmRise {
+          0% { transform: translateY(0) scale(1); opacity: 0; }
+          50% { opacity: 0.7; }
+          100% { transform: translateY(-70px) scale(0.4); opacity: 0; }
+        }
+      </style>
+    </div>
+  `;
+
+  // 点击或 18.5秒 倒计时结束进入 App (5句引导词 17.5s + 1s缓冲)
+  const go = () => {
+    if (didGo) return;
+    didGo = true;
+    haptic(6);
+    navigate('/home');
+  };
+
+  clickTarget = document.getElementById('launch-root');
+  clickHandler = go;
+  clickTarget.addEventListener('click', clickHandler);
+
+  // 18.5 秒如果没有点击，自动进入 App
+  timers.push(setTimeout(go, 18500));
+}
+
 
 // ==================== 统一的销毁逻辑 ====================
 export function destroy() {

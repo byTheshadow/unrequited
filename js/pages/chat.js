@@ -3398,7 +3398,7 @@ export async function render(root, params = {}) {
           to { transform: rotate(360deg); }
         }
 
-        .quote-card {
+                .quote-card {
           padding: 6px 10px;
           margin-bottom: 6px;
           border-left: 2px solid color-mix(in srgb, currentColor 45%, transparent);
@@ -3410,6 +3410,8 @@ export async function render(root, params = {}) {
           transition: background 0.15s;
           max-width: 100%;
           overflow: hidden;
+          box-sizing: border-box;
+          word-break: break-all; 
         }
         .quote-card:active { background: color-mix(in srgb, currentColor 14%, transparent); }
         .quote-card.missing { opacity: 0.55; cursor: default; font-style: italic; }
@@ -3424,10 +3426,10 @@ export async function render(root, params = {}) {
         }
         .quote-card-content {
           opacity: 0.9;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
+          white-space: normal;    
+          word-break: break-all; 
         }
+
 
         .choice-prompt {
           margin-bottom: 8px;

@@ -882,7 +882,7 @@ async function checkOfflineImpulseTrigger() {
   let triggerTimeOffset = 0;
 
   for (let h = 1; h <= elapsedHours; h++) {
-    if (Math.random() < 0.15) { // 15% 概率
+    if (Math.random() < 0.05) { // 0.55% 概率
       triggered = true;
       triggerTimeOffset = h * 3600000;
       break;
@@ -916,13 +916,14 @@ async function checkOfflineImpulseTrigger() {
 let lastOnlineCheckTime = 0;
 async function triggerOnlineResonanceCheck() {
   const now = Date.now();
-  if (now - lastOnlineCheckTime < 60000) return; // 1分钟判定冷却
+  if (now - lastOnlineCheckTime < 1800000) return; // 30分钟判定冷却 (30 * 60 * 1000 = 1800000ms)
   lastOnlineCheckTime = now;
 
   const currentImpulses = await db.driftLetters.filter(l => l.status === 'impulse').toArray();
   if (currentImpulses.length > 0) return;
 
-  if (Math.random() < 0.15) { // 15% 真随机判定
+  if (Math.random() < 0.05) { // 5% 真随机判定
+
     const randomChar = pick(characters);
     if (!randomChar) return;
 

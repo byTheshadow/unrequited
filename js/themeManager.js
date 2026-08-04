@@ -13,7 +13,7 @@ const THEMES = [
   // ==== 在下面插入新玻璃主题 ====
   { id: 'frosted-aurora', name: '极光毛玻璃' },
   { id: 'liquid-nebula',  name: '液态星云' },
-  { id: 'liquid-amber',   name: '液态琥珀' }
+  { id: 'liquid-amber',   name: '液态琥珀' },
    // ==== 新增：糖果与食物色系主题 ====
   { id: 'matcha-latte',        name: '抹茶拿铁' },
   { id: 'grape-candy',         name: '葡萄水果糖' },

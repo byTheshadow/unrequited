@@ -293,6 +293,7 @@ function renderAppearanceSection() {
           <button class="chip" data-act="pick-launch-style" data-val="ecg" data-on="${state.launchStyle === 'ecg' ? '1' : '0'}" type="button">心跳播放器</button>
         <button class="chip" data-act="pick-launch-style" data-val="meditation" data-on="${state.launchStyle === 'meditation' ? '1' : '0'}" type="button">静心冥想</button>
         <button class="chip" data-act="pick-launch-style" data-val="sanctuary" data-on="${state.launchStyle === 'sanctuary' ? '1' : '0'}" type="button">爱与誓约</button> 
+          <button class="chip" data-act="pick-launch-style" data-val="guardian" data-on="${state.launchStyle === 'guardian' ? '1' : '0'}" type="button">守护羁绊</button>
         </div>
       </div>
             <div class="row row-vertical">

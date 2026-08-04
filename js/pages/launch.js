@@ -126,31 +126,22 @@ let ecgAnimationFrameId = null; // 新增：保存心电图进度条渲染帧
 // ==================== 入口渲染路由 ====================
 export async function render(root) {
   let launchStyle = 'classic';
-
   try {
     const row = await db.settings.get('launchStyle');
-
-    if (row) {
-      launchStyle = row.value;
-    }
+    if (row) launchStyle = row.value;
   } catch (e) {
     console.warn('Failed to load launchStyle from DB:', e);
   }
 
   if (launchStyle === 'ecg') {
-    // 启动动画：心跳播放器
     renderECGStyle(root);
-
   } else if (launchStyle === 'meditation') {
-    // 启动动画：静心冥想
     renderMeditationStyle(root);
-
   } else if (launchStyle === 'sanctuary') {
-    // 启动动画：爱与誓约
     renderSanctuaryStyle(root);
-
+  } else if (launchStyle === 'guardian') {
+    renderGuardianStyle(root);
   } else {
-    // 默认启动动画：经典塔罗
     renderClassicStyle(root);
   }
 }
@@ -1181,6 +1172,246 @@ function renderSanctuaryStyle(root) {
   clickTarget.addEventListener('click', clickHandler);
 
   timers.push(setTimeout(go, 18500));
+}
+
+// ==================== 动画风格4：守护羁绊 (双星与几何盾) ====================
+function renderGuardianStyle(root) {
+  // 冥想引导词（版本一：增强链接版）
+  const GUARDIAN_QUOTES = [
+    "深呼吸，将心跳的频率交由彼此。",
+    "外界的喧嚣与不安，正被坚定地驱逐。",
+    "感受这道光束，将你的灵魂与所爱紧紧相连。",
+    "由信任凝聚的力量，正在织就最坚不可摧的结界。",
+    "界限已成。在这片专属领域里，你们绝对安全。"
+  ];
+
+  // 渲染 HTML 与 CSS，所有样式类名采用 lg- 前缀避免冲突
+  root.innerHTML = `
+    <div class="launch-page page guardian-theme" id="launch-root">
+      <div class="lg-content">
+        <!-- 核心动画系统：倾斜旋转的轨道 -->
+        <div class="lg-system-container">
+          
+          <!-- 被驱逐的暗影圈 -->
+          <div class="lg-noise-particles"></div>
+
+          <!-- 神圣几何护盾（六芒星结界） -->
+          <svg class="lg-shield-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="100" cy="100" r="90" class="lg-shield-line" stroke-dasharray="4 6"/>
+            <circle cx="100" cy="100" r="85" class="lg-shield-line" opacity="0.4"/>
+            <polygon points="100,20 169,140 31,140" class="lg-shield-line"/>
+            <polygon points="100,180 169,60 31,60" class="lg-shield-line"/>
+            <circle cx="100" cy="100" r="60" class="lg-shield-core"/>
+          </svg>
+
+          <!-- 连结彼此的高能光线 -->
+          <div class="lg-connection-beam"></div>
+
+          <!-- 双星 (你与爱人) -->
+          <div class="lg-star lg-star-1"></div>
+          <div class="lg-star lg-star-2"></div>
+        </div>
+
+        <!-- 誓约词容器 -->
+        <div class="lg-vow-container">
+          ${GUARDIAN_QUOTES.map((q, idx) => `
+            <p class="lg-vow-line lg-line-${idx + 1}">${q}</p>
+          `).join('')}
+        </div>
+
+        <div class="lg-hint" id="lg-hint">轻 触 屏 幕 进 入</div>
+      </div>
+
+      <style>
+        .guardian-theme {
+          --guardian-color: var(--color-text-primary, #f6d365);
+          --guardian-glow: var(--color-text-primary-glow, rgba(246, 211, 101, 0.4));
+          --guardian-bg: var(--color-bg-primary, #040406);
+
+          width: 100%; height: 100%;
+          background-color: var(--guardian-bg);
+          color: var(--guardian-color);
+          overflow: hidden;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+        }
+
+        .lg-content {
+          position: relative;
+          z-index: 5;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          width: 100%; height: 100%;
+          perspective: 1000px;
+        }
+
+        .lg-system-container {
+          position: relative;
+          width: 240px; height: 240px;
+          margin-bottom: 60px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transform-style: preserve-3d;
+          transform: rotateX(65deg) rotateZ(0deg);
+          animation: lgOrbitSpin 12s linear infinite;
+        }
+
+        /* 5秒时开始扩散并淡化 */
+        .lg-noise-particles {
+          position: absolute;
+          inset: -40px;
+          border-radius: 50%;
+          border: 2px dashed rgba(255, 255, 255, 0.08);
+          animation: lgNoiseBanish 3s ease-out forwards 5s;
+        }
+
+        /* 9秒时拉伸亮起 */
+        .lg-connection-beam {
+          position: absolute;
+          width: 130px;
+          height: 2px;
+          background: var(--guardian-color);
+          box-shadow: 0 0 12px 2px var(--guardian-glow), 0 0 25px var(--guardian-color);
+          opacity: 0;
+          animation: lgBeamIgnite 2s ease-in forwards 9s;
+          z-index: 10;
+        }
+
+        /* 13.5秒结界撑开，16秒进入无限呼吸状态 */
+        .lg-shield-svg {
+          position: absolute;
+          width: 240px; height: 240px;
+          transform: scale(0);
+          opacity: 0;
+          filter: drop-shadow(0 0 8px var(--guardian-glow));
+          animation: lgShieldExpand 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards 13.5s, 
+                     lgShieldPulse 4s ease-in-out infinite 16s;
+        }
+        .lg-shield-line {
+          fill: none;
+          stroke: var(--guardian-color);
+          stroke-width: 1;
+          opacity: 0.8;
+        }
+        .lg-shield-core {
+          fill: var(--guardian-glow);
+          opacity: 0.15;
+        }
+
+        /* 双星：使用反向旋转消除倾斜变形 */
+        .lg-star {
+          position: absolute;
+          width: 12px; height: 12px;
+          background: #fff;
+          border-radius: 50%;
+          box-shadow: 0 0 15px 6px var(--guardian-color);
+          z-index: 20;
+        }
+        .lg-star-1 {
+          left: 55px;
+          animation: lgCounterSpin 12s linear infinite;
+        }
+        .lg-star-2 {
+          right: 55px;
+          animation: lgCounterSpin 12s linear infinite;
+        }
+
+        .lg-vow-container {
+          position: relative;
+          width: 85%; max-width: 400px;
+          height: 55px;
+          text-align: center;
+        }
+        .lg-vow-line {
+          position: absolute;
+          inset: 0;
+          font-size: 14px;
+          line-height: 1.8;
+          letter-spacing: 2px;
+          color: var(--color-text-primary, rgba(255, 255, 255, 0.95));
+          text-shadow: 0 0 10px var(--guardian-glow);
+          opacity: 0;
+        }
+
+        /* 文字淡入淡出动效 */
+        .lg-line-1 { animation: lgTextFade 4s ease-in-out forwards 0.5s; }
+        .lg-line-2 { animation: lgTextFade 4s ease-in-out forwards 4.8s; }
+        .lg-line-3 { animation: lgTextFade 4.5s ease-in-out forwards 9s; }
+        .lg-line-4 { animation: lgTextFade 4.5s ease-in-out forwards 13.8s; }
+        .lg-line-5 { animation: lgTextStay 3s ease-out forwards 18.5s; }
+
+        /* 提示词 */
+        .lg-hint {
+          position: absolute; bottom: 45px;
+          font-size: 10px; letter-spacing: 4px;
+          color: var(--color-text-tertiary, rgba(255, 255, 255, 0.35));
+          opacity: 0;
+          animation: lgHintIn 2s ease forwards 20s;
+          cursor: pointer;
+        }
+
+        /* Keyframes */
+        @keyframes lgOrbitSpin {
+          0% { transform: rotateX(65deg) rotateZ(0deg); }
+          100% { transform: rotateX(65deg) rotateZ(360deg); }
+        }
+        @keyframes lgCounterSpin {
+          0% { transform: rotateZ(0deg) rotateX(-65deg); }
+          100% { transform: rotateZ(-360deg) rotateX(-65deg); }
+        }
+        @keyframes lgNoiseBanish {
+          0% { transform: scale(1); opacity: 0.5; filter: blur(2px); }
+          100% { transform: scale(2.5); opacity: 0; filter: blur(8px); visibility: hidden;}
+        }
+        @keyframes lgBeamIgnite {
+          0% { opacity: 0; transform: scaleX(0); }
+          50% { opacity: 1; transform: scaleX(1.15); box-shadow: 0 0 40px 8px var(--guardian-color); }
+          100% { opacity: 0.9; transform: scaleX(1); }
+        }
+        @keyframes lgShieldExpand {
+          0% { transform: scale(0) rotateZ(-45deg); opacity: 0; }
+          60% { transform: scale(1.1) rotateZ(10deg); opacity: 1; }
+          100% { transform: scale(1) rotateZ(0deg); opacity: 1; }
+        }
+        @keyframes lgShieldPulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.04); opacity: 0.85; filter: drop-shadow(0 0 15px var(--guardian-color)); }
+        }
+        @keyframes lgTextFade {
+          0% { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+          15% { opacity: 1; transform: translateY(0); filter: blur(0); }
+          85% { opacity: 1; transform: translateY(0); filter: blur(0); }
+          100% { opacity: 0; transform: translateY(-8px); filter: blur(3px); }
+        }
+        @keyframes lgTextStay {
+          0% { opacity: 0; transform: translateY(8px); filter: blur(3px); }
+          30% { opacity: 1; transform: translateY(0); filter: blur(0); }
+          100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+        }
+        @keyframes lgHintIn { to { opacity: 1; } }
+      </style>
+    </div>
+  `;
+
+  // 点击进入或 22秒 强制跳转
+  const go = () => {
+    if (didGo) return;
+    didGo = true;
+    haptic(6);
+    navigate('/home');
+  };
+
+  clickTarget = document.getElementById('launch-root');
+  clickHandler = go;
+  clickTarget.addEventListener('click', clickHandler);
+
+  timers.push(setTimeout(go, 22000));
 }
 
 // ==================== 统一的销毁逻辑 ====================

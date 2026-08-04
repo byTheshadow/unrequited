@@ -6690,3 +6690,1558 @@
 .author-credits p:last-child {
   margin-bottom: 0;
 }
+/* ==========================================================================
+   新增抽卡动画主题
+   东方八卦 / 量子纠缠 / 心跳共振 / 星辉沙漏 / 织梦捕梦网 / 次元裂痕
+   ========================================================================== */
+
+
+/* ==========================================================================
+   公共容器与变量
+   ========================================================================== */
+
+.center-typing-card.shuffling-style-taiji,
+.center-typing-card.shuffling-style-quantum,
+.center-typing-card.shuffling-style-pulse,
+.center-typing-card.shuffling-style-hourglass,
+.center-typing-card.shuffling-style-dreamcatcher,
+.center-typing-card.shuffling-style-rift {
+  min-height: 258px;
+  width: 258px;
+}
+
+.taiji-box,
+.quantum-box,
+.pulse-box,
+.hourglass-box,
+.dreamcatcher-box,
+.rift-box {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.taiji-box .loading-label,
+.quantum-box .loading-label,
+.pulse-box .loading-label,
+.hourglass-box .loading-label,
+.dreamcatcher-box .loading-label,
+.rift-box .loading-label {
+  position: absolute;
+  z-index: 20;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  text-shadow: 0 0 6px var(--color-accent);
+}
+
+
+/* ==========================================================================
+   1. 东方八卦 TAIJI
+   ========================================================================== */
+
+.taiji-box {
+  --taiji-gold: var(--color-accent);
+  --taiji-soft: var(--color-accent-soft, rgba(255, 200, 80, 0.25));
+}
+
+.taiji-box .taiji-glow {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 118px;
+  height: 118px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--taiji-soft) 0%,
+    transparent 68%
+  );
+  filter: blur(2px);
+  animation: taijiGlowPulse 3s ease-in-out infinite;
+}
+
+.taiji-box .bagua-ring {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 104px;
+  height: 104px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(
+    in srgb,
+    var(--taiji-gold) 48%,
+    transparent
+  );
+  border-radius: 50%;
+  animation: taijiRingSpin 18s linear infinite;
+}
+
+.taiji-box .bagua-ring::before,
+.taiji-box .bagua-ring::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed color-mix(
+    in srgb,
+    var(--taiji-gold) 30%,
+    transparent
+  );
+  border-radius: 50%;
+}
+
+.taiji-box .bagua-ring::after {
+  inset: 21px;
+  border-style: solid;
+  border-color: color-mix(
+    in srgb,
+    var(--taiji-gold) 24%,
+    transparent
+  );
+}
+
+.taiji-box .bagua-ring span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--taiji-gold);
+  font-family: serif;
+  font-size: 13px;
+  text-shadow: 0 0 6px var(--taiji-gold);
+  transform-origin: 9px 9px;
+}
+
+.taiji-box .bagua-ring span:nth-child(1) {
+  transform: rotate(0deg) translateY(-52px);
+}
+
+.taiji-box .bagua-ring span:nth-child(2) {
+  transform: rotate(45deg) translateY(-52px);
+}
+
+.taiji-box .bagua-ring span:nth-child(3) {
+  transform: rotate(90deg) translateY(-52px);
+}
+
+.taiji-box .bagua-ring span:nth-child(4) {
+  transform: rotate(135deg) translateY(-52px);
+}
+
+.taiji-box .bagua-ring span:nth-child(5) {
+  transform: rotate(180deg) translateY(-52px);
+}
+
+.taiji-box .bagua-ring span:nth-child(6) {
+  transform: rotate(225deg) translateY(-52px);
+}
+
+.taiji-box .bagua-ring span:nth-child(7) {
+  transform: rotate(270deg) translateY(-52px);
+}
+
+.taiji-box .bagua-ring span:nth-child(8) {
+  transform: rotate(315deg) translateY(-52px);
+}
+
+.taiji-box .yin-yang {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 45px;
+  height: 45px;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--taiji-gold);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 50% 25%,
+      var(--color-bg-primary) 0 4px,
+      transparent 4.5px
+    ),
+    radial-gradient(
+      circle at 50% 75%,
+      var(--taiji-gold) 0 4px,
+      transparent 4.5px
+    ),
+    linear-gradient(
+      to right,
+      var(--taiji-gold) 0 50%,
+      var(--color-bg-primary) 50% 100%
+    );
+  box-shadow:
+    0 0 8px var(--taiji-gold),
+    0 0 22px var(--taiji-soft);
+  animation: taijiCoreSpin 8s linear infinite;
+  z-index: 5;
+}
+
+.taiji-box .yin-yang::before,
+.taiji-box .yin-yang::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+}
+
+.taiji-box .yin-yang::before {
+  top: 0;
+  background: var(--color-bg-primary);
+  border: 5px solid var(--taiji-gold);
+}
+
+.taiji-box .yin-yang::after {
+  bottom: 0;
+  background: var(--taiji-gold);
+  border: 5px solid var(--color-bg-primary);
+}
+
+.taiji-box .taiji-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.taiji-box .taiji-particles i {
+  position: absolute;
+  bottom: 20px;
+  color: var(--taiji-gold);
+  font-family: serif;
+  font-size: 11px;
+  font-style: normal;
+  opacity: 0;
+  animation: taijiParticleRise 3.8s ease-out infinite;
+}
+
+.taiji-box .taiji-particles i:nth-child(1) {
+  left: 25%;
+  animation-delay: -0.4s;
+}
+
+.taiji-box .taiji-particles i:nth-child(2) {
+  left: 39%;
+  animation-delay: -2.1s;
+}
+
+.taiji-box .taiji-particles i:nth-child(3) {
+  left: 58%;
+  animation-delay: -1.3s;
+}
+
+.taiji-box .taiji-particles i:nth-child(4) {
+  left: 70%;
+  animation-delay: -3s;
+}
+
+.taiji-box .taiji-particles i:nth-child(5) {
+  left: 82%;
+  animation-delay: -2.4s;
+}
+
+
+/* ==========================================================================
+   2. 量子纠缠 QUANTUM
+   ========================================================================== */
+
+.quantum-box {
+  --quantum-blue: var(--color-accent);
+  --quantum-soft: var(--color-accent-soft, rgba(56, 189, 248, 0.25));
+  perspective: 500px;
+}
+
+.quantum-box .quantum-glow {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 130px;
+  height: 130px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--quantum-soft),
+    transparent 68%
+  );
+  animation: quantumGlowPulse 2.4s ease-in-out infinite;
+}
+
+.quantum-box .quantum-orbits {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 98px;
+  height: 72px;
+  transform: translate(-50%, -50%);
+  transform-style: preserve-3d;
+  z-index: 4;
+}
+
+.quantum-box .q-orbit {
+  position: absolute;
+  inset: 0;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--quantum-blue) 62%,
+    transparent
+  );
+  border-radius: 50%;
+  box-shadow: 0 0 5px var(--quantum-soft);
+  transform-style: preserve-3d;
+}
+
+.quantum-box .q-orbit-1 {
+  animation: quantumOrbitOne 4s linear infinite;
+}
+
+.quantum-box .q-orbit-2 {
+  animation: quantumOrbitTwo 5s linear infinite reverse;
+}
+
+.quantum-box .q-orbit-3 {
+  animation: quantumOrbitThree 4.5s linear infinite;
+}
+
+.quantum-box .q-electron {
+  position: absolute;
+  left: 50%;
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  background: var(--color-text-primary);
+  box-shadow:
+    0 0 5px var(--color-text-primary),
+    0 0 12px var(--quantum-blue);
+}
+
+.quantum-box .quantum-lines {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 86px;
+  height: 86px;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+
+.quantum-box .quantum-lines i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 86px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--quantum-soft),
+    transparent
+  );
+  transform-origin: center;
+}
+
+.quantum-box .quantum-lines i:nth-child(1) {
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+
+.quantum-box .quantum-lines i:nth-child(2) {
+  transform: translate(-50%, -50%) rotate(60deg);
+}
+
+.quantum-box .quantum-lines i:nth-child(3) {
+  transform: translate(-50%, -50%) rotate(120deg);
+}
+
+.quantum-box .quantum-core {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 8px #fff,
+    0 0 18px var(--quantum-blue),
+    0 0 34px var(--quantum-blue);
+  animation: quantumCoreFlicker 0.8s ease-in-out infinite alternate;
+  z-index: 8;
+}
+
+.quantum-box .quantum-bits {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.quantum-box .quantum-bits span {
+  position: absolute;
+  color: var(--quantum-blue);
+  font-family: monospace;
+  font-size: 10px;
+  opacity: 0;
+  animation: quantumBitFloat 3s ease-in-out infinite;
+}
+
+.quantum-box .quantum-bits span:nth-child(1) {
+  left: 22%;
+  top: 32%;
+  animation-delay: -0.4s;
+}
+
+.quantum-box .quantum-bits span:nth-child(2) {
+  left: 75%;
+  top: 35%;
+  animation-delay: -1.6s;
+}
+
+.quantum-box .quantum-bits span:nth-child(3) {
+  left: 27%;
+  top: 67%;
+  animation-delay: -2.4s;
+}
+
+.quantum-box .quantum-bits span:nth-child(4) {
+  left: 78%;
+  top: 66%;
+  animation-delay: -0.9s;
+}
+
+
+/* ==========================================================================
+   3. 心跳共振 PULSE
+   ========================================================================== */
+
+.pulse-box {
+  --pulse-color: var(--color-accent);
+  --pulse-soft: var(--color-accent-soft, rgba(244, 63, 94, 0.25));
+}
+
+.pulse-box .pulse-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--pulse-color) 10%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--pulse-color) 10%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 12px 12px;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 25%,
+    #000 75%,
+    transparent
+  );
+}
+
+.pulse-box .pulse-glow {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 150px;
+  height: 80px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    ellipse,
+    var(--pulse-soft),
+    transparent 70%
+  );
+  animation: pulseGlowBeat 1.35s ease-in-out infinite;
+}
+
+.pulse-box .pulse-svg {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 158px;
+  height: 64px;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  overflow: visible;
+}
+
+.pulse-box .pulse-line {
+  fill: none;
+  stroke: var(--pulse-color);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  filter: drop-shadow(0 0 4px var(--pulse-color));
+  animation: pulseLineDraw 1.35s linear infinite;
+}
+
+.pulse-box .pulse-orb {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 7px;
+  height: 7px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 5px #fff,
+    0 0 14px var(--pulse-color);
+  animation: pulseOrbMove 1.35s linear infinite;
+  z-index: 8;
+}
+
+
+/* ==========================================================================
+   4. 星辉沙漏 HOURGLASS
+   ========================================================================== */
+
+.hourglass-box {
+  --hourglass-color: var(--color-accent);
+  --hourglass-soft: var(--color-accent-soft, rgba(234, 179, 8, 0.25));
+}
+
+.hourglass-box .hourglass-glow {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 120px;
+  height: 120px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--hourglass-soft),
+    transparent 68%
+  );
+  animation: hourglassGlow 3s ease-in-out infinite alternate;
+}
+
+.hourglass-box .hourglass {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 48px;
+  height: 76px;
+  transform: translate(-50%, -50%);
+  animation: hourglassFloat 4s ease-in-out infinite alternate;
+  z-index: 4;
+}
+
+.hourglass-box .hourglass::before,
+.hourglass-box .hourglass::after {
+  content: "";
+  position: absolute;
+  left: -5px;
+  width: 58px;
+  height: 4px;
+  border-radius: 3px;
+  background: var(--hourglass-color);
+  box-shadow: 0 0 7px var(--hourglass-color);
+  z-index: 5;
+}
+
+.hourglass-box .hourglass::before {
+  top: -2px;
+}
+
+.hourglass-box .hourglass::after {
+  bottom: -2px;
+}
+
+.hourglass-box .hg-glass-top,
+.hourglass-box .hg-glass-bottom {
+  position: absolute;
+  left: 4px;
+  width: 40px;
+  height: 36px;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--hourglass-color) 50%,
+    transparent
+  );
+  background: color-mix(
+    in srgb,
+    var(--hourglass-color) 8%,
+    transparent
+  );
+  clip-path: polygon(0 0, 100% 0, 58% 100%, 42% 100%);
+}
+
+.hourglass-box .hg-glass-top {
+  top: 2px;
+  border-bottom: none;
+}
+
+.hourglass-box .hg-glass-bottom {
+  bottom: 2px;
+  transform: rotate(180deg);
+  border-bottom: none;
+}
+
+.hourglass-box .hg-sand-top {
+  position: absolute;
+  left: 9px;
+  top: 6px;
+  width: 30px;
+  height: 28px;
+  background: var(--hourglass-color);
+  clip-path: polygon(0 0, 100% 0, 55% 100%, 45% 100%);
+  filter: drop-shadow(0 0 4px var(--hourglass-color));
+  opacity: 0.85;
+  animation: hourglassSandDrain 5s linear infinite;
+}
+
+.hourglass-box .hg-sand-stream {
+  position: absolute;
+  left: 23px;
+  top: 36px;
+  width: 2px;
+  height: 34px;
+  background: linear-gradient(
+    to bottom,
+    var(--hourglass-color),
+    transparent
+  );
+  box-shadow: 0 0 4px var(--hourglass-color);
+  opacity: 0;
+  animation: hourglassSandStream 5s linear infinite;
+}
+
+.hourglass-box .hg-sand-bottom {
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  background: var(--hourglass-color);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 0 4px var(--hourglass-color));
+  animation: hourglassSandFill 5s linear infinite;
+}
+
+
+/* ==========================================================================
+   5. 织梦捕梦网 DREAMCATCHER
+   ========================================================================== */
+
+.dreamcatcher-box {
+  --dream-color: var(--color-accent);
+  --dream-soft: var(--color-accent-soft, rgba(20, 184, 166, 0.25));
+}
+
+.dreamcatcher-box .dream-glow {
+  position: absolute;
+  left: 50%;
+  top: 43%;
+  width: 130px;
+  height: 130px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--dream-soft),
+    transparent 68%
+  );
+  animation: dreamGlowPulse 3.2s ease-in-out infinite;
+}
+
+.dreamcatcher-box .dream-net {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 82px;
+  height: 82px;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+}
+
+.dreamcatcher-box .dream-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--dream-color);
+  border-radius: 50%;
+  box-shadow:
+    0 0 8px var(--dream-soft),
+    inset 0 0 10px var(--dream-soft);
+  animation: dreamRingSpin 18s linear infinite;
+}
+
+.dreamcatcher-box .dream-ring::before,
+.dreamcatcher-box .dream-ring::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--dream-color) 48%,
+    transparent
+  );
+  border-radius: 50%;
+}
+
+.dreamcatcher-box .dream-ring::after {
+  inset: 16px;
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+.dreamcatcher-box .dream-web {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  transform: translate(-50%, -50%);
+  border: 1px solid color-mix(
+    in srgb,
+    var(--dream-color) 65%,
+    transparent
+  );
+  border-radius: 50%;
+  animation: dreamWebSpin 8s linear infinite reverse;
+}
+
+.dreamcatcher-box .dream-web::before,
+.dreamcatcher-box .dream-web::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid color-mix(
+    in srgb,
+    var(--dream-color) 52%,
+    transparent
+  );
+  transform: rotate(45deg);
+  border-radius: 50%;
+}
+
+.dreamcatcher-box .dream-web::after {
+  transform: rotate(90deg);
+}
+
+.dreamcatcher-box .dream-core {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow:
+    0 0 6px #fff,
+    0 0 16px var(--dream-color);
+  animation: dreamCorePulse 1.8s ease-in-out infinite alternate;
+}
+
+.dreamcatcher-box .dream-threads {
+  position: absolute;
+  left: 50%;
+  top: 78%;
+  width: 72px;
+  height: 30px;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.dreamcatcher-box .dream-threads i {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 18px;
+  background: color-mix(
+    in srgb,
+    var(--dream-color) 65%,
+    transparent
+  );
+  transform-origin: top center;
+}
+
+.dreamcatcher-box .dream-threads i::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: 16px;
+  width: 9px;
+  height: 15px;
+  border: 1px solid var(--dream-color);
+  border-radius: 70% 30% 60% 40%;
+  background: var(--dream-soft);
+}
+
+.dreamcatcher-box .dream-threads i:nth-child(1) {
+  left: 7px;
+  transform: rotate(-10deg);
+  animation: dreamThreadSwayOne 3s ease-in-out infinite alternate;
+}
+
+.dreamcatcher-box .dream-threads i:nth-child(2) {
+  left: 35px;
+  height: 23px;
+  animation: dreamThreadSwayTwo 3.7s ease-in-out infinite alternate;
+}
+
+.dreamcatcher-box .dream-threads i:nth-child(3) {
+  right: 7px;
+  transform: rotate(10deg);
+  animation: dreamThreadSwayThree 3.3s ease-in-out infinite alternate;
+}
+
+
+/* ==========================================================================
+   6. 次元裂痕 RIFT
+   ========================================================================== */
+
+.rift-box {
+  --rift-color: var(--color-accent);
+  --rift-soft: var(--color-accent-soft, rgba(217, 70, 239, 0.3));
+  --rift-love: #ff8fd8;
+}
+
+.rift-box .rift-aura {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 150px;
+  height: 150px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle,
+      var(--rift-soft) 0%,
+      transparent 62%
+    );
+  filter: blur(2px);
+  animation: riftAuraBreath 2s ease-in-out infinite alternate;
+}
+
+.rift-box .rift-ray {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 160px;
+  height: 2px;
+  transform: translate(-50%, -50%) scaleX(0);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    #fff 42%,
+    var(--rift-color) 50%,
+    #fff 58%,
+    transparent
+  );
+  filter: drop-shadow(0 0 5px var(--rift-color));
+  animation: riftRayFlash 3s ease-in-out infinite;
+  z-index: 2;
+}
+
+.rift-box .rift-tear {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 30px;
+  height: 88px;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(
+    90deg,
+    var(--rift-color),
+    #fff 45%,
+    #fff 55%,
+    var(--rift-color)
+  );
+  clip-path: polygon(
+    45% 0,
+    70% 18%,
+    46% 38%,
+    68% 55%,
+    43% 74%,
+    58% 100%,
+    30% 77%,
+    52% 57%,
+    31% 40%,
+    55% 20%
+  );
+  filter:
+    drop-shadow(0 0 4px #fff)
+    drop-shadow(0 0 12px var(--rift-color));
+  animation:
+    riftTearFlicker 0.18s ease-in-out infinite alternate,
+    riftTearBreath 2.8s ease-in-out infinite alternate;
+  z-index: 6;
+}
+
+.rift-box .rift-tear::before,
+.rift-box .rift-tear::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: inherit;
+  clip-path: inherit;
+}
+
+.rift-box .rift-tear::before {
+  transform: translateX(-6px);
+  opacity: 0.4;
+  filter: hue-rotate(55deg);
+}
+
+.rift-box .rift-tear::after {
+  transform: translateX(6px);
+  opacity: 0.35;
+  filter: hue-rotate(270deg);
+}
+
+.rift-box .rift-debris {
+  position: absolute;
+  inset: 0;
+  perspective: 220px;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.rift-box .rift-shard,
+.rift-box .rift-heart {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  display: block;
+  opacity: 0;
+  font-style: normal;
+}
+
+.rift-box .rift-shard {
+  width: 7px;
+  height: 11px;
+  background: linear-gradient(
+    135deg,
+    #fff,
+    var(--rift-color)
+  );
+  clip-path: polygon(50% 0, 100% 72%, 38% 100%, 0 30%);
+  filter: drop-shadow(0 0 4px var(--rift-color));
+}
+
+.rift-box .rift-heart {
+  color: var(--rift-love);
+  font-size: 13px;
+  line-height: 1;
+  text-shadow:
+    0 0 4px #fff,
+    0 0 10px var(--rift-color);
+}
+
+.rift-box .rift-particle-1 {
+  animation: riftParticleOne 2s ease-out infinite;
+}
+
+.rift-box .rift-particle-2 {
+  animation: riftParticleTwo 2.5s ease-out infinite -0.65s;
+}
+
+.rift-box .rift-particle-3 {
+  animation: riftParticleThree 2.2s ease-out infinite -0.25s;
+}
+
+.rift-box .rift-particle-4 {
+  animation: riftParticleFour 2.4s ease-out infinite -1.1s;
+}
+
+.rift-box .rift-particle-5 {
+  animation: riftParticleFive 2.8s ease-out infinite -1.7s;
+}
+
+.rift-box .rift-particle-6 {
+  animation: riftParticleSix 2.1s ease-out infinite -0.9s;
+}
+
+.rift-box .rift-scanline {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 47%,
+    color-mix(in srgb, var(--rift-color) 30%, transparent) 50%,
+    transparent 53%,
+    transparent 100%
+  );
+  opacity: 0;
+  animation: riftScanline 3.2s ease-in-out infinite;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.rift-box .rift-label {
+  animation: riftGlitch 3.5s steps(1, end) infinite;
+}
+
+
+/* ==========================================================================
+   关键帧
+   ========================================================================== */
+
+/* 东方八卦 */
+
+@keyframes taijiGlowPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.86);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.12);
+    opacity: 1;
+  }
+}
+
+@keyframes taijiRingSpin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes taijiCoreSpin {
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@keyframes taijiParticleRise {
+  0% {
+    transform: translateY(12px) scale(0.7);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 0.8;
+  }
+
+  80% {
+    opacity: 0.35;
+  }
+
+  100% {
+    transform: translateY(-65px) scale(1.1);
+    opacity: 0;
+  }
+}
+
+
+/* 量子纠缠 */
+
+@keyframes quantumGlowPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.82);
+    opacity: 0.55;
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 1;
+  }
+}
+
+@keyframes quantumOrbitOne {
+  from {
+    transform: rotateX(64deg) rotateZ(0deg);
+  }
+
+  to {
+    transform: rotateX(64deg) rotateZ(360deg);
+  }
+}
+
+@keyframes quantumOrbitTwo {
+  from {
+    transform: rotateY(58deg) rotateX(64deg) rotateZ(0deg);
+  }
+
+  to {
+    transform: rotateY(58deg) rotateX(64deg) rotateZ(360deg);
+  }
+}
+
+@keyframes quantumOrbitThree {
+  from {
+    transform: rotateY(-58deg) rotateX(64deg) rotateZ(0deg);
+  }
+
+  to {
+    transform: rotateY(-58deg) rotateX(64deg) rotateZ(360deg);
+  }
+}
+
+@keyframes quantumCoreFlicker {
+  from {
+    transform: translate(-50%, -50%) scale(0.78);
+    opacity: 0.72;
+  }
+
+  to {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes quantumBitFloat {
+  0%, 100% {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+
+  35%, 70% {
+    opacity: 0.65;
+  }
+
+  100% {
+    transform: translateY(-18px);
+    opacity: 0;
+  }
+}
+
+
+/* 心跳共振 */
+
+@keyframes pulseLineDraw {
+  0% {
+    stroke-dashoffset: 200;
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  78% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+
+  100% {
+    stroke-dashoffset: -30;
+    opacity: 0;
+  }
+}
+
+@keyframes pulseGlowBeat {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.75);
+    opacity: 0.45;
+  }
+
+  15% {
+    transform: translate(-50%, -50%) scale(1.08);
+    opacity: 1;
+  }
+
+  30% {
+    transform: translate(-50%, -50%) scale(0.86);
+    opacity: 0.6;
+  }
+
+  45% {
+    transform: translate(-50%, -50%) scale(1.15);
+    opacity: 0.95;
+  }
+}
+
+@keyframes pulseOrbMove {
+  0% {
+    left: 18%;
+    opacity: 0;
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  78% {
+    left: 82%;
+    opacity: 1;
+  }
+
+  100% {
+    left: 92%;
+    opacity: 0;
+  }
+}
+
+
+/* 星辉沙漏 */
+
+@keyframes hourglassGlow {
+  from {
+    transform: translate(-50%, -50%) scale(0.82);
+    opacity: 0.55;
+  }
+
+  to {
+    transform: translate(-50%, -50%) scale(1.08);
+    opacity: 1;
+  }
+}
+
+@keyframes hourglassFloat {
+  from {
+    transform: translate(-50%, -50%) translateY(-3px) rotate(-3deg);
+  }
+
+  to {
+    transform: translate(-50%, -50%) translateY(3px) rotate(3deg);
+  }
+}
+
+@keyframes hourglassSandDrain {
+  0%, 10% {
+    opacity: 0.9;
+    clip-path: polygon(0 0, 100% 0, 55% 100%, 45% 100%);
+  }
+
+  75%, 100% {
+    opacity: 0;
+    clip-path: polygon(50% 100%, 50% 100%, 50% 100%);
+  }
+}
+
+@keyframes hourglassSandStream {
+  0%, 12% {
+    height: 0;
+    opacity: 0;
+  }
+
+  20%, 74% {
+    height: 34px;
+    opacity: 0.9;
+  }
+
+  86%, 100% {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+@keyframes hourglassSandFill {
+  0%, 12% {
+    width: 0;
+    height: 0;
+  }
+
+  82%, 100% {
+    width: 32px;
+    height: 25px;
+  }
+}
+
+
+/* 捕梦网 */
+
+@keyframes dreamGlowPulse {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(0.8);
+    opacity: 0.5;
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.1);
+    opacity: 0.95;
+  }
+}
+
+@keyframes dreamRingSpin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes dreamWebSpin {
+  to {
+    transform: translate(-50%, -50%) rotate(-360deg);
+  }
+}
+
+@keyframes dreamCorePulse {
+  from {
+    transform: translate(-50%, -50%) scale(0.75);
+    opacity: 0.65;
+  }
+
+  to {
+    transform: translate(-50%, -50%) scale(1.25);
+    opacity: 1;
+  }
+}
+
+@keyframes dreamThreadSwayOne {
+  from {
+    transform: rotate(-12deg);
+  }
+
+  to {
+    transform: rotate(12deg);
+  }
+}
+
+@keyframes dreamThreadSwayTwo {
+  from {
+    transform: rotate(9deg);
+  }
+
+  to {
+    transform: rotate(-9deg);
+  }
+}
+
+@keyframes dreamThreadSwayThree {
+  from {
+    transform: rotate(12deg);
+  }
+
+  to {
+    transform: rotate(-12deg);
+  }
+}
+
+
+/* 次元裂痕 */
+
+@keyframes riftAuraBreath {
+  from {
+    transform: translate(-50%, -50%) scale(0.78);
+    opacity: 0.48;
+  }
+
+  to {
+    transform: translate(-50%, -50%) scale(1.12);
+    opacity: 0.95;
+  }
+}
+
+@keyframes riftRayFlash {
+  0%, 72% {
+    transform: translate(-50%, -50%) scaleX(0);
+    opacity: 0;
+  }
+
+  82% {
+    transform: translate(-50%, -50%) scaleX(1);
+    opacity: 0.95;
+  }
+
+  92%, 100% {
+    transform: translate(-50%, -50%) scaleX(0);
+    opacity: 0;
+  }
+}
+
+@keyframes riftTearFlicker {
+  from {
+    opacity: 0.72;
+    filter:
+      drop-shadow(0 0 3px #fff)
+      drop-shadow(0 0 8px var(--rift-color));
+  }
+
+  to {
+    opacity: 1;
+    filter:
+      drop-shadow(0 0 8px #fff)
+      drop-shadow(0 0 17px var(--rift-color));
+  }
+}
+
+@keyframes riftTearBreath {
+  from {
+    transform: translate(-50%, -50%) scaleX(0.72) scaleY(0.94);
+  }
+
+  to {
+    transform: translate(-50%, -50%) scaleX(1.3) scaleY(1.06);
+  }
+}
+
+@keyframes riftParticleOne {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-150%, -180%) scale(1.3) rotate(120deg);
+    opacity: 0;
+  }
+}
+
+@keyframes riftParticleTwo {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5) rotate(0deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(130%, 120%) scale(0.9) rotate(-100deg);
+    opacity: 0;
+  }
+}
+
+@keyframes riftParticleThree {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(-190%, 45%) scale(1.25) rotate(-35deg);
+    opacity: 0;
+  }
+}
+
+@keyframes riftParticleFour {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(170%, -105%) scale(1.4) rotate(90deg);
+    opacity: 0;
+  }
+}
+
+@keyframes riftParticleFive {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(20%, -220%) scale(1.35) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+@keyframes riftParticleSix {
+  0% {
+    transform: translate(-50%, -50%) scale(0.35);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translate(210%, 15%) scale(1.15) rotate(-75deg);
+    opacity: 0;
+  }
+}
+
+@keyframes riftScanline {
+  0%, 70% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  78% {
+    opacity: 0.75;
+  }
+
+  90%, 100% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes riftGlitch {
+  0%, 90%, 100% {
+    transform: translateX(-50%);
+    text-shadow: 0 0 6px var(--rift-color);
+  }
+
+  92% {
+    transform: translateX(calc(-50% + 2px)) skewX(8deg);
+    text-shadow:
+      2px 0 #00ffff,
+      -2px 0 #ff00aa;
+  }
+
+  94% {
+    transform: translateX(calc(-50% - 2px)) skewX(-8deg);
+    text-shadow:
+      -2px 0 #00ffff,
+      2px 0 #ff00aa;
+  }
+
+  96% {
+    transform: translateX(-50%);
+    text-shadow: 0 0 6px var(--rift-color);
+  }
+}
+
+
+/* ==========================================================================
+   动画关闭状态
+   ========================================================================== */
+
+[data-anim="off"] .taiji-box *,
+[data-anim="off"] .quantum-box *,
+[data-anim="off"] .pulse-box *,
+[data-anim="off"] .hourglass-box *,
+[data-anim="off"] .dreamcatcher-box *,
+[data-anim="off"] .rift-box * {
+  animation: none !important;
+  transition: none !important;
+}
+
+[data-anim="off"] .taiji-box .taiji-glow,
+[data-anim="off"] .quantum-box .quantum-glow,
+[data-anim="off"] .pulse-box .pulse-glow,
+[data-anim="off"] .hourglass-box .hourglass-glow,
+[data-anim="off"] .dreamcatcher-box .dream-glow,
+[data-anim="off"] .rift-box .rift-aura {
+  opacity: 0.7;
+}
+
+[data-anim="off"] .taiji-box .yin-yang {
+  transform: translate(-50%, -50%);
+}
+
+[data-anim="off"] .quantum-box .quantum-core,
+[data-anim="off"] .pulse-box .pulse-orb,
+[data-anim="off"] .dreamcatcher-box .dream-core {
+  opacity: 1;
+}
+
+[data-anim="off"] .hourglass-box .hg-sand-top {
+  opacity: 0.85;
+}
+
+[data-anim="off"] .hourglass-box .hg-sand-bottom {
+  width: 32px;
+  height: 25px;
+}
+
+[data-anim="off"] .rift-box .rift-tear {
+  opacity: 1;
+  transform: translate(-50%, -50%);
+}

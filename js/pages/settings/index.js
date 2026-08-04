@@ -46,7 +46,14 @@ const SHUFFLING_STYLES = [
   { id: 'pendulum', name: '灵摆寻迹' },
   { id: 'alchemy', name: '炼金魔药' },
   { id: 'lantern', name: '浮光提灯' },
-  { id: 'envelope', name: '玻璃信封' }
+  { id: 'envelope', name: '玻璃信封' },
+  { id: 'taiji', name: '东方八卦' },
+{ id: 'quantum', name: '量子纠缠' },
+{ id: 'pulse', name: '心跳共振' },
+{ id: 'hourglass', name: '星辉沙漏' },
+{ id: 'dreamcatcher', name: '织梦捕梦网' },
+{ id: 'rift', name: '次元裂痕' }
+
 
 ];
 

@@ -404,6 +404,153 @@ export function getShufflingHTML(styleStyle = 'shuffle') {
           <div class="envelope-label">GLASS LETTER</div>
         </div>
       `;
+      case 'taiji':
+  return `
+    <div class="taiji-box" aria-label="正在通过太极八卦推演回应">
+      <div class="taiji-glow"></div>
+
+      <div class="bagua-ring">
+        <span>☰</span>
+        <span>☴</span>
+        <span>☵</span>
+        <span>☶</span>
+        <span>☷</span>
+        <span>☳</span>
+        <span>☲</span>
+        <span>☱</span>
+      </div>
+
+      <div class="yin-yang"></div>
+
+      <div class="taiji-particles">
+        <i>道</i>
+        <i>法</i>
+        <i>阴</i>
+        <i>阳</i>
+        <i>象</i>
+      </div>
+
+      <div class="loading-label">TAIJI INFERENCE</div>
+    </div>
+  `;
+case 'quantum':
+  return `
+    <div class="quantum-box" aria-label="正在进行量子纠缠">
+      <div class="quantum-glow"></div>
+
+      <div class="quantum-orbits">
+        <div class="q-orbit q-orbit-1">
+          <i class="q-electron"></i>
+        </div>
+        <div class="q-orbit q-orbit-2">
+          <i class="q-electron"></i>
+        </div>
+        <div class="q-orbit q-orbit-3">
+          <i class="q-electron"></i>
+        </div>
+      </div>
+
+      <div class="quantum-lines">
+        <i></i>
+        <i></i>
+        <i></i>
+      </div>
+
+      <div class="quantum-core"></div>
+
+      <div class="quantum-bits">
+        <span>0</span>
+        <span>1</span>
+        <span>1</span>
+        <span>0</span>
+      </div>
+
+      <div class="loading-label">QUANTUM ENTANGLEMENT</div>
+    </div>
+  `;
+case 'pulse':
+  return `
+    <div class="pulse-box" aria-label="正在捕获同频共振">
+      <div class="pulse-grid"></div>
+      <div class="pulse-glow"></div>
+
+      <svg class="pulse-svg" viewBox="0 0 100 40" aria-hidden="true">
+        <path
+          class="pulse-line"
+          d="M 0,20 L 22,20 L 29,20 L 35,8 L 42,34 L 50,5 L 58,28 L 65,20 L 100,20">
+        </path>
+      </svg>
+
+      <div class="pulse-orb"></div>
+
+      <div class="loading-label">SYNCING FREQUENCY</div>
+    </div>
+  `;
+case 'hourglass':
+  return `
+    <div class="hourglass-box" aria-label="正在沉淀回应">
+      <div class="hourglass-glow"></div>
+
+      <div class="hourglass">
+        <div class="hg-glass-top"></div>
+        <div class="hg-glass-bottom"></div>
+
+        <div class="hg-sand-top"></div>
+        <div class="hg-sand-stream"></div>
+        <div class="hg-sand-bottom"></div>
+      </div>
+
+      <div class="hourglass-stars">
+        <i>✦</i>
+        <i>✧</i>
+        <i>·</i>
+        <i>✦</i>
+      </div>
+
+      <div class="loading-label">SIFTING TIME</div>
+    </div>
+  `;
+case 'dreamcatcher':
+  return `
+    <div class="dreamcatcher-box" aria-label="正在梦境中寻找回应">
+      <div class="dream-glow"></div>
+
+      <div class="dream-net">
+        <div class="dream-ring"></div>
+        <div class="dream-web"></div>
+        <div class="dream-core"></div>
+      </div>
+
+      <div class="dream-threads">
+        <i></i>
+        <i></i>
+        <i></i>
+      </div>
+
+      <div class="loading-label">WEAVING DREAMS</div>
+    </div>
+  `;
+case 'rift':
+  return `
+    <div class="rift-box" aria-label="正在撕开次元壁">
+      <div class="rift-aura"></div>
+      <div class="rift-ray"></div>
+      <div class="rift-tear"></div>
+
+      <div class="rift-debris">
+        <i class="rift-shard rift-particle-1"></i>
+        <i class="rift-shard rift-particle-2"></i>
+        <i class="rift-heart rift-particle-3">♥</i>
+        <i class="rift-shard rift-particle-4"></i>
+        <i class="rift-heart rift-particle-5">♥</i>
+        <i class="rift-shard rift-particle-6"></i>
+      </div>
+
+      <div class="rift-scanline"></div>
+
+      <div class="loading-label rift-label">WALL BREAKING</div>
+    </div>
+  `;
 
 
 
@@ -454,6 +601,24 @@ export function getShufflingHint(styleStyle = 'shuffle') {
       return '提灯照亮微光，回应正在缓缓浮现...';
     case 'envelope':
       return '玻璃信封正在展开，将回应递到你手中...';
+      case 'taiji':
+  return '正在通过太极八卦推演最契合的回应...';
+
+case 'quantum':
+  return '正在观测概率云，锁定唯一的回应...';
+
+case 'pulse':
+  return '正在捕获与你同频的灵魂共振...';
+
+case 'hourglass':
+  return '正在时间长河中沉淀出最珍贵的回应...';
+
+case 'dreamcatcher':
+  return '正在滤除杂念，捕捉梦境中的纯粹回应...';
+
+case 'rift':
+  return '正在撕开次元壁，将回应传达到你面前...';
+
 
 
 

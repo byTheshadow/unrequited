@@ -935,7 +935,7 @@ async function triggerOnlineResonanceCheck() {
     }
 
     haptic(18);
-    toast(`（星轨微芒）你与 ${randomChar.name} 产生了刹那 of 意识交叠，他写信的冲动已悄然萌发。`);
+    toast(`（星轨微芒）你与 ${randomChar.name} 产生了刹那意识交叠，他写信的冲动已悄然萌发。`);
 
     const duration = Math.floor(Math.random() * 23 + 1) * 3600000;
     await db.driftLetters.add({

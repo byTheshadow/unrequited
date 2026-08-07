@@ -1682,196 +1682,171 @@ async function executeReply() {
     return;
   }
 
-/**
- * 分支 B：
- * 普通回复：从角色字卡里生成消息。
- */
+  /**
+   * 分支 B：
+   * 普通回复：从角色字卡里生成消息。
+   */
+  const generated = await generateForCharacter(state.character.id);
+  const messages = generated && generated.messages ? generated.messages : [];
+  const choices = generated && generated.choices ? generated.choices : [];
+  const reason = generated && generated.reason;
 
-const generated = await generateForCharacter(state.character.id);
-const messages = generated && generated.messages
-  ? generated.messages
-  : [];
-
-const choices = generated && generated.choices
-  ? generated.choices
-  : [];
-
-const reason = generated && generated.reason;
-
-if (state.destroyed) return;
-
-if ((!messages || !messages.length) && (!choices || !choices.length)) {
-  hideTyping();
-
-  toast(
-    reason === 'no_fragments'
-      ? '此角色暂无可用的字卡内容'
-      : '生成失败',
-    2200
-  );
-
-  return;
-}
-
-/**
- * 普通字卡消息
- *
- * 如果字卡包含语音：
- * - 将语音保存到 messages.audio 字段
- * - 将消息类型设置为 voice-card
- *
- * 如果字卡不包含语音：
- * - 保持原来的 card 类型
- */
-for (let i = 0; i < messages.length; i++) {
   if (state.destroyed) return;
 
-  if (i > 0) {
+  if ((!messages || !messages.length) && (!choices || !choices.length)) {
     hideTyping();
-    showTyping();
-    await sleep(randInt(600, 1400));
+    toast(
+      reason === 'no_fragments'
+        ? '此角色暂无可用的字卡内容'
+        : '生成失败',
+      2200
+    );
+    return;
   }
 
-  const text = messages[i];
-
   /**
-   * 查询当前字卡对应的语音
+   * 普通字卡消息
+   *
+   * 如果字卡包含语音：
+   * - 将语音保存到 messages.audio 字段
+   * - 将消息类型设置为 voice-card
+   *
+   * 如果字卡不包含语音：
+   * - 保持原来的 card 类型（或根据需要设为 text）
    */
-  let attachedAudio = null;
+  for (let i = 0; i < messages.length; i++) {
+    if (state.destroyed) return;
 
-  try {
-    // 当前角色绑定的字卡库 ID
-    const linkedDeckIds =
-      state.character &&
-      Array.isArray(state.character.linkedDeckIds)
-        ? state.character.linkedDeckIds
-        : [];
+    if (i > 0) {
+      hideTyping();
+      showTyping();
+      await sleep(randInt(600, 1400));
+    }
 
-    let decks = [];
+    const text = messages[i];
 
     /**
-     * 查询角色绑定的字卡库
+     * 查询当前字卡对应的语音
      */
-    if (linkedDeckIds.length > 0) {
-      const linkedDecks = await db.decks
-        .where('id')
-        .anyOf(linkedDeckIds)
-        .toArray();
+    let attachedAudio = null;
 
-      decks.push(...linkedDecks);
+    try {
+      const linkedDeckIds =
+        state.character &&
+        Array.isArray(state.character.linkedDeckIds)
+          ? state.character.linkedDeckIds
+          : [];
+
+      let decks = [];
+
+      /**
+       * 查询角色绑定的字卡库
+       */
+      if (linkedDeckIds.length > 0) {
+        const linkedDecks = await db.decks
+          .where('id')
+          .anyOf(linkedDeckIds)
+          .toArray();
+        decks.push(...linkedDecks);
+      }
+
+      /**
+       * 查询通用字卡库
+       */
+      const commonDecks = await db.decks
+        .filter((deck) => !deck.bindCharacterId)
+        .toArray();
+      decks.push(...commonDecks);
+
+      /**
+       * 去重
+       */
+      const uniqueDecks = Array.from(
+        new Map(
+          decks.map((deck) => [deck.id, deck])
+        ).values()
+      );
+
+      /**
+       * 查找包含当前回复文本的字卡库
+       */
+      const targetDeck = uniqueDecks.find((deck) => {
+        return (
+          Array.isArray(deck.fragments) &&
+          deck.fragments.includes(text)
+        );
+      });
+
+      /**
+       * 从 fragmentStats 中读取该字卡对应的语音
+       */
+      if (
+        targetDeck &&
+        targetDeck.fragmentStats &&
+        targetDeck.fragmentStats[text]
+      ) {
+        attachedAudio =
+          targetDeck.fragmentStats[text].audio || null;
+      }
+    } catch (e) {
+      console.warn('读取字卡语音失败:', e);
     }
 
     /**
-     * 查询通用字卡库
-     *
-     * bindCharacterId 为空表示没有绑定特定角色，
-     * 即通用字卡库。
+     * 第一条角色消息保留原来的自动引用逻辑
+     * 修正：使用解耦后的新函数名并传入 state.messages
      */
-    const commonDecks = await db.decks
-      .filter((deck) => !deck.bindCharacterId)
-      .toArray();
-
-    decks.push(...commonDecks);
+    let autoQuoteId = null;
+    if (
+      i === 0 &&
+      quoteChance > 0 &&
+      Math.random() < quoteChance
+    ) {
+      autoQuoteId = pickAutoQuoteTargetInList(state.messages);
+    }
 
     /**
-     * 去重。
-     *
-     * 如果某个字卡库同时出现在角色绑定库和通用库中，
-     * 只保留一份。
+     * 创建消息对象
      */
-    const uniqueDecks = Array.from(
-      new Map(
-        decks.map((deck) => [deck.id, deck])
-      ).values()
+    const msg = {
+      conversationId: state.convId,
+      sender: 'character',
+      content: text,
+
+      // 有语音时保存语音数据
+      audio: attachedAudio || undefined,
+
+      // 有语音的字卡使用 voice-card 类型
+      // 没有语音的字卡继续使用原来的 card 类型（或 'text'）
+      type: attachedAudio ? 'voice-card' : 'card',
+
+      status: 'sent',
+      quotedMessageId: autoQuoteId,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+
+    /**
+     * 保存消息到数据库
+     */
+    const id = await db.messages.add(msg);
+    msg.id = id;
+
+    /**
+     * 增加字卡共鸣频次统计
+     */
+    await incrementFragmentResonance(
+      state.character.id,
+      text
     );
 
     /**
-     * 查找包含当前回复文本的字卡库
+     * 更新界面
      */
-    const targetDeck = uniqueDecks.find((deck) => {
-      return (
-        Array.isArray(deck.fragments) &&
-        deck.fragments.includes(text)
-      );
-    });
-
-    /**
-     * 从 fragmentStats 中读取该字卡对应的语音
-     *
-     * 数据结构预期类似：
-     *
-     * fragmentStats: {
-     *   "字卡内容": {
-     *     audio: "Base64 或音频地址"
-     *   }
-     * }
-     */
-    if (
-      targetDeck &&
-      targetDeck.fragmentStats &&
-      targetDeck.fragmentStats[text]
-    ) {
-      attachedAudio =
-        targetDeck.fragmentStats[text].audio || null;
-    }
-  } catch (e) {
-    console.warn('读取字卡语音失败:', e);
+    hideTyping();
+    appendMessage(msg);
+    playCharSound();
   }
-
-  /**
-   * 第一条角色消息保留原来的自动引用逻辑
-   */
-  let autoQuoteId = null;
-
-  if (
-    i === 0 &&
-    quoteChance > 0 &&
-    Math.random() < quoteChance
-  ) {
-    autoQuoteId = pickAutoQuoteTarget();
-  }
-
-  /**
-   * 创建消息对象
-   */
-  const msg = {
-    conversationId: state.convId,
-    sender: 'character',
-    content: text,
-
-    // 有语音时保存语音数据
-    audio: attachedAudio || undefined,
-
-    // 有语音的字卡使用 voice-card 类型
-    // 没有语音的字卡继续使用原来的 card 类型
-    type: attachedAudio ? 'voice-card' : 'card',
-
-    status: 'sent',
-    quotedMessageId: autoQuoteId,
-    timestamp: Date.now(),
-    isRead: true,
-  };
-
-  /**
-   * 保存消息到数据库
-   */
-  const id = await db.messages.add(msg);
-  msg.id = id;
-
-  /**
-   * 增加字卡共鸣频次统计
-   */
-  await incrementFragmentResonance(
-    state.character.id,
-    text
-  );
-
-  /**
-   * 更新界面
-   */
-  hideTyping();
-  appendMessage(msg);
-  playCharSound();
 
   /**
    * 如果项目中有触觉反馈函数，可以取消下一行注释
@@ -1882,7 +1857,6 @@ for (let i = 0; i < messages.length; i++) {
    * 暂时不自动播放语音。
    * 用户可以点击语音消息手动播放。
    */
-}
 
 
 /**

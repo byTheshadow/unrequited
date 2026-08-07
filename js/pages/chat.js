@@ -1,3 +1,4 @@
+
 import { db } from '../db.js';
 import { navigate, goBack } from '../router.js';
 import {
@@ -481,21 +482,6 @@ function bubbleHTML(msg, character, user, showTimeSep) {
         ${isUser ? `<div class="msg-meta">${readMark}</div>` : ''}
       </div>
       ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
-    </div>
-  `;
-}
-
-
-function typingHTML(character, hint) {
-  const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 52);
-  return `
-    <div class="center-typing-card" id="center-typing-card">
-      <div class="center-typing-avatar">${av}</div>
-      <div class="center-typing-name">${escapeHtml((character && character.name) || '?')}</div>
-      <div class="center-typing-loading">
-        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-      </div>
-      ${hint ? `<div class="center-typing-hint">${escapeHtml(hint)}</div>` : '<div class="center-typing-hint">正在输入...</div>'}
     </div>
   `;
 }

@@ -352,7 +352,6 @@ function quoteBarHTML(quoted) {
     </div>
   `;
 }
-
 /* ---------- 消息气泡 HTML ---------- */
 
 function bubbleHTML(msg, character, user, showTimeSep) {
@@ -414,6 +413,53 @@ function bubbleHTML(msg, character, user, showTimeSep) {
     `;
   }
 
+  // 3. 新增的 type === 'voice-card' 语音字卡气泡渲染
+  if (msg.type === 'voice-card') {
+    const isUser = msg.sender === 'user'; // 虽然一般是角色发，但也兼容用户发的情况
+    const av = isUser
+      ? avatarHTML(user && user.avatar, (user && user.name) || '我', 32)
+      : avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
+
+    const readMark = isUser
+      ? `<span class="msg-read">${msg.isRead ? '已读' : '送达'}</span>`
+      : '';
+
+    const quote = quoteCardHTML(msg.quotedMessageId);
+
+    // 语音气泡：微信风格波纹 & 播放状态
+    const body = `
+      <div class="msg-body msg-voice-card-body" data-audio-data="${escapeAttr(msg.audio || '')}">
+        <div class="voice-card-header">
+          <button class="voice-play-btn">
+            <svg class="play-svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <polygon points="6 4 20 12 6 20 6 4"/>
+            </svg>
+            <svg class="pause-svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display:none;">
+              <rect x="4" y="4" width="4" height="16"/>
+              <rect x="14" y="4" width="4" height="16"/>
+            </svg>
+          </button>
+          <div class="voice-wave-anim">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+        <div class="voice-card-text">${escapeHtml(msg.content)}</div>
+      </div>
+    `;
+
+    return `
+      ${timeSep}
+      <div class="msg-row ${isUser ? 'msg-user' : 'msg-char'} msg-voice-card-row" data-id="${msg.id}">
+        ${!isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+        <div class="msg-bubble-wrap">
+          <div class="msg-bubble">${quote}${body}</div>
+          ${isUser ? `<div class="msg-meta">${readMark}</div>` : ''}
+        </div>
+        ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+      </div>
+    `;
+  }
+
   const isUser = msg.sender === 'user';
   const av = isUser
     ? avatarHTML(user && user.avatar, (user && user.name) || '我', 32)
@@ -435,6 +481,21 @@ function bubbleHTML(msg, character, user, showTimeSep) {
         ${isUser ? `<div class="msg-meta">${readMark}</div>` : ''}
       </div>
       ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+    </div>
+  `;
+}
+
+
+function typingHTML(character, hint) {
+  const av = avatarHTML(character && character.avatar, (character && character.name) || '?', 52);
+  return `
+    <div class="center-typing-card" id="center-typing-card">
+      <div class="center-typing-avatar">${av}</div>
+      <div class="center-typing-name">${escapeHtml((character && character.name) || '?')}</div>
+      <div class="center-typing-loading">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      ${hint ? `<div class="center-typing-hint">${escapeHtml(hint)}</div>` : '<div class="center-typing-hint">正在输入...</div>'}
     </div>
   `;
 }
@@ -603,7 +664,88 @@ function applyChatStyles() {
       callBg.classList.remove('has-wallpaper');
     }
   }
+
+  // 🟢 新增：注入语音字卡样式
+  let voiceStyleEl = document.getElementById('chat-voice-card-css');
+  if (!voiceStyleEl) {
+    voiceStyleEl = document.createElement('style');
+    voiceStyleEl.id = 'chat-voice-card-css';
+    document.head.appendChild(voiceStyleEl);
+  }
+  
+  voiceStyleEl.textContent = `
+    .msg-voice-card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 140px;
+      max-width: 260px;
+    }
+    .voice-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 24px;
+    }
+    .voice-play-btn {
+      background: none;
+      border: none;
+      color: var(--color-accent, #007aff);
+      cursor: pointer;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.1s;
+    }
+    .voice-play-btn:active {
+      transform: scale(0.9);
+    }
+    .voice-wave-anim {
+      display: flex;
+      align-items: flex-end;
+      gap: 3px;
+      height: 12px;
+    }
+    .voice-wave-anim span {
+      display: inline-block;
+      width: 2px;
+      height: 3px;
+      background-color: var(--color-text-secondary, #999);
+      border-radius: 1px;
+      transition: height 0.2s;
+    }
+    .msg-voice-card-body.playing .voice-wave-anim span {
+      animation: waveBounce 0.8s infinite ease-in-out;
+    }
+    .msg-voice-card-body.playing .voice-wave-anim span:nth-child(2) { 
+      animation-delay: 0.15s; 
+    }
+    .msg-voice-card-body.playing .voice-wave-anim span:nth-child(3) { 
+      animation-delay: 0.3s; 
+    }
+    .msg-voice-card-body.playing .voice-wave-anim span:nth-child(4) { 
+      animation-delay: 0.45s; 
+    }
+    .msg-voice-card-body.playing .voice-wave-anim span:nth-child(5) { 
+      animation-delay: 0.6s; 
+    }
+    
+    .voice-card-text {
+      font-size: 14px;
+      color: var(--color-text-primary, #000);
+      line-height: 1.5;
+      letter-spacing: 0.5px;
+      word-break: break-all;
+    }
+    
+    @keyframes waveBounce {
+      0%, 100% { height: 3px; }
+      50% { height: 12px; }
+    }
+  `;
 }
+
 
 function playCharSound() {
   sound.play('character',
@@ -1544,6 +1686,7 @@ async function executeReply() {
    * 分支 B：
    * 普通回复：从角色字卡里生成消息。
    */
+  
   const generated = await generateForCharacter(state.character.id);
   const messages = generated && generated.messages ? generated.messages : [];
   const choices = generated && generated.choices ? generated.choices : [];
@@ -1557,87 +1700,254 @@ async function executeReply() {
     return;
   }
 
-  /**
-   * 普通字卡消息
-   */
-  for (let i = 0; i < messages.length; i++) {
-    if (state.destroyed) return;
+/**
+ * 分支 B：
+ * 普通回复：从角色字卡里生成消息。
+ */
 
-    if (i > 0) {
-      hideTyping();
-      showTyping();
-      await sleep(randInt(600, 1400));
-    }
+const generated = await generateForCharacter(state.character.id);
+const messages = generated && generated.messages
+  ? generated.messages
+  : [];
 
-    let autoQuoteId = null;
-    if (i === 0 && quoteChance > 0 && Math.random() < quoteChance) {
-      autoQuoteId = pickAutoQuoteTarget();
-    }
+const choices = generated && generated.choices
+  ? generated.choices
+  : [];
 
-    const msg = {
-      conversationId: state.convId,
-      sender: 'character',
-      content: messages[i],
-      type: 'card',
-      status: 'sent',
-      quotedMessageId: autoQuoteId,
-      timestamp: Date.now(),
-      isRead: true,
-    };
+const reason = generated && generated.reason;
 
-    const id = await db.messages.add(msg);
-    msg.id = id;
+if (state.destroyed) return;
 
-    // 新增：增加字卡共鸣频次统计
-    await incrementFragmentResonance(state.character.id, messages[i]);
+if ((!messages || !messages.length) && (!choices || !choices.length)) {
+  hideTyping();
 
+  toast(
+    reason === 'no_fragments'
+      ? '此角色暂无可用的字卡内容'
+      : '生成失败',
+    2200
+  );
+
+  return;
+}
+
+/**
+ * 普通字卡消息
+ *
+ * 如果字卡包含语音：
+ * - 将语音保存到 messages.audio 字段
+ * - 将消息类型设置为 voice-card
+ *
+ * 如果字卡不包含语音：
+ * - 保持原来的 card 类型
+ */
+for (let i = 0; i < messages.length; i++) {
+  if (state.destroyed) return;
+
+  if (i > 0) {
     hideTyping();
-    appendMessage(msg);
-    playCharSound();
+    showTyping();
+    await sleep(randInt(600, 1400));
+  }
+
+  const text = messages[i];
+
+  /**
+   * 查询当前字卡对应的语音
+   */
+  let attachedAudio = null;
+
+  try {
+    // 当前角色绑定的字卡库 ID
+    const linkedDeckIds =
+      state.character &&
+      Array.isArray(state.character.linkedDeckIds)
+        ? state.character.linkedDeckIds
+        : [];
+
+    let decks = [];
+
+    /**
+     * 查询角色绑定的字卡库
+     */
+    if (linkedDeckIds.length > 0) {
+      const linkedDecks = await db.decks
+        .where('id')
+        .anyOf(linkedDeckIds)
+        .toArray();
+
+      decks.push(...linkedDecks);
+    }
+
+    /**
+     * 查询通用字卡库
+     *
+     * bindCharacterId 为空表示没有绑定特定角色，
+     * 即通用字卡库。
+     */
+    const commonDecks = await db.decks
+      .filter((deck) => !deck.bindCharacterId)
+      .toArray();
+
+    decks.push(...commonDecks);
+
+    /**
+     * 去重。
+     *
+     * 如果某个字卡库同时出现在角色绑定库和通用库中，
+     * 只保留一份。
+     */
+    const uniqueDecks = Array.from(
+      new Map(
+        decks.map((deck) => [deck.id, deck])
+      ).values()
+    );
+
+    /**
+     * 查找包含当前回复文本的字卡库
+     */
+    const targetDeck = uniqueDecks.find((deck) => {
+      return (
+        Array.isArray(deck.fragments) &&
+        deck.fragments.includes(text)
+      );
+    });
+
+    /**
+     * 从 fragmentStats 中读取该字卡对应的语音
+     *
+     * 数据结构预期类似：
+     *
+     * fragmentStats: {
+     *   "字卡内容": {
+     *     audio: "Base64 或音频地址"
+     *   }
+     * }
+     */
+    if (
+      targetDeck &&
+      targetDeck.fragmentStats &&
+      targetDeck.fragmentStats[text]
+    ) {
+      attachedAudio =
+        targetDeck.fragmentStats[text].audio || null;
+    }
+  } catch (e) {
+    console.warn('读取字卡语音失败:', e);
   }
 
   /**
-   * 如果 generateForCharacter 返回了 choices，
-   * 这里把它们作为角色发出的 choice 消息插入。
-   *
-   * 注意：
-   * 如果你的 choices 已经是 choiceToContent() 后的字符串，可以直接用；
-   * 如果是原始对象，这里会自动转成 content。
+   * 第一条角色消息保留原来的自动引用逻辑
    */
-  for (let i = 0; i < choices.length; i++) {
-    if (state.destroyed) return;
+  let autoQuoteId = null;
 
-    if (messages.length > 0 || i > 0) {
-      hideTyping();
-      showTyping();
-      await sleep(randInt(600, 1400));
-    }
+  if (
+    i === 0 &&
+    quoteChance > 0 &&
+    Math.random() < quoteChance
+  ) {
+    autoQuoteId = pickAutoQuoteTarget();
+  }
 
-    const choice = choices[i];
-    const content = typeof choice === 'string'
+  /**
+   * 创建消息对象
+   */
+  const msg = {
+    conversationId: state.convId,
+    sender: 'character',
+    content: text,
+
+    // 有语音时保存语音数据
+    audio: attachedAudio || undefined,
+
+    // 有语音的字卡使用 voice-card 类型
+    // 没有语音的字卡继续使用原来的 card 类型
+    type: attachedAudio ? 'voice-card' : 'card',
+
+    status: 'sent',
+    quotedMessageId: autoQuoteId,
+    timestamp: Date.now(),
+    isRead: true,
+  };
+
+  /**
+   * 保存消息到数据库
+   */
+  const id = await db.messages.add(msg);
+  msg.id = id;
+
+  /**
+   * 增加字卡共鸣频次统计
+   */
+  await incrementFragmentResonance(
+    state.character.id,
+    text
+  );
+
+  /**
+   * 更新界面
+   */
+  hideTyping();
+  appendMessage(msg);
+  playCharSound();
+
+  /**
+   * 如果项目中有触觉反馈函数，可以取消下一行注释
+   */
+  // haptic(4);
+
+  /**
+   * 暂时不自动播放语音。
+   * 用户可以点击语音消息手动播放。
+   */
+}
+
+
+/**
+ * 如果 generateForCharacter 返回了 choices，
+ * 这里把它们作为角色发出的 choice 消息插入。
+ *
+ * 注意：
+ * 如果 choices 已经是 choiceToContent() 转换后的字符串，
+ * 可以直接使用。
+ * 如果是原始对象，则自动转换成 content。
+ */
+for (let i = 0; i < choices.length; i++) {
+  if (state.destroyed) return;
+
+  if (messages.length > 0 || i > 0) {
+    hideTyping();
+    showTyping();
+    await sleep(randInt(600, 1400));
+  }
+
+  const choice = choices[i];
+
+  const content =
+    typeof choice === 'string'
       ? choice
       : choiceToContent(choice);
 
-    const msg = {
-      conversationId: state.convId,
-      sender: 'character',
-      content,
-      type: 'choice',
-      status: 'sent',
-      quotedMessageId: null,
-      timestamp: Date.now(),
-      isRead: true,
-    };
+  const msg = {
+    conversationId: state.convId,
+    sender: 'character',
+    content,
+    type: 'choice',
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: true,
+  };
 
-    const id = await db.messages.add(msg);
-    msg.id = id;
+  const id = await db.messages.add(msg);
+  msg.id = id;
 
-    hideTyping();
-    appendMessage(msg);
-    playCharSound();
-  }
+  hideTyping();
+  appendMessage(msg);
+  playCharSound();
+}
 
-  await persistConvSummary();
+await persistConvSummary();
 }
 
 // 辅助工具方法重构（使其接受参数，解耦 state）
@@ -1735,6 +2045,7 @@ function bindViewportFollow() {
 
 let longPressTimer = null;
 function bindBubbleEvents() {
+  // 原有的长按逻辑
   document.querySelectorAll('.msg-scroll [data-id]').forEach((row) => {
     const id = Number(row.getAttribute('data-id'));
     let moved = false;
@@ -1749,7 +2060,78 @@ function bindBubbleEvents() {
     row.addEventListener('pointerleave', () => clearTimeout(longPressTimer));
     row.addEventListener('pointercancel', () => clearTimeout(longPressTimer));
   });
+
+  // 🟢 新增：语音字卡播放逻辑
+  if (!window._currentPlayingAudio) {
+    window._currentPlayingAudio = null;
+    window._currentPlayingEl = null;
+  }
+
+  document.querySelectorAll('.msg-voice-card-body').forEach((el) => {
+    if (el.dataset.boundPlay) return;
+    el.dataset.boundPlay = 'true';
+
+    const playBtn = el.querySelector('.voice-play-btn');
+    const playSvg = el.querySelector('.play-svg');
+    const pauseSvg = el.querySelector('.pause-svg');
+    const base64Data = el.getAttribute('data-audio-data');
+
+    if (!base64Data) return;
+
+    playBtn.onclick = (e) => {
+      e.stopPropagation();
+      haptic(6);
+
+      // 如果正在播放当前的，则暂停
+      if (window._currentPlayingAudio && window._currentPlayingEl === el) {
+        window._currentPlayingAudio.pause();
+        resetStatus();
+        return;
+      }
+
+      // 停止其他正在播放的音频
+      if (window._currentPlayingAudio) {
+        window._currentPlayingAudio.pause();
+        if (window._currentPlayingEl) {
+          const prevEl = window._currentPlayingEl;
+          const prevPlaySvg = prevEl.querySelector('.play-svg');
+          const prevPauseSvg = prevEl.querySelector('.pause-svg');
+          prevEl.classList.remove('playing');
+          if (prevPlaySvg) prevPlaySvg.style.display = 'block';
+          if (prevPauseSvg) prevPauseSvg.style.display = 'none';
+        }
+      }
+
+      // 播放当前音频
+      const audio = new Audio(base64Data);
+      window._currentPlayingAudio = audio;
+      window._currentPlayingEl = el;
+
+      el.classList.add('playing');
+      if (playSvg) playSvg.style.display = 'none';
+      if (pauseSvg) pauseSvg.style.display = 'block';
+
+      audio.play().catch((err) => {
+        console.warn('音频播放失败:', err);
+        toast('音频播放失败，请重试');
+        resetStatus();
+      });
+
+      audio.onended = () => {
+        resetStatus();
+      };
+    };
+
+    function resetStatus() {
+      el.classList.remove('playing');
+      if (playSvg) playSvg.style.display = 'block';
+      if (pauseSvg) pauseSvg.style.display = 'none';
+      window._currentPlayingAudio = null;
+      window._currentPlayingEl = null;
+    }
+  });
 }
+
 
 async function openMsgActions(id) {
   const msg = state.messages.find((m) => m.id === id);

@@ -129,6 +129,9 @@ async function refresh(root) {
   }
 }
 
+// 1. 在 renderDetailView 内部的 HTML 拼装中，排序 selector 下方插入搜索输入框
+// 2. 在 fragItems 循环渲染时，判断是否有关联语音并显示 [🎵 语音] 标识
+
 /* ==================== 一级页面：字卡库列表 ==================== */
 
 async function renderListView(root) {
@@ -243,7 +246,6 @@ function bindListRowEvents(root) {
 }
 
 /* ==================== 二级页面：日记手记详情流 ==================== */
-
 async function renderDetailView(root, deckId) {
   const deck = await db.decks.get(deckId);
   if (!deck) {
@@ -252,22 +254,28 @@ async function renderDetailView(root, deckId) {
     return;
   }
 
-  // 补全 stats 数据结构
   const stats = deck.fragmentStats || {};
   const frags = deck.fragments || [];
 
-  // 组装带统计信息的临时碎片列表
+  // SVG 图标定义
+  const SVG_SEARCH = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`;
+  const SVG_AUDIO = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`;
+
+  // 组装带统计信息和语音信息的临时碎片列表
   const fragItems = frags.map((text, idx) => {
     const itemStat = stats[text] || { usageCount: 0, createdAt: deck.createdAt + idx };
-    return { text, usageCount: itemStat.usageCount || 0, createdAt: itemStat.createdAt || deck.createdAt };
+    return { 
+      text, 
+      usageCount: itemStat.usageCount || 0, 
+      createdAt: itemStat.createdAt || deck.createdAt,
+      hasAudio: !!itemStat.audio // 是否拥有关联语音
+    };
   });
 
   // 排序
   if (detailSortMode === 'resonance') {
-    // 共鸣次数降序，次数相同按时间降序
     fragItems.sort((a, b) => b.usageCount - a.usageCount || b.createdAt - a.createdAt);
   } else {
-    // 时间降序
     fragItems.sort((a, b) => b.createdAt - a.createdAt);
   }
 
@@ -289,8 +297,16 @@ async function renderDetailView(root, deckId) {
       <div class="detail-info-bar">
         <span class="detail-subtitle">${escapeHtml(bindCharName)}</span>
         <div class="detail-sort-selector">
-          <button class="sort-tab ${detailSortMode === 'time' ? 'active' : ''}" data-sort="time">时间</button>
-          <button class="sort-tab ${detailSortMode === 'resonance' ? 'active' : ''}" data-sort="resonance">共鸣</button>
+          <button class="sort-tab ${detailSortMode === 'time' ? 'active' : ''}\" data-sort="time">时间</button>
+          <button class="sort-tab ${detailSortMode === 'resonance' ? 'active' : ''}\" data-sort="resonance">共鸣</button>
+        </div>
+      </div>
+
+      <!-- 新增：实时搜索栏 -->
+      <div class="detail-search-bar">
+        <div class="search-input-wrapper">
+          <span class="search-icon">${SVG_SEARCH}</span>
+          <input type="text" class="search-input" id="frag-search" placeholder="搜索字卡内容..." spellcheck="false" />
         </div>
       </div>
 
@@ -303,7 +319,6 @@ async function renderDetailView(root, deckId) {
           </div>
         ` : fragItems.map((item) => {
             const count = item.usageCount;
-            // 计算星芒的发光等级
             let glowClass = 'glow-none';
             if (count > 0 && count <= 3) glowClass = 'glow-weak';
             else if (count > 3 && count <= 8) glowClass = 'glow-medium';
@@ -315,6 +330,8 @@ async function renderDetailView(root, deckId) {
                 <div class="frag-card-footer">
                   <span class="frag-resonance-star ${glowClass}">${SVG_STAR}</span>
                   <span class="frag-resonance-count">${count > 0 ? `共鸣 ${count} 次` : '未共鸣'}</span>
+                  <!-- 新增：语音存在标记 -->
+                  ${item.hasAudio ? `<span class="frag-audio-badge">${SVG_AUDIO} 语音</span>` : ''}
                 </div>
               </div>
             `;
@@ -328,6 +345,53 @@ async function renderDetailView(root, deckId) {
         .detail-info-bar { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px 4px; }
         .detail-subtitle { font-size: 11px; color: var(--color-text-tertiary); letter-spacing: 1px; }
         
+        /* 新增搜索框样式 */
+        .detail-search-bar { padding: 8px 20px 4px; }
+        .search-input-wrapper { 
+          position: relative; 
+          display: flex; 
+          align-items: center; 
+        }
+        .search-icon {
+          position: absolute;
+          left: 12px;
+          display: inline-flex;
+          align-items: center;
+          color: var(--color-text-tertiary);
+          pointer-events: none;
+          transition: color 0.2s;
+        }
+        .search-input {
+          width: 100%; 
+          height: 36px; 
+          padding: 0 14px 0 36px; 
+          border: 1px solid var(--color-border);
+          border-radius: 12px; 
+          background: var(--color-bg-secondary); 
+          color: var(--color-text-primary);
+          font-size: 13px; 
+          outline: none; 
+          transition: all 0.2s;
+        }
+        .search-input:focus { 
+          border-color: var(--color-accent); 
+          background: var(--color-bg-primary); 
+        }
+        .search-input-wrapper:focus-within .search-icon { 
+          color: var(--color-accent); 
+        }
+        .frag-audio-badge { 
+          margin-left: auto; 
+          font-size: 9px; 
+          color: var(--color-accent); 
+          background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+          padding: 2px 6px; 
+          border-radius: 8px;
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+        }
+
         /* 排序页签 */
         .detail-sort-selector { display: flex; background: var(--color-bg-secondary); padding: 2px; border-radius: 12px; border: 1px solid var(--color-border); }
         .sort-tab { border: none; background: none; color: var(--color-text-secondary); padding: 4px 10px; font-size: 11px; border-radius: 9px; cursor: pointer; transition: all 0.2s; }
@@ -349,6 +413,7 @@ async function renderDetailView(root, deckId) {
           transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
           cursor: pointer;
         }
+        .frag-dream-card.hidden { display: none !important; } /* 配合搜索隐藏 */
         .frag-dream-card:active {
           transform: scale(0.98);
           border-color: rgba(139, 92, 246, 0.2);
@@ -385,6 +450,22 @@ async function renderDetailView(root, deckId) {
       </style>
     </div>
   `;
+
+  // 绑定搜索逻辑
+  const searchInput = root.querySelector('#frag-search');
+  if (searchInput) {
+    searchInput.oninput = (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      root.querySelectorAll('.frag-dream-card').forEach((card) => {
+        const text = card.getAttribute('data-text') || '';
+        if (text.toLowerCase().includes(q)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    };
+  }
 
   // 绑定事件
   root.querySelector('[data-act=back-to-list]').onclick = () => {
@@ -424,10 +505,22 @@ async function renderDetailView(root, deckId) {
 
 // 单条写入
 function openSingleWriteSheet(root, deckId) {
+  let loadedAudioBase64 = null; // 用于存储临时上传的 Base64 数据
+
   const body = `
     <div class="field">
       <label class="field-label">手记碎片</label>
       <textarea class="textarea" id="s-text" placeholder="写下这一刻的碎碎念手记..." rows="3"></textarea>
+    </div>
+    <div class="field">
+      <label class="field-label">导入专属语音 (可选)</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="file" id="s-audio-file" accept="audio/*" style="display:none;" />
+        <button class="btn btn-secondary btn-mini" id="btn-upload-audio">选择音频</button>
+        <button class="btn btn-ghost btn-mini" id="btn-play-audio" style="display:none;">试听</button>
+        <button class="btn btn-danger btn-mini" id="btn-del-audio" style="display:none; padding: 4px 8px;">清除</button>
+        <span id="audio-status-text" style="font-size:11px; color:var(--color-text-tertiary);">未上传</span>
+      </div>
     </div>
   `;
 
@@ -441,21 +534,87 @@ function openSingleWriteSheet(root, deckId) {
   });
 
   const sheetRoot = document.querySelector('.sheet-backdrop:last-of-type');
-  sheetRoot.querySelector('[data-act=cancel]').onclick = () => close();
+  const uploadInput = sheetRoot.querySelector('#s-audio-file');
+  const uploadBtn = sheetRoot.querySelector('#btn-upload-audio');
+  const playBtn = sheetRoot.querySelector('#btn-play-audio');
+  const delBtn = sheetRoot.querySelector('#btn-del-audio');
+  const statusText = sheetRoot.querySelector('#audio-status-text');
+
+  let previewAudio = null;
+
+  // 上传音频按钮触发 file input
+  uploadBtn.onclick = () => uploadInput.click();
+
+  uploadInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      toast('音频文件请小于 8MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      loadedAudioBase64 = event.target.result;
+      statusText.textContent = `${file.name.slice(0, 15)}...`;
+      playBtn.style.display = 'inline-flex';
+      delBtn.style.display = 'inline-flex';
+      toast('语音导入成功！');
+    };
+    reader.onerror = () => toast('语音读取失败');
+    reader.readAsDataURL(file);
+  };
+
+  // 播放预览
+  playBtn.onclick = () => {
+    if (!loadedAudioBase64) return;
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio = null;
+      playBtn.textContent = '试听';
+      return;
+    }
+    previewAudio = new Audio(loadedAudioBase64);
+    previewAudio.play();
+    playBtn.textContent = '暂停';
+    previewAudio.onended = () => {
+      playBtn.textContent = '试听';
+      previewAudio = null;
+    };
+  };
+
+  // 删除当前选择的语音
+  delBtn.onclick = () => {
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio = null;
+    }
+    loadedAudioBase64 = null;
+    uploadInput.value = '';
+    playBtn.style.display = 'none';
+    delBtn.style.display = 'none';
+    statusText.textContent = '已清除';
+  };
+
+  sheetRoot.querySelector('[data-act=cancel]').onclick = () => {
+    if (previewAudio) previewAudio.pause();
+    close();
+  };
+
   sheetRoot.querySelector('[data-act=save]').onclick = async () => {
+    if (previewAudio) previewAudio.pause();
     const text = sheetRoot.querySelector('#s-text').value.trim();
     if (!text) { toast('内容不能为空'); return; }
 
     const deck = await db.decks.get(deckId);
     if (!deck) return;
 
-    // 1. 检查当前库是否有重复
     if (deck.fragments.includes(text)) {
       toast('此碎片已在当前字卡库中，已自动跳过');
       return;
     }
 
-    // 2. 检查其他字卡库是否有重复，若存在则跳过写入
     const otherDecks = await checkDuplicateInDecks(text, deckId);
     if (otherDecks.length > 0) {
       toast(`此字卡在字卡库 [${otherDecks.join(', ')}] 中已存在，已自动跳过`);
@@ -464,7 +623,11 @@ function openSingleWriteSheet(root, deckId) {
 
     const newFrags = [...deck.fragments, text];
     const stats = deck.fragmentStats || {};
-    stats[text] = { usageCount: 0, createdAt: Date.now() };
+    stats[text] = { 
+      usageCount: 0, 
+      createdAt: Date.now(),
+      audio: loadedAudioBase64 // 保存音频数据
+    };
 
     await db.decks.update(deckId, {
       fragments: newFrags,
@@ -477,12 +640,42 @@ function openSingleWriteSheet(root, deckId) {
   };
 }
 
+
 // 单条修改/编辑
 function openSingleEditSheet(root, deckId, originalText) {
+  let loadedAudioBase64 = null;
+  let previewAudio = null;
+
+  // 获取该字卡原有的音频
+  db.decks.get(deckId).then((deck) => {
+    if (!deck) return;
+    const stats = deck.fragmentStats || {};
+    const cardInfo = stats[originalText];
+    if (cardInfo && cardInfo.audio) {
+      loadedAudioBase64 = cardInfo.audio;
+      const sheetRoot = document.querySelector('.sheet-backdrop:last-of-type');
+      if (sheetRoot) {
+        sheetRoot.querySelector('#btn-play-audio').style.display = 'inline-flex';
+        sheetRoot.querySelector('#btn-del-audio').style.display = 'inline-flex';
+        sheetRoot.querySelector('#audio-status-text').textContent = '已保存的语音';
+      }
+    }
+  });
+
   const body = `
     <div class="field">
       <label class="field-label">修改手记碎片</label>
       <textarea class="textarea" id="s-edit-text" rows="3">${escapeHtml(originalText)}</textarea>
+    </div>
+    <div class="field">
+      <label class="field-label">专属语音</label>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="file" id="s-edit-audio-file" accept="audio/*" style="display:none;" />
+        <button class="btn btn-secondary btn-mini" id="btn-upload-audio">选择新音频</button>
+        <button class="btn btn-ghost btn-mini" id="btn-play-audio" style="display:none;">试听</button>
+        <button class="btn btn-danger btn-mini" id="btn-del-audio" style="display:none; padding: 4px 8px;">清除语音</button>
+        <span id="audio-status-text" style="font-size:11px; color:var(--color-text-tertiary);">未上传</span>
+      </div>
     </div>
   `;
 
@@ -497,10 +690,70 @@ function openSingleEditSheet(root, deckId, originalText) {
   });
 
   const sheetRoot = document.querySelector('.sheet-backdrop:last-of-type');
-  sheetRoot.querySelector('[data-act=cancel]').onclick = () => close();
+  const uploadInput = sheetRoot.querySelector('#s-edit-audio-file');
+  const uploadBtn = sheetRoot.querySelector('#btn-upload-audio');
+  const playBtn = sheetRoot.querySelector('#btn-play-audio');
+  const delBtn = sheetRoot.querySelector('#btn-del-audio');
+  const statusText = sheetRoot.querySelector('#audio-status-text');
 
-  // 删除单条
+  uploadBtn.onclick = () => uploadInput.click();
+
+  uploadInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 8 * 1024 * 1024) {
+      toast('音频文件请小于 8MB');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      loadedAudioBase64 = event.target.result;
+      statusText.textContent = `${file.name.slice(0, 15)}...`;
+      playBtn.style.display = 'inline-flex';
+      delBtn.style.display = 'inline-flex';
+      toast('新语音载入，保存后生效');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  playBtn.onclick = () => {
+    if (!loadedAudioBase64) return;
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio = null;
+      playBtn.textContent = '试听';
+      return;
+    }
+    previewAudio = new Audio(loadedAudioBase64);
+    previewAudio.play();
+    playBtn.textContent = '暂停';
+    previewAudio.onended = () => {
+      playBtn.textContent = '试听';
+      previewAudio = null;
+    };
+  };
+
+  delBtn.onclick = () => {
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio = null;
+    }
+    loadedAudioBase64 = null;
+    uploadInput.value = '';
+    playBtn.style.display = 'none';
+    delBtn.style.display = 'none';
+    statusText.textContent = '已标记清除';
+  };
+
+  sheetRoot.querySelector('[data-act=cancel]').onclick = () => {
+    if (previewAudio) previewAudio.pause();
+    close();
+  };
+
   sheetRoot.querySelector('[data-act="delete-single"]').onclick = async () => {
+    if (previewAudio) previewAudio.pause();
     close();
     const ok = await confirmSheet('删除此条碎片？', { danger: true, okText: '删除' });
     if (!ok) return;
@@ -521,8 +774,8 @@ function openSingleEditSheet(root, deckId, originalText) {
     refresh(root);
   };
 
-  // 修改单条
   sheetRoot.querySelector('[data-act="save"]').onclick = async () => {
+    if (previewAudio) previewAudio.pause();
     const text = sheetRoot.querySelector('#s-edit-text').value.trim();
     if (!text) { toast('内容不能为空'); return; }
 
@@ -533,20 +786,17 @@ function openSingleEditSheet(root, deckId, originalText) {
     const stats = deck.fragmentStats || {};
 
     if (originalText !== text) {
-      // 1. 检查当前库重复
       if (deck.fragments.includes(text)) {
         toast('新内容与当前库已有碎片重复，已自动跳过');
         return;
       }
       
-      // 2. 检查其他库重复并跳过
       const otherDecks = await checkDuplicateInDecks(text, deckId);
       if (otherDecks.length > 0) {
         toast(`此内容在字卡库 [${otherDecks.join(', ')}] 中已存在，已自动跳过修改`);
         return;
       }
 
-      // 替换原项
       const idx = newFrags.indexOf(originalText);
       if (idx !== -1) {
         newFrags[idx] = text;
@@ -554,13 +804,19 @@ function openSingleEditSheet(root, deckId, originalText) {
         newFrags.push(text);
       }
       
-      // 迁移统计属性并删除旧项
       const oldStat = stats[originalText] || { usageCount: 0, createdAt: Date.now() };
       stats[text] = {
         usageCount: oldStat.usageCount,
-        createdAt: oldStat.createdAt
+        createdAt: oldStat.createdAt,
+        audio: loadedAudioBase64 // 保留或更新语音
       };
       delete stats[originalText];
+    } else {
+      // 仅更新音频数据
+      if (!stats[text]) {
+        stats[text] = { usageCount: 0, createdAt: Date.now() };
+      }
+      stats[text].audio = loadedAudioBase64;
     }
 
     await db.decks.update(deckId, {
@@ -573,6 +829,7 @@ function openSingleEditSheet(root, deckId, originalText) {
     refresh(root);
   };
 }
+
 
 /* ==================== 原版功能：批量设置 / 导入 / 导出 ==================== */
 

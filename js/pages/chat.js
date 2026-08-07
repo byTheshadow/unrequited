@@ -1682,24 +1682,6 @@ async function executeReply() {
     return;
   }
 
-  /**
-   * 分支 B：
-   * 普通回复：从角色字卡里生成消息。
-   */
-  
-  const generated = await generateForCharacter(state.character.id);
-  const messages = generated && generated.messages ? generated.messages : [];
-  const choices = generated && generated.choices ? generated.choices : [];
-  const reason = generated && generated.reason;
-
-  if (state.destroyed) return;
-
-  if ((!messages || !messages.length) && (!choices || !choices.length)) {
-    hideTyping();
-    toast(reason === 'no_fragments' ? '此角色暂无可用的字卡内容' : '生成失败', 2200);
-    return;
-  }
-
 /**
  * 分支 B：
  * 普通回复：从角色字卡里生成消息。

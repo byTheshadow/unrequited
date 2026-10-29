@@ -82,12 +82,11 @@
 }
 .msg-avatar-ghost { visibility: hidden; }
 
-.center-typing-avatars { display: flex; margin-bottom: 12px; justify-content: center; }
+.center-typing-avatars { display: flex; margin-bottom: 12px; justify-content: center; gap: 6px; }
 .center-typing-avatars .avatar {
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
-.center-typing-avatars .avatar + .avatar { margin-left: var(--typing-overlap, -12px); }
 
 /* ============ 按钮 ============ */
 .btn {

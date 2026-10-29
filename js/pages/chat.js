@@ -43,6 +43,8 @@ let state = {
   memberMap: new Map(),
   typingMembers: [],
   groupTimers: [],
+  groupPlans: [],
+  groupPicking: false,
   groupLastSendAt: 0,
   user: null,
   messages: [],
@@ -3431,16 +3433,24 @@ function updateGroupSubtitle() {
   if (n > 0) {
     sub.classList.add('thinking');
     sub.textContent = `${n} 人正在输入…`;
-  } else {
-    sub.classList.remove('thinking');
-    sub.textContent = `${(state.members || []).length} 人`;
+    return;
   }
+  // 已经掷中、但还没开始打字的人：显示挑选阶段，避免 1.5–6 秒空窗
+  if (state.groupPicking) {
+    sub.classList.add('thinking');
+    sub.textContent = '正在挑选字卡…';
+    return;
+  }
+  sub.classList.remove('thinking');
+  sub.textContent = `${(state.members || []).length} 人`;
 }
 
 function clearGroupTimers() {
   (state.groupTimers || []).forEach((t) => clearTimeout(t));
   state.groupTimers = [];
   state.typingMembers = [];
+  state.groupPlans = [];
+  state.groupPicking = false;
   state.typing = false;
   const card = document.getElementById('center-typing-card');
   if (card) card.remove();
@@ -3468,8 +3478,8 @@ function renderGroupTyping() {
   }
 
   const count = list.length;
-  const size = count <= 2 ? 46 : (count <= 4 ? 40 : 34);
-  const overlap = count <= 2 ? -12 : (count <= 4 ? -10 : -8);
+  // 不叠头像：角色没有自定义头像时都是灰色首字，叠起来会糊成一团
+  const size = Math.min(46, Math.max(24, Math.floor((188 - 6 * (count - 1)) / count)));
   const avatars = list.map((p) => avatarHTML(p.member.avatar, p.member.name, size)).join('');
   const names = count <= 3
     ? list.map((p) => p.member.name).join('、')
@@ -3480,7 +3490,7 @@ function renderGroupTyping() {
 
   const html = `
     <div class="center-typing-card group-typing" id="center-typing-card">
-      <div class="center-typing-avatars" style="--typing-overlap:${overlap}px">${avatars}</div>
+      <div class="center-typing-avatars">${avatars}</div>
       <div class="center-typing-name">${escapeHtml(names)}</div>
       <div class="center-typing-loading">
         <span class="dot"></span><span class="dot"></span><span class="dot"></span>
@@ -3521,9 +3531,15 @@ function scheduleGroupReply() {
 
   // 一个人都没掷中：冷场
   if (!plans.length) {
+    state.groupPlans = [];
+    state.groupPicking = false;
     markGroupPending(false);
     return;
   }
+
+  state.groupPlans = plans;
+  state.groupPicking = true;
+  updateGroupSubtitle();
 
   markGroupPending(true);
   const clearTimer = setTimeout(() => {
@@ -3534,7 +3550,11 @@ function scheduleGroupReply() {
   plans.forEach((plan) => {
     const startTimer = setTimeout(() => {
       if (state.destroyed) return;
+      plan.started = true;
       plan.typingStartAt = Date.now();
+      if (state.groupPlans.every((p) => p.started)) {
+        state.groupPicking = false;
+      }
       state.typingMembers.push(plan);
       renderGroupTyping();
       const typingTimer = setTimeout(() => finishGroupTyping(plan), plan.typingMs);
@@ -3657,6 +3677,8 @@ export async function render(root, params = {}) {
   memberMap: new Map(),
   typingMembers: [],
   groupTimers: [],
+  groupPlans: [],
+  groupPicking: false,
   groupLastSendAt: 0,
   user: null,
   messages: [],

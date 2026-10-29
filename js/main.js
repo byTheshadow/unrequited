@@ -4,6 +4,7 @@ import { initDB } from './db.js';
 import * as scheduler from './lib/scheduler.js';
 import { CallManager } from './lib/callManager.js';
 import { MissManager } from './lib/missManager.js';
+import { runAwayChat } from './lib/groupChat.js';
 
 async function boot() {
   initTheme();
@@ -19,6 +20,9 @@ async function boot() {
 
     // 初始化并启动角色主动消息调度器
     scheduler.init();
+
+    // 群聊离场结算：每次启动，每个群每个成员各自掷一次骰
+    await runAwayChat();
   } catch (err) {
     console.warn('DB init failed:', err);
   }

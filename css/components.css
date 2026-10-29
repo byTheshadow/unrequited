@@ -45,6 +45,50 @@
 }
 .avatar-fallback { letter-spacing: 0; }
 
+/* ============ 群头像（成员拼合） ============ */
+.gava {
+  display: grid;
+  gap: 1px;
+  background: var(--color-bg-primary);
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.gava i {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.75);
+}
+.gava.g2 { grid-template-columns: 1fr 1fr; }
+.gava.g3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.gava.g3 i:nth-child(3) { grid-column: span 2; }
+.gava.g4 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.gava.g6 { grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; }
+
+/* ============ 群聊消息 ============ */
+.msg-who {
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  letter-spacing: 1px;
+  line-height: 1;
+  margin: 0 0 4px 4px;
+}
+.msg-avatar-ghost { visibility: hidden; }
+
+.center-typing-avatars { display: flex; margin-bottom: 12px; justify-content: center; }
+.center-typing-avatars .avatar {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.center-typing-avatars .avatar + .avatar { margin-left: var(--typing-overlap, -12px); }
+
 /* ============ 按钮 ============ */
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -1195,6 +1239,16 @@
   align-items: center;
   justify-content: center;
   animation: centerFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 群聊：复用中央卡片时用更克制的玻璃样式 */
+.center-typing-card.group-typing {
+  width: 220px;
+  padding: 24px 16px;
+  background: color-mix(in srgb, var(--color-bg-secondary) 96%, var(--color-bg-primary));
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
 }
 
 /* ============ 共时星骰 (D12) 华丽动效 ============ */

@@ -103,6 +103,50 @@ export function avatarHTML(url, name, size = 40) {
   return `<span class="avatar avatar-fallback" style="width:${s}px;height:${s}px;font-size:${Math.round(s * 0.42)}px;">${escapeHtml(initial)}</span>`;
 }
 
+// ========== 群头像（成员拼合） ==========
+const GROUP_AVATAR_TONES = [
+  ['#5b6672', '#232a31'],
+  ['#6e584a', '#2b201a'],
+  ['#4f6456', '#1f2b24'],
+  ['#5d5470', '#241f2e'],
+];
+
+function avatarTone(name) {
+  let sum = 0;
+  const s = String(name || '?');
+  for (let i = 0; i < s.length; i += 1) sum += s.charCodeAt(i);
+  return GROUP_AVATAR_TONES[sum % GROUP_AVATAR_TONES.length];
+}
+
+export function groupAvatarHTML(members, size = 46, customUrl = '') {
+  if (customUrl) {
+    return `<span class="avatar" style="width:${size}px;height:${size}px;">
+      <img src="${escapeAttr(customUrl)}" alt="" draggable="false"/>
+    </span>`;
+  }
+
+  const list = (Array.isArray(members) ? members : []).slice(0, 6);
+  if (!list.length) {
+    return `<span class="avatar avatar-fallback" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.42)}px;">群</span>`;
+  }
+
+  const n = list.length;
+  const cls = n <= 2 ? 'g2' : n === 3 ? 'g3' : n === 4 ? 'g4' : 'g6';
+
+  const cells = list.map((m) => {
+    const name = (m && m.name) || '?';
+    if (m && m.avatar) {
+      return `<i style="background-image:url('${escapeAttr(m.avatar)}')"></i>`;
+    }
+    const tone = avatarTone(name);
+    const fs = Math.max(8, Math.round(size * 0.24));
+    // 群头像只做拼合，不放首字；群名在下方始终可见
+    return `<i style="background:linear-gradient(145deg,${tone[0]},${tone[1]});font-size:${fs}px;"></i>`;
+  }).join('');
+
+  return `<span class="gava ${cls}" style="width:${size}px;height:${size}px;">${cells}</span>`;
+}
+
 export function fileToResizedDataURL(file, maxSize = 300, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

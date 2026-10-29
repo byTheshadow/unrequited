@@ -2,8 +2,8 @@
 import { db } from '../db.js';
 import { navigate, goBack } from '../router.js';
 import {
-  ICON, avatarHTML, escapeHtml, escapeAttr, formatTime, formatDateSep,
-  haptic, toast, sleep, randInt, pick,
+  ICON, avatarHTML, groupAvatarHTML, escapeHtml, escapeAttr, formatTime, formatDateSep,
+  haptic, toast, sleep, randInt, pick, fileToResizedDataURL,
   openSheet, confirmSheet,
 } from '../utils.js';
 import {
@@ -19,6 +19,7 @@ import {
 import * as keepAlive from '../lib/keepAlive.js';
 import * as sound from '../lib/sound.js';
 import { CallManager } from '../lib/callManager.js';
+import { GROUP, generateForMember } from '../lib/groupChat.js';
 import { renderMusicCardHTML } from '../lib/musicBarRenderer.js';
 // 在其他 import 语句后添加：
 import { getShufflingHTML, getShufflingHint } from '../lib/shufflingRenderer.js';
@@ -37,6 +38,12 @@ let state = {
   convId: null,
   conv: null,
   character: null,
+  isGroup: false,
+  members: [],
+  memberMap: new Map(),
+  typingMembers: [],
+  groupTimers: [],
+  groupLastSendAt: 0,
   user: null,
   messages: [],
   typing: false,
@@ -103,10 +110,21 @@ function summarize(text, max = QUOTE_PREVIEW_MAX) {
   if (single.length <= max) return single;
   return single.slice(0, max) + '…';
 }
+function speakerOf(msg) {
+  if (!msg) return null;
+  if (msg.senderCharacterId && state.memberMap && typeof state.memberMap.get === 'function') {
+    const m = state.memberMap.get(msg.senderCharacterId);
+    if (m) return m;
+  }
+  return state.character;
+}
 function authorNameOf(msg) {
   if (!msg) return '';
   if (msg.sender === 'user') return (state.user && state.user.name) || '我';
-  if (msg.sender === 'character') return (state.character && state.character.name) || '?';
+  if (msg.sender === 'character') {
+    const sp = speakerOf(msg);
+    return (sp && sp.name) || '?';
+  }
   return '';
 }
 function isQuotableMsg(msg) {
@@ -355,7 +373,9 @@ function quoteBarHTML(quoted) {
 }
 /* ---------- 消息气泡 HTML ---------- */
 
-function bubbleHTML(msg, character, user, showTimeSep) {
+function bubbleHTML(msg, character, user, showTimeSep, opts = {}) {
+  const isGroup = !!opts.isGroup;
+  const showMeta = opts.showMeta !== false;
   const timeSep = showTimeSep
     ? `<div class="msg-time-sep">${formatDateSep(msg.timestamp)}　${formatTime(msg.timestamp)}</div>`
     : '';
@@ -476,8 +496,9 @@ function bubbleHTML(msg, character, user, showTimeSep) {
   return `
     ${timeSep}
     <div class="msg-row ${isUser ? 'msg-user' : 'msg-char'} ${msg.type === 'choice' ? 'msg-choice' : ''}" data-id="${msg.id}">
-      ${!isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+      ${!isUser ? `<div class="msg-avatar ${showMeta ? '' : 'msg-avatar-ghost'}">${av}</div>` : ''}
       <div class="msg-bubble-wrap">
+        ${isGroup && !isUser && showMeta ? `<div class="msg-who">${escapeHtml((character && character.name) || '')}</div>` : ''}
         <div class="msg-bubble">${quote}${body}</div>
         ${isUser ? `<div class="msg-meta">${readMark}</div>` : ''}
       </div>
@@ -525,10 +546,15 @@ async function loadAll(convId) {
   // 🟢 在执行角色状态轮询前，让 state 能读取到会话的 silentMode 初始状态
   state.silentMode = !!conv.silentMode;
 
-  let character = await db.characters.get(conv.characterId);
-  if (character) {
-    character = await checkAndRotateCharacterStatus(character);
+  // 单聊维持原来的顺序：先取角色并轮转状态，再读消息和最新会话
+  let character = null;
+  if (conv.type !== 'group') {
+    character = await db.characters.get(conv.characterId);
+    if (character) {
+      character = await checkAndRotateCharacterStatus(character);
+    }
   }
+
   let user = (await db.user.toArray())[0];
   if (!user) {
     const uid = await db.user.add({ name: '我', avatar: '', status: '', signature: '' });
@@ -540,18 +566,42 @@ async function loadAll(convId) {
   const freshConv = await db.conversations.get(convId);
   state.silentMode = !!freshConv.silentMode;
 
-  return { conv: freshConv, character, user, messages };
+  // 群聊：没有单一角色，成员按 memberIds 顺序还原
+  if (freshConv.type === 'group') {
+    const ids = Array.isArray(freshConv.memberIds) ? freshConv.memberIds : [];
+    let members = [];
+    if (ids.length) {
+      const rows = await db.characters.where('id').anyOf(ids).toArray();
+      const map = new Map(rows.map((c) => [c.id, c]));
+      members = ids.map((id) => map.get(id)).filter(Boolean);
+    }
+    return { conv: freshConv, character: null, members, isGroup: true, user, messages };
+  }
+
+  return { conv: freshConv, character, members: [], isGroup: false, user, messages };
 }
 
 /* ---------- 消息渲染 ---------- */
+function isSameSpeakerRun(prev, msg, showTimeSep) {
+  if (!state.isGroup || showTimeSep || !prev) return false;
+  if (msg.sender !== 'character' || prev.sender !== 'character') return false;
+  if (prev.type === 'system' || prev.type === 'sync') return false;
+  return prev.senderCharacterId === msg.senderCharacterId;
+}
+
 function renderMessages() {
   const box = document.getElementById('msg-scroll');
   if (!box) return;
   let prev = null;
   const html = state.messages.map((m) => {
     const sep = shouldShowTimeSep(prev, m);
+    const sameRun = isSameSpeakerRun(prev, m, sep);
+    const speaker = state.isGroup ? speakerOf(m) : state.character;
     prev = m;
-    return bubbleHTML(m, state.character, state.user, sep);
+    return bubbleHTML(m, speaker, state.user, sep, {
+      isGroup: state.isGroup,
+      showMeta: !sameRun,
+    });
   }).join('');
   box.innerHTML = html;
   scrollToBottom(false);
@@ -581,9 +631,16 @@ function appendMessage(msg) {
   if (!box) return;
   const prev = state.messages[state.messages.length - 1] || null;
   const sep = shouldShowTimeSep(prev, msg);
+  const sameRun = isSameSpeakerRun(prev, msg, sep);
   state.messages.push(msg);
   const anchor = document.getElementById('typing-indicator') || document.getElementById('shuffle-fx');
-  const html = bubbleHTML(msg, state.character, state.user, sep);
+  const html = bubbleHTML(
+    msg,
+    state.isGroup ? speakerOf(msg) : state.character,
+    state.user,
+    sep,
+    { isGroup: state.isGroup, showMeta: !sameRun }
+  );
   if (anchor) anchor.insertAdjacentHTML('beforebegin', html);
   else box.insertAdjacentHTML('beforeend', html);
   scrollToBottom(true);
@@ -602,8 +659,15 @@ function appendMessage(msg) {
 async function persistConvSummary() {
   const last = state.messages[state.messages.length - 1];
   if (!last) return;
+  let text = last.content;
+  if (state.isGroup && last.sender !== 'system' && last.sender !== 'sync') {
+    const name = last.sender === 'user'
+      ? ((state.user && state.user.name) || '我')
+      : ((speakerOf(last) && speakerOf(last).name) || '');
+    text = `${name}：${last.content}`;
+  }
   await db.conversations.update(state.convId, {
-    lastMessage: last.content,
+    lastMessage: text,
     lastMessageTime: last.timestamp,
   });
 }
@@ -822,11 +886,13 @@ async function sendUserMessage() {
   updateSendBtn();
 
   await persistConvSummary();
-   await persistConvSummary();
-  
+
   // 如果开启了静默投递，弹出提示，不触发即时回复
   if (state.silentMode) {
     toast('讯息已静默投递');
+  } else if (state.isGroup) {
+    markGroupPending(true);
+    scheduleGroupReply();
   } else {
     await schedulePendingReply();
   }
@@ -1437,8 +1503,12 @@ function stopThinkingUI() {
   const sub = document.getElementById('chat-subtitle');
   if (sub) {
     sub.classList.remove('thinking');
-    const s = (state.character && (state.character.status || state.character.signature)) || '';
-    sub.textContent = s;
+    if (state.isGroup) {
+      updateGroupSubtitle();
+    } else {
+      const s = (state.character && (state.character.status || state.character.signature)) || '';
+      sub.textContent = s;
+    }
   }
   clearInterval(state.thinkingRotate);
   state.thinkingRotate = null;
@@ -1951,7 +2021,10 @@ async function manualTrigger() {
     btn.disabled = true;
     btn.classList.remove('spin'); void btn.offsetWidth; btn.classList.add('spin');
   }
-  try { await executeReply(); }
+  try {
+    if (state.isGroup) scheduleGroupReply();
+    else await executeReply();
+  }
   finally { if (btn) btn.disabled = false; }
 }
 
@@ -2376,7 +2449,7 @@ function renderUserCard() {
 
 function renderMusicCard() {
   const el = document.getElementById('music-card');
-  if (!el) return;
+  if (!el || state.isGroup) return;
   const c = state.character;
   const u = state.user;
   const music = (state.conv && state.conv.musicBar) || { ...DEFAULT_MUSIC };
@@ -2394,6 +2467,16 @@ function renderPill() {
   const titleEl = document.getElementById('chat-title');
   const subEl = document.getElementById('chat-subtitle');
   const avEl = document.getElementById('chat-header-avatar');
+
+  if (state.isGroup) {
+    const members = state.members || [];
+    const name = (state.conv && state.conv.groupName) || members.map((m) => m.name).join('、') || '群聊';
+    if (titleEl) titleEl.textContent = name;
+    if (subEl && !subEl.classList.contains('thinking')) subEl.textContent = `${members.length} 人`;
+    if (avEl) avEl.innerHTML = groupAvatarHTML(members, 30, state.conv && state.conv.groupAvatar);
+    return;
+  }
+
   const c = state.character;
 
   if (titleEl) {
@@ -2679,7 +2762,192 @@ async function openCardBgSheet(which) {
 }
 
 /* ---------- 更多菜单 & 其他 sheet ---------- */
+async function openGroupInfo() {
+  if (!state.isGroup || !state.conv) return;
+  const members = state.members || [];
+  let avatarData = state.conv.groupAvatar || '';
+
+  const { close } = openSheet({
+    title: '群聊资料',
+    body: `
+      <div class="group-info-head">
+        <button class="group-info-avatar" data-act="pick-avatar" type="button" id="group-avatar-btn">
+          ${groupAvatarHTML(members, 72, avatarData)}
+        </button>
+        <div class="group-info-fields">
+          <input class="input" id="group-name-input" maxlength="40" value="${escapeAttr(state.conv.groupName || '')}" placeholder="群名">
+          <div class="field-hint">群名和头像都可以改</div>
+        </div>
+      </div>
+      <div class="field-hint" style="margin:14px 0 8px;">成员 · ${members.length} 人</div>
+      <div class="group-members">
+        ${members.map((m) => `
+          <div class="group-member">
+            ${avatarHTML(m.avatar, m.name, 36)}
+            <span>${escapeHtml(m.name)}</span>
+          </div>`).join('')}
+      </div>
+      <input type="file" id="group-avatar-file" accept="image/*" style="display:none">
+    `,
+    actions: `<button class="btn btn-ghost" data-act="dissolve" style="color:#dc2626;">解散</button>
+              <button class="btn btn-primary" data-act="save-group">保存</button>`,
+  });
+
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  if (!root) return;
+
+  const avatarBtn = root.querySelector('#group-avatar-btn');
+  const fileInput = root.querySelector('#group-avatar-file');
+
+  avatarBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    try {
+      avatarData = await fileToResizedDataURL(file, 240, 0.9);
+      avatarBtn.innerHTML = groupAvatarHTML(members, 72, avatarData);
+    } catch (e) {
+      toast('图片读取失败');
+    }
+  });
+
+  root.addEventListener('click', async (e) => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const act = el.getAttribute('data-act');
+
+    if (act === 'save-group') {
+      const inputEl = root.querySelector('#group-name-input');
+      const name = ((inputEl && inputEl.value) || '').trim().slice(0, 40)
+        || members.map((m) => m.name).join('、');
+      await db.conversations.update(state.convId, { groupName: name, groupAvatar: avatarData });
+      state.conv.groupName = name;
+      state.conv.groupAvatar = avatarData;
+      renderPill();
+      close();
+    } else if (act === 'dissolve') {
+      close();
+      const ok = await confirmSheet('确定解散这个群聊？消息会一并删除', { danger: true, okText: '解散' });
+      if (!ok) return;
+      clearGroupTimers();
+      await db.messages.where('conversationId').equals(state.convId).delete();
+      await db.conversations.delete(state.convId);
+      navigate('/cards');
+    }
+  });
+}
+
+async function openGroupMenu() {
+  const kaOn = await keepAlive.loadEnabled();
+  const kaLive = keepAlive.isRunning();
+  const wpText = state.conv && state.conv.wallpaper ? '已设置' : '未设置';
+  const bubbleText = bubblePresetLabel(state.conv && state.conv.bubbleStyle);
+  const typingText = (state.conv && state.conv.typingHint)
+    ? escapeHtml(state.conv.typingHint)
+    : '默认（仅三点动画）';
+  const soundOpt = (state.conv && state.conv.soundOption) || 'inherit';
+  const soundText = SOUND_LABELS[soundOpt] || '跟随全局';
+
+  const { close } = openSheet({
+    title: '群聊操作',
+    body: `<div class="sheet-list">
+      <div class="sheet-list-item" data-act="group-info">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">群资料</div>
+          <div class="sheet-list-sub">群名、头像、成员</div>
+        </div>
+      </div>
+      <div class="sheet-list-item" data-act="bubble-style">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">气泡样式</div>
+          <div class="sheet-list-sub">${bubbleText}</div>
+        </div>
+      </div>
+      <div class="sheet-list-item" data-act="wallpaper">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">聊天壁纸</div>
+          <div class="sheet-list-sub">${wpText}</div>
+        </div>
+      </div>
+      <div class="sheet-list-item" data-act="typing-hint">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">打字文案</div>
+          <div class="sheet-list-sub">${typingText}</div>
+        </div>
+      </div>
+      <div class="sheet-list-item" data-act="sound">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">提示音</div>
+          <div class="sheet-list-sub">${soundText}</div>
+        </div>
+      </div>
+      <div class="sheet-list-item" data-act="silent">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">静默投递</div>
+          <div class="sheet-list-sub">${state.silentMode ? '开：不会有人回' : '关：随机有人回'}</div>
+        </div>
+        <div class="ka-toggle ${state.silentMode ? 'on' : ''}">${state.silentMode ? '开' : '关'}</div>
+      </div>
+      <div class="sheet-list-item" data-act="clear">
+        <div class="sheet-list-body"><div class="sheet-list-title">清空消息</div></div>
+      </div>
+      <div class="sheet-list-item" data-act="keepalive">
+        <div class="sheet-list-body">
+          <div class="sheet-list-title">后台保活（实验）</div>
+          <div class="sheet-list-sub">${kaOn ? (kaLive ? '已开启并在运行' : '已开启，未在运行（需要交互触发）') : '未开启，仅前台准时'}</div>
+        </div>
+        <div class="ka-toggle ${kaOn ? 'on' : ''}">${kaOn ? '开' : '关'}</div>
+      </div>
+    </div>`,
+  });
+
+  const root = document.querySelector('.sheet-backdrop:last-of-type');
+  if (!root) return;
+
+  root.addEventListener('click', async (e) => {
+    const item = e.target.closest('.sheet-list-item');
+    if (!item) return;
+    const act = item.getAttribute('data-act');
+
+    if (act === 'group-info') { close(); await sleep(280); openGroupInfo(); }
+    else if (act === 'bubble-style') { close(); await sleep(280); openBubbleStyleSheet(); }
+    else if (act === 'wallpaper') { close(); await sleep(280); openWallpaperSheet(); }
+    else if (act === 'typing-hint') { close(); await sleep(280); openTypingHintSheet(); }
+    else if (act === 'sound') { close(); await sleep(280); openSoundSheet(); }
+    else if (act === 'clear') {
+      close();
+      const ok = await confirmSheet('确定清空这个群的所有消息？', { danger: true, okText: '清空' });
+      if (ok) {
+        await db.messages.where('conversationId').equals(state.convId).delete();
+        state.messages = [];
+        await db.conversations.update(state.convId, { lastMessage: '', lastMessageTime: Date.now() });
+        renderMessages();
+      }
+    } else if (act === 'silent') {
+      state.silentMode = !state.silentMode;
+      await db.conversations.update(state.convId, { silentMode: state.silentMode });
+      if (state.conv) state.conv.silentMode = state.silentMode;
+      updateSilentModeUI();
+      close();
+      toast(state.silentMode ? '已开启静默投递' : '已关闭静默投递');
+    } else if (act === 'keepalive') {
+      const now = await keepAlive.loadEnabled();
+      if (now) {
+        keepAlive.stop();
+        await keepAlive.saveEnabled(false);
+        toast('已关闭后台保活');
+      } else {
+        const ok = await keepAlive.start();
+        await keepAlive.saveEnabled(true);
+        toast(ok ? '已开启，尝试保活中' : '已开启，下次交互后生效');
+      }
+      close();
+    }
+  });
+}
+
 async function openChatMenu() {
+  if (state.isGroup) return openGroupMenu();
   const kaOn = await keepAlive.loadEnabled();
   const kaLive = keepAlive.isRunning();
   const wpText = state.conv && state.conv.wallpaper ? '已设置' : '未设置';
@@ -3133,7 +3401,7 @@ async function openSoundSheet() {
    checkPendingReplyOnVisible
    ============================================================ */
 async function checkPendingReplyOnVisible() {
-  if (!state.convId) return;
+  if (!state.convId || state.isGroup) return;
   const conv = await db.conversations.get(state.convId);
   if (!conv) return;
   state.conv = conv;
@@ -3153,6 +3421,213 @@ async function checkPendingReplyOnVisible() {
 }
 
 
+
+/* ============================================================
+   群聊：纯随机回合
+   —— 每个成员各自掷骰，没有 AI、没有语义判断、没有人数上限
+   ============================================================ */
+
+function updateGroupSubtitle() {
+  if (!state.isGroup) return;
+  const sub = document.getElementById('chat-subtitle');
+  if (!sub) return;
+  const n = (state.typingMembers || []).length;
+  if (n > 0) {
+    sub.classList.add('thinking');
+    sub.textContent = `${n} 人正在输入…`;
+  } else {
+    sub.classList.remove('thinking');
+    sub.textContent = `${(state.members || []).length} 人`;
+  }
+}
+
+function clearGroupTimers() {
+  (state.groupTimers || []).forEach((t) => clearTimeout(t));
+  state.groupTimers = [];
+  state.typingMembers = [];
+  state.typing = false;
+  const card = document.getElementById('center-typing-card');
+  if (card) card.remove();
+  updateGroupSubtitle();
+}
+
+async function markGroupRead() {
+  const unread = state.messages.filter((m) => m.sender !== 'user' && !m.isRead);
+  if (!unread.length) return;
+  await Promise.all(unread.map((m) => db.messages.update(m.id, { isRead: true })));
+  unread.forEach((m) => { m.isRead = true; });
+}
+
+function renderGroupTyping() {
+  const list = state.typingMembers || [];
+  const page = document.querySelector('.chat-page');
+  if (!page) return;
+
+  const old = document.getElementById('center-typing-card');
+  if (!list.length) {
+    if (old) old.remove();
+    state.typing = false;
+    updateGroupSubtitle();
+    return;
+  }
+
+  const count = list.length;
+  const size = count <= 2 ? 46 : (count <= 4 ? 40 : 34);
+  const overlap = count <= 2 ? -12 : (count <= 4 ? -10 : -8);
+  const avatars = list.map((p) => avatarHTML(p.member.avatar, p.member.name, size)).join('');
+  const names = count <= 3
+    ? list.map((p) => p.member.name).join('、')
+    : `${list.slice(0, 2).map((p) => p.member.name).join('、')} 等 ${count} 人`;
+  const hint = count === 1
+    ? '正在输入…'
+    : (count === 2 ? '两个人正在输入…' : `${count} 个人正在输入…`);
+
+  const html = `
+    <div class="center-typing-card group-typing" id="center-typing-card">
+      <div class="center-typing-avatars" style="--typing-overlap:${overlap}px">${avatars}</div>
+      <div class="center-typing-name">${escapeHtml(names)}</div>
+      <div class="center-typing-loading">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      </div>
+      <div class="center-typing-hint">${escapeHtml(hint)}</div>
+    </div>`;
+
+  if (old) old.outerHTML = html;
+  else page.insertAdjacentHTML('beforeend', html);
+  state.typing = true;
+  updateGroupSubtitle();
+}
+
+async function markGroupPending(value) {
+  if (!state.conv) return;
+  state.conv.groupReplyPending = !!value;
+  try {
+    await db.conversations.update(state.convId, { groupReplyPending: !!value });
+  } catch (e) { /* 忽略 */ }
+}
+
+function scheduleGroupReply() {
+  if (state.destroyed || state.silentMode) return;
+  const members = state.members || [];
+  if (!members.length) return;
+
+  const now = Date.now();
+  const plans = [];
+
+  members.forEach((member) => {
+    if (Math.random() >= GROUP.replyChance) return;
+    plans.push({
+      member,
+      startAt: now + randInt(GROUP.minDelayMs, GROUP.maxDelayMs),
+      typingMs: randInt(GROUP.minTypingMs, GROUP.maxTypingMs),
+    });
+  });
+
+  // 一个人都没掷中：冷场
+  if (!plans.length) {
+    markGroupPending(false);
+    return;
+  }
+
+  markGroupPending(true);
+  const clearTimer = setTimeout(() => {
+    if (!state.destroyed) markGroupPending(false);
+  }, GROUP.maxDelayMs + GROUP.maxTypingMs + 3000);
+  state.groupTimers.push(clearTimer);
+
+  plans.forEach((plan) => {
+    const startTimer = setTimeout(() => {
+      if (state.destroyed) return;
+      plan.typingStartAt = Date.now();
+      state.typingMembers.push(plan);
+      renderGroupTyping();
+      const typingTimer = setTimeout(() => finishGroupTyping(plan), plan.typingMs);
+      state.groupTimers.push(typingTimer);
+    }, Math.max(0, plan.startAt - now));
+    state.groupTimers.push(startTimer);
+  });
+}
+
+async function finishGroupTyping(plan) {
+  if (state.destroyed) return;
+
+  state.typingMembers = (state.typingMembers || []).filter((p) => p !== plan);
+  renderGroupTyping();
+
+  // 别人先开口了，正在输入的人有概率停下
+  if (state.groupLastSendAt && plan.typingStartAt && state.groupLastSendAt > plan.typingStartAt) {
+    if (Math.random() < GROUP.stopChance) return;
+  }
+
+  const texts = await generateForMember(plan.member);
+  if (state.destroyed || !texts.length) return;
+
+  const lastMsg = state.messages[state.messages.length - 1];
+  const quoteId = (lastMsg && lastMsg.sender !== 'system' && Math.random() < GROUP.quoteChance)
+    ? lastMsg.id
+    : null;
+
+  await markLatestUserUnreadAsRead();
+
+  for (let i = 0; i < texts.length; i += 1) {
+    if (state.destroyed) return;
+    if (i > 0) await sleep(randInt(600, 1400));
+
+    const msg = {
+      conversationId: state.convId,
+      sender: 'character',
+      senderCharacterId: plan.member.id,
+      content: texts[i],
+      type: 'card',
+      status: 'sent',
+      quotedMessageId: i === 0 ? quoteId : null,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+
+    const id = await db.messages.add(msg);
+    msg.id = id;
+    appendMessage(msg);
+    state.groupLastSendAt = Date.now();
+    playCharSound();
+
+    if (i === 0) markGroupPending(false);
+
+    if (Math.random() < GROUP.recallChance) {
+      scheduleGroupRecall(msg, plan.member);
+    }
+    await persistConvSummary();
+  }
+}
+
+function scheduleGroupRecall(msg, member) {
+  const delay = randInt(3000, 10000);
+  const timer = setTimeout(async () => {
+    if (state.destroyed) return;
+    const fresh = await db.messages.get(msg.id);
+    if (!fresh) return;
+
+    await db.messages.delete(msg.id);
+
+    const sys = {
+      conversationId: state.convId,
+      sender: 'system',
+      content: `${member.name} 撤回了一条消息`,
+      type: 'system',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+    const sid = await db.messages.add(sys);
+    sys.id = sid;
+
+    state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
+    renderMessages();
+    await persistConvSummary();
+  }, delay);
+  state.groupTimers.push(timer);
+}
 
 /* ============================================================
    render / destroy
@@ -3181,6 +3656,12 @@ export async function render(root, params = {}) {
   convId: Number(params.id),
   conv: null,
   character: null,
+  isGroup: false,
+  members: [],
+  memberMap: new Map(),
+  typingMembers: [],
+  groupTimers: [],
+  groupLastSendAt: 0,
   user: null,
   messages: [],
   typing: false,
@@ -4669,6 +5150,13 @@ export async function render(root, params = {}) {
 
 
 
+        /* ---------- 群聊资料 ---------- */
+        .group-info-head { display: flex; gap: 14px; align-items: center; padding: 4px 0 8px; }
+        .group-info-avatar { flex: none; border-radius: 50%; }
+        .group-info-fields { flex: 1; min-width: 0; }
+        .group-members { display: flex; flex-direction: column; gap: 10px; }
+        .group-member { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text-secondary); }
+
       </style>
       <style id="chat-user-css"></style>
     </div>
@@ -4678,8 +5166,24 @@ export async function render(root, params = {}) {
     const data = await loadAll(state.convId);
     if (state.destroyed) return;
     Object.assign(state, data);
+    state.memberMap = new Map((state.members || []).map((c) => [c.id, c]));
     if (state.conv && state.conv.pendingQuoteId) {
       state.pendingQuoteId = state.conv.pendingQuoteId;
+    }
+    if (state.isGroup) {
+      await markGroupRead();
+      const callBtn = root.querySelector('[data-act=call-phone]');
+      if (callBtn) callBtn.style.display = 'none';
+      const choiceBtn = root.querySelector('[data-act=open-choice-creator]');
+      if (choiceBtn) choiceBtn.style.display = 'none';
+      const silentBtn = root.querySelector('[data-act=toggle-silent]');
+      if (silentBtn) silentBtn.style.display = 'none';
+
+      if (state.conv.groupReplyPending && !state.silentMode) {
+        setTimeout(() => {
+          if (!state.destroyed) scheduleGroupReply();
+        }, 700);
+      }
     }
   } catch (e) {
     toast(e.message || '对话加载失败');
@@ -4706,7 +5210,8 @@ renderQuoteBar();
   updateSilentModeUI();
 
 root.querySelector('[data-act=back]').addEventListener('click', () => { haptic(6); goBack('/cards'); });
-root.querySelector('[data-act=call-phone]').addEventListener('click', async () => {
+const callNavBtn = root.querySelector('[data-act=call-phone]');
+if (callNavBtn) callNavBtn.addEventListener('click', async () => {
   haptic(8);
 
   if (CallManager && CallManager.state && CallManager.state !== 'idle') {
@@ -4761,7 +5266,10 @@ root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
   }
 
 
-root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => togglePanel());
+root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => {
+  if (state.isGroup) openGroupInfo();
+  else togglePanel();
+});
 
 
   root.querySelector('[data-act=trigger]').addEventListener('click', () => {
@@ -4864,12 +5372,13 @@ dock.addEventListener('click', (e) => {
   };
   window.addEventListener('active-message-received', state.onActiveMessageReceived);
 
-  scheduleTimers();
+  if (!state.isGroup) scheduleTimers();
 }
 
 export function destroy() {
   state.destroyed = true;
   cancelTimers();
+  clearGroupTimers();
   if (state.onViewport) state.onViewport();
   if (state.onVisibility) {
     document.removeEventListener('visibilitychange', state.onVisibility);

@@ -74,6 +74,24 @@ db.version(7).stores({
   momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments' // 角色评价计划表
 });
 
+// 升级至版本 8：群聊（conversations.type / memberIds，messages.senderCharacterId）
+db.version(8).stores({
+  user: '++id',
+  characters: '++id, name, createdAt',
+  conversations: '++id, characterId, type, pinned, lastMessageTime',
+  messages: '++id, conversationId, timestamp, sender, senderCharacterId',
+  decks: '++id, name, bindCharacterId, createdAt',
+  divinationHistory: '++id, type, timestamp',
+  statusPool: '++id',
+  settings: 'key',
+  missRecords: '++id, characterId, timestamp, isRead',
+  driftLetters: '++id, characterId, timestamp, type, isRead',
+  longFragments: '++id, content, createdAt',
+  musicPlaylist: '++id, name, url, bindCharacterId',
+  moments: '++id, image, caption, timestamp, expiryTimestamp',
+  momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments',
+});
+
 // 系统内置默认字卡配置
 const DEFAULT_PRESET_DECKS = [
   {

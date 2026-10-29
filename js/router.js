@@ -3,6 +3,7 @@ export const routes = {
   '/home': () => import('./pages/home.js'),
   '/cards': () => import('./pages/cards.js'),
   '/chat': () => import('./pages/chat.js'),
+  '/group-new': () => import('./pages/groupNew.js'),
   '/characters': () => import('./pages/characters.js'),
   '/decks': () => import('./pages/decks.js'),
   '/settings': () => import('./pages/settings/index.js'),

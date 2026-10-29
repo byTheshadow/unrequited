@@ -1,7 +1,7 @@
 import { db } from '../db.js';
 import { navigate, goBack } from '../router.js';
 import {
-  ICON, avatarHTML, escapeHtml, formatTime,
+  ICON, avatarHTML, groupAvatarHTML, escapeHtml, formatTime,
   openSheet, confirmSheet, haptic, toast,
 } from '../utils.js';
 
@@ -77,7 +77,7 @@ async function checkAndRotateCharacterStatus(character) {
 
 async function loadData() {
   const conversations = await db.conversations.orderBy('lastMessageTime').reverse().toArray();
-  const charIds = [...new Set(conversations.map((c) => c.characterId))];
+  const charIds = [...new Set(conversations.map((c) => c.characterId).filter(Boolean))];
   const rawChars = charIds.length ? await db.characters.where('id').anyOf(charIds).toArray() : [];
 
   const chars = [];
@@ -88,16 +88,37 @@ async function loadData() {
 
   const charMap = new Map(chars.map((c) => [c.id, c]));
 
+  // 群聊成员
+  const memberIds = [...new Set(conversations.flatMap((c) => (
+    Array.isArray(c.memberIds) ? c.memberIds : []
+  )))];
+  const memberChars = memberIds.length
+    ? await db.characters.where('id').anyOf(memberIds).toArray()
+    : [];
+  const memberMap = new Map(memberChars.map((c) => [c.id, c]));
+
+  // 未读：只算群聊里角色发来的
+  const groupIds = [...new Set(conversations.filter((c) => c.type === 'group').map((c) => c.id))];
+  let unreadRows = [];
+  if (groupIds.length) {
+    const rows = await db.messages.where('conversationId').anyOf(groupIds).toArray();
+    unreadRows = rows.filter((m) => !m.isRead && m.sender !== 'user');
+  }
+  const unreadMap = new Map();
+  unreadRows.forEach((m) => {
+    unreadMap.set(m.conversationId, (unreadMap.get(m.conversationId) || 0) + 1);
+  });
+
   // 置顶排序
   conversations.sort((a, b) => {
     if ((b.pinned ? 1 : 0) !== (a.pinned ? 1 : 0)) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
     return (b.lastMessageTime || 0) - (a.lastMessageTime || 0);
   });
 
-  return { conversations, charMap };
+  return { conversations, charMap, memberMap, unreadMap };
 }
 
-function renderList(conversations, charMap) {
+function renderList(conversations, charMap, memberMap, unreadMap) {
   if (!conversations.length) {
     return `
       <div class="empty-state">
@@ -116,9 +137,36 @@ function renderList(conversations, charMap) {
   return `
     <ul class="conv-list">
       ${conversations.map((c) => {
+        const time = c.lastMessageTime ? formatTime(c.lastMessageTime) : '';
+        const unread = (unreadMap && unreadMap.get(c.id)) || 0;
+        const badge = unread
+          ? `<span class="conv-badge">${unread > 99 ? '99+' : unread}</span>`
+          : '';
+
+        if (c.type === 'group') {
+          const members = (Array.isArray(c.memberIds) ? c.memberIds : [])
+            .map((id) => memberMap.get(id))
+            .filter(Boolean);
+          const name = c.groupName || members.map((m) => m.name).join('、') || '群聊';
+          const preview = c.lastMessage || '群聊已创建';
+
+          return `
+            <li class="conv-row list-row" data-id="${c.id}">
+              ${groupAvatarHTML(members, 46, c.groupAvatar)}
+              <div class="list-row-body">
+                <div class="list-row-title">${escapeHtml(name)}${c.pinned ? '<span class="pin-dot"></span>' : ''}</div>
+                <div class="list-row-sub">${escapeHtml(preview)}</div>
+              </div>
+              <div class="list-row-aside">
+                <span>${time}</span>
+                ${badge}
+              </div>
+            </li>
+          `;
+        }
+
         const ch = charMap.get(c.characterId);
         const name = ch ? ch.name : '（角色已删除）';
-        const time = c.lastMessageTime ? formatTime(c.lastMessageTime) : '';
         const preview = c.lastMessage || '开始一段对话';
         const subText = ch
           ? (ch.status
@@ -135,6 +183,7 @@ function renderList(conversations, charMap) {
             </div>
             <div class="list-row-aside">
               <span>${time}</span>
+              ${badge}
             </div>
           </li>
         `;
@@ -162,10 +211,13 @@ async function openNewConversationSheet() {
         暂无角色<br>先创建一个角色再开始对话
       </div>`;
 
+  const canGroup = characters.length >= 2;
   const { close } = openSheet({
     title: '选择角色',
     body,
-    actions: `<button class="btn btn-secondary btn-block" data-act="new-char">创建新角色</button>`,
+    actions: `
+      ${canGroup ? '<button class="btn btn-secondary btn-block" data-act="new-group">发起群聊</button>' : ''}
+      <button class="btn btn-secondary btn-block" data-act="new-char">创建新角色</button>`,
   });
 
   const root = document.querySelector('.sheet-backdrop:last-of-type');
@@ -173,6 +225,13 @@ async function openNewConversationSheet() {
     close();
     navigate('/characters?new=1');
   });
+  const groupBtn = root.querySelector('[data-act=new-group]');
+  if (groupBtn) {
+    groupBtn.addEventListener('click', () => {
+      close();
+      navigate('/group-new');
+    });
+  }
 
     root.querySelectorAll('.sheet-list-item').forEach((el) => {
     el.addEventListener('click', async () => {
@@ -384,8 +443,8 @@ async function refresh() {
   const container = document.getElementById('conv-list-wrap');
   if (!container) return;
 
-  const { conversations, charMap } = await loadData();
-  container.innerHTML = renderList(conversations, charMap);
+  const { conversations, charMap, memberMap, unreadMap } = await loadData();
+  container.innerHTML = renderList(conversations, charMap, memberMap, unreadMap);
   bindRowEvents();
 
   await renderMissBox();
@@ -480,6 +539,21 @@ export async function render(root) {
           vertical-align: middle;
         }
 
+        .conv-badge {
+          min-width: 18px;
+          height: 18px;
+          padding: 0 5px;
+          border-radius: 9px;
+          background: var(--color-accent);
+          color: var(--color-bg-primary);
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
         .sheet-list-icon {
           width: 36px;
           height: 36px;
@@ -495,9 +569,9 @@ export async function render(root) {
     </div>
   `;
 
-  const { conversations, charMap } = await loadData();
+  const { conversations, charMap, memberMap, unreadMap } = await loadData();
 
-  document.getElementById('conv-list-wrap').innerHTML = renderList(conversations, charMap);
+  document.getElementById('conv-list-wrap').innerHTML = renderList(conversations, charMap, memberMap, unreadMap);
   bindRowEvents();
 
   await renderMissBox();

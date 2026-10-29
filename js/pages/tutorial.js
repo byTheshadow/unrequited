@@ -353,7 +353,14 @@ export function render(root) {
 
           <div class="author-credits">
             <p>作者小红书：昼夜交影　|　by shadow</p>
-            <p>最后更新时间：8月4日</p>
+            <p>最后更新时间：10月29日</p>
+
+            <div class="update-log">
+              <p>本 次 更 新</p>
+              <p>· 备份系统更新：支持完整导出与安全导入</p>
+              <p>· 新增群聊、检查功能</p>
+              <p>· 保活系统调整</p>
+            </div>
 
             <p>
               本作的初衷是为了让大家的爱人能够更快捷地上手字卡网站，

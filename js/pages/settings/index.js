@@ -464,7 +464,7 @@ function renderDataSection() {
     <section class="settings-section">
       <div class="section-title">数 据 管 理</div>
       <button class="row row-btn" data-act="export-data" type="button">
-        <div class="row-label">导出全部数据</div>
+        <div class="row-label">导出全部内容</div>
         <div class="row-chev">${chev()}</div>
       </button>
       <button class="row row-btn" data-act="import-data" type="button">
@@ -476,7 +476,7 @@ function renderDataSection() {
         <div class="row-chev">${chev()}</div>
       </button>
       <div class="section-desc">
-        导入采用覆盖模式，会先清空当前数据再写入。清空后应用会回到启动页。
+        导入采用覆盖模式：只清空备份里包含的表，其余数据保持不动。备份会把图片、语音以 base64 写进同一个 JSON，文件可能很大。
       </div>
     </section>
   `;
@@ -755,52 +755,137 @@ async function handleFetchModels() {
 
 /* ---------- 数据管理 ---------- */
 
+const BACKUP_VERSION = 2;
+
 async function handleExport() {
-  const tables = ['user', 'characters', 'conversations', 'messages', 'decks', 'statusPool', 'divinationHistory', 'settings'];
+  const tables = db.tables.slice();
   const data = {};
+
+  // 大文件 stringify 会阻塞主线程，先让 toast 渲染出来
+  toast('正在打包，请稍候…');
+  await new Promise((r) => setTimeout(r, 30));
+
   for (const t of tables) {
-    try { data[t] = await db.table(t).toArray(); } catch { data[t] = []; }
+    try {
+      data[t.name] = await t.toArray();
+    } catch (err) {
+      toast(`导出失败：表 ${t.name} 读取失败${err && err.message ? '（' + err.message + '）' : ''}`);
+      return;
+    }
   }
-  const payload = { version: 1, exportedAt: Date.now(), data };
+
+  const payload = {
+    version: BACKUP_VERSION,
+    exportedAt: Date.now(),
+    tables: tables.map((t) => t.name),
+    data,
+  };
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   downloadJSON(`unrequited-backup-${stamp}.json`, payload);
-  toast('已导出');
+  toast(`已导出 ${tables.length} 张表`);
+}
+
+function parseBackup(json) {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) {
+    throw new Error('不是有效的备份文件');
+  }
+  if (json.version !== 1 && json.version !== 2) {
+    throw new Error(json.version == null ? '不是有效的备份文件' : `不支持的备份版本：${json.version}`);
+  }
+  const data = json.data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    throw new Error('备份缺少 data 数据');
+  }
+
+  let wanted;
+  if (json.version === 2) {
+    if (!Array.isArray(json.tables) || json.tables.some((n) => typeof n !== 'string')) {
+      throw new Error('v2 备份缺少 tables 表清单');
+    }
+    wanted = json.tables;
+    for (const name of wanted) {
+      if (!Array.isArray(data[name])) throw new Error(`备份缺少表 ${name} 的数据`);
+    }
+  } else {
+    // v1 没有 tables 字段，只能按 data 里实际出现的表来清
+    wanted = Object.keys(data);
+  }
+
+  const known = new Set(db.tables.map((t) => t.name));
+  const seen = new Set();
+  const targets = [];
+  const ignored = [];
+  for (const name of wanted) {
+    if (seen.has(name)) continue;
+    seen.add(name);
+    if (!known.has(name)) { ignored.push(name); continue; }
+    const rows = data[name];
+    if (!Array.isArray(rows)) throw new Error(`表 ${name} 的数据格式不正确`);
+    targets.push({ name, rows });
+  }
+  if (!targets.length) throw new Error('备份里没有可导入的表');
+
+  return { version: json.version, exportedAt: json.exportedAt, targets, ignored };
+}
+
+function backupSummary(info) {
+  const rows = info.targets.reduce((n, t) => n + t.rows.length, 0);
+  const ts = Number(info.exportedAt);
+  const when = Number.isFinite(ts) && ts > 0 ? new Date(ts).toLocaleString() : '未知时间';
+  let text = `备份时间 ${when}，来自 ${info.version === 1 ? '旧版 v1' : 'v2'} 备份，包含 ${info.targets.length} 张表、共 ${rows} 行。导入将覆盖这 ${info.targets.length} 张表的当前数据，其他表保持不动。确定继续？`;
+  if (info.version === 1) {
+    text += '旧备份不含片刻、漂流瓶、想念箱等数据，这些表不会被改动。';
+  }
+  if (info.ignored.length) {
+    text += `另有 ${info.ignored.length} 张表当前版本不支持，已忽略。`;
+  }
+  return text;
 }
 
 async function handleImport() {
-  const ok1 = await confirmSheet('导入将覆盖当前所有数据，是否继续？', { danger: true, okText: '继续' });
-  if (!ok1) return;
-
   const file = await pickFile('application/json,.json');
   if (!file) return;
 
+  toast('正在读取备份…');
   let json;
   try {
-    const text = await file.text();
-    json = JSON.parse(text);
+    json = JSON.parse(await file.text());
   } catch {
-    toast('文件解析失败');
-    return;
-  }
-  if (!json || !json.version || !json.data) {
-    toast('不是有效的备份文件');
+    toast('文件解析失败，不是有效的 JSON');
     return;
   }
 
+  let info;
   try {
-    await db.transaction('rw', db.tables, async () => {
-      for (const t of db.tables) {
+    info = parseBackup(json);
+  } catch (err) {
+    toast(err.message || '不是有效的备份文件');
+    return;
+  }
+
+  const ok = await confirmSheet(backupSummary(info), { danger: true, okText: '覆盖导入' });
+  if (!ok) return;
+
+  const rowsByName = new Map(info.targets.map((t) => [t.name, t.rows]));
+  const tables = db.tables.filter((t) => rowsByName.has(t.name));
+
+  try {
+    await db.transaction('rw', tables, async () => {
+      for (const t of tables) {
+        const rows = rowsByName.get(t.name);
         await t.clear();
-        const rows = json.data[t.name];
-        if (Array.isArray(rows) && rows.length) {
-          await t.bulkAdd(rows);
+        if (rows.length) await t.bulkAdd(rows);
+        // 行数对不上说明写入不完整，直接让事务回滚
+        const count = await t.count();
+        if (count !== rows.length) {
+          throw new Error(`表 ${t.name} 行数不一致（写入 ${count} 行，应为 ${rows.length} 行）`);
         }
       }
     });
     toast('导入完成，即将刷新');
     setTimeout(() => location.reload(), 800);
   } catch (err) {
-    toast('导入失败：' + (err.message || '未知'));
+    toast('导入失败：' + (err && err.message ? err.message : '未知错误'));
   }
 }
 

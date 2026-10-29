@@ -2762,6 +2762,20 @@ async function openCardBgSheet(which) {
 }
 
 /* ---------- 更多菜单 & 其他 sheet ---------- */
+async function toggleKeepAlive() {
+  const enabled = await keepAlive.loadEnabled();
+  // 已开启且正在运行 → 关闭；已开启但没运行（比如刷新过）→ 再试一次启动
+  if (enabled && keepAlive.isRunning()) {
+    keepAlive.stop();
+    await keepAlive.saveEnabled(false);
+    toast('已关闭后台保活');
+    return;
+  }
+  const ok = await keepAlive.start();
+  await keepAlive.saveEnabled(true);
+  toast(ok ? '已开启，保活运行中' : '已开启，点一下页面再试');
+}
+
 async function openGroupInfo() {
   if (!state.isGroup || !state.conv) return;
   const members = state.members || [];
@@ -2931,16 +2945,7 @@ async function openGroupMenu() {
       close();
       toast(state.silentMode ? '已开启静默投递' : '已关闭静默投递');
     } else if (act === 'keepalive') {
-      const now = await keepAlive.loadEnabled();
-      if (now) {
-        keepAlive.stop();
-        await keepAlive.saveEnabled(false);
-        toast('已关闭后台保活');
-      } else {
-        const ok = await keepAlive.start();
-        await keepAlive.saveEnabled(true);
-        toast(ok ? '已开启，尝试保活中' : '已开启，下次交互后生效');
-      }
+      await toggleKeepAlive();
       close();
     }
   });
@@ -3046,16 +3051,7 @@ async function openChatMenu() {
         toast('已清空');
       }
     } else if (act === 'keepalive') {
-      const now = await keepAlive.loadEnabled();
-      if (now) {
-        keepAlive.stop();
-        await keepAlive.saveEnabled(false);
-        toast('已关闭后台保活');
-      } else {
-        const ok = await keepAlive.start();
-        await keepAlive.saveEnabled(true);
-        toast(ok ? '已开启，尝试保活中' : '已开启，下次交互后生效');
-      }
+      await toggleKeepAlive();
       close();
     }
   });

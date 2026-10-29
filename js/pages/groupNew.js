@@ -105,7 +105,7 @@ export async function render(root) {
     root.innerHTML = `
       <div class="page" style="padding-top: calc(10px + env(safe-area-inset-top));">
         <div style="display:grid;grid-template-columns:40px 1fr 40px;align-items:center;padding:6px 12px 8px;">
-          <button data-act="back" aria-label="返回" style="width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--color-text-secondary);border:1px solid var(--color-border);background:rgba(20,20,20,.55);">
+          <button data-act="back" aria-label="返回" style="width:40px;height:40px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;color:var(--color-text-secondary);border:1px solid color-mix(in srgb, var(--color-border) 55%, transparent);background:color-mix(in srgb, var(--color-bg-secondary) 55%, transparent);">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <div style="text-align:center;font-size:13px;letter-spacing:3px;">新建群聊</div>
@@ -176,8 +176,10 @@ export async function render(root) {
           width: 40px; height: 40px; border-radius: 50%;
           display: inline-flex; align-items: center; justify-content: center;
           color: var(--color-text-secondary);
-          background: rgba(20,20,20,.55);
-          border: 1px solid var(--color-border);
+          background: color-mix(in srgb, var(--color-bg-secondary) 55%, transparent);
+          border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+          backdrop-filter: blur(14px) saturate(1.15);
+          -webkit-backdrop-filter: blur(14px) saturate(1.15);
         }
         .gn-title {
           text-align: center;
@@ -255,7 +257,7 @@ export async function render(root) {
         .gn-check {
           width: 24px; height: 24px;
           border-radius: 50%;
-          border: 1px solid rgba(255,255,255,.25);
+          border: 1px solid color-mix(in srgb, var(--color-text-tertiary) 45%, transparent);
           color: var(--color-bg-primary);
           display: inline-flex;
           align-items: center;

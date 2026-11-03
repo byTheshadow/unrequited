@@ -1,4 +1,4 @@
-const CACHE_NAME = 'unrequited-shell-v18';
+const CACHE_NAME = 'unrequited-shell-v19';
 const CORE = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const CORE = [
   './css/global.css',
   './css/themes.css',
   './css/components.css',
+  './css/sticker.css',
   './css/animations.css',
   './js/main.js',
   './js/router.js',
@@ -19,6 +20,8 @@ const CORE = [
   './js/lib/callManager.js',
   './js/lib/scheduler.js',
   './js/lib/groupChat.js',
+  './js/lib/stickerData.js',
+  './js/lib/stickers.js',
   './js/pages/launch.js',
   './js/pages/home.js',
   './js/pages/cards.js',

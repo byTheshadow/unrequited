@@ -92,6 +92,26 @@ db.version(8).stores({
   momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments',
 });
 
+// 升级至版本 9：表情包（图片 + 文字），新增 stickerPacks / stickers
+db.version(9).stores({
+  user: '++id',
+  characters: '++id, name, createdAt',
+  conversations: '++id, characterId, type, pinned, lastMessageTime',
+  messages: '++id, conversationId, timestamp, sender, senderCharacterId',
+  decks: '++id, name, bindCharacterId, createdAt',
+  divinationHistory: '++id, type, timestamp',
+  statusPool: '++id',
+  settings: 'key',
+  missRecords: '++id, characterId, timestamp, isRead',
+  driftLetters: '++id, characterId, timestamp, type, isRead',
+  longFragments: '++id, content, createdAt',
+  musicPlaylist: '++id, name, url, bindCharacterId',
+  moments: '++id, image, caption, timestamp, expiryTimestamp',
+  momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments',
+  stickerPacks: '++id, name, createdAt, kind',
+  stickers: '++id, packId, createdAt, lastUsedAt',
+});
+
 // 系统内置默认字卡配置
 const DEFAULT_PRESET_DECKS = [
   {

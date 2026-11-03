@@ -2,6 +2,8 @@ import { db } from '../db.js';
 import { generateForCharacter, parseChoiceContent, choiceToContent } from '../cardEngine.js';
 import * as sound from './sound.js';
 import { toast } from '../utils.js';
+import { pickCharacterSticker } from './stickers.js';
+import { STICKER_REPLY_TEXTS, STICKER_ACTIVE_CHANCE } from './stickerData.js';
 
 let intervalId = null;
 
@@ -39,6 +41,14 @@ async function checkActiveMessages() {
         // 如果用户不在当前聊天框，则由本后台管理器静默生成并发送
         if (!isInThisChat) {
           await executeBackgroundReply(conv, char);
+          continue;
+        }
+      }
+
+      // 表情回复：到点且不在当前聊天框时由后台补发，避免刷新/切页丢回复
+      if (conv.pendingStickerReplyAt && now >= conv.pendingStickerReplyAt) {
+        if (!isInThisChat) {
+          await executeBackgroundStickerReply(conv, char);
           continue;
         }
       }
@@ -84,6 +94,16 @@ async function checkActiveMessages() {
       if (now >= conv.nextActiveMsgAt) {
         // 🟢 移除了之前的 isInThisChat 避让顺延逻辑，现在在聊天框内也会直接发送
 
+        // 表情包：单聊里 20% 概率先发一张角色包里的表情
+        let activeSticker = null;
+        if (conv.type !== 'group' && Math.random() < STICKER_ACTIVE_CHANCE) {
+          try {
+            activeSticker = await pickCharacterSticker();
+          } catch (e) {
+            activeSticker = null;
+          }
+        }
+
         // 开始生成主动消息内容
         let { messages, reason } = await generateForCharacter(char.id);
         const hasContent = reason === 'ok' && messages && messages.length > 0 && messages.every(m => m && m.content && m.content.trim() !== '');
@@ -127,21 +147,34 @@ async function checkActiveMessages() {
           }
         }
 
-        // 保存消息到数据库
-        let lastCreatedMsg = null;
+        // 保存消息到数据库（表情在前，文字在后）
+        const outgoing = [];
+        if (activeSticker) {
+          outgoing.push({ type: 'sticker', content: activeSticker.text, stickerId: activeSticker.id });
+        }
         for (const msgObj of messages) {
+          outgoing.push({ content: msgObj.content, quotedMessageId: msgObj.quotedMessageId || null });
+        }
+
+        let lastCreatedMsg = null;
+        for (let i = 0; i < outgoing.length; i++) {
+          const item = outgoing[i];
           const msgPayload = {
             conversationId: conv.id,
             sender: 'character',
-            content: msgObj.content,
-            timestamp: Date.now(),
-            quotedMessageId: msgObj.quotedMessageId || null,
+            content: item.content,
+            timestamp: Date.now() + i,
+            quotedMessageId: item.quotedMessageId || null,
             isRead: isInThisChat // 🟢 如果用户正好在聊天框中，则直接设为已读
           };
+          if (item.type === 'sticker') {
+            msgPayload.type = 'sticker';
+            msgPayload.stickerId = item.stickerId;
+          }
           lastCreatedMsg = await db.messages.add(msgPayload);
         }
 
-        const lastMsgText = messages[messages.length - 1].content;
+        const lastMsgText = outgoing[outgoing.length - 1].content;
         const lastMsgTime = Date.now();
         const nextTime = calculateNextTime(minVal, maxVal);
 
@@ -163,6 +196,70 @@ async function checkActiveMessages() {
     }
   } catch (err) {
     console.error('主动消息调度检查出错:', err);
+  }
+}
+
+/**
+ * 表情回复的后台补发（用户切出聊天页 / 刷新后到点）
+ */
+async function executeBackgroundStickerReply(conv, char) {
+  try {
+    const wantImage = !!conv.pendingStickerReplyImage;
+    await db.conversations.update(conv.id, {
+      pendingStickerReplyAt: null,
+      pendingStickerReplyImage: false,
+    });
+
+    let msg = null;
+    if (wantImage) {
+      const list = await db.messages.where('conversationId').equals(conv.id).sortBy('timestamp');
+      const lastUserSticker = [...list].reverse().find((m) => m.sender === 'user' && m.type === 'sticker');
+      const st = await pickCharacterSticker(lastUserSticker ? lastUserSticker.stickerId : null);
+      if (st) {
+        msg = {
+          conversationId: conv.id,
+          sender: 'character',
+          content: st.text,
+          type: 'sticker',
+          stickerId: st.id,
+          status: 'sent',
+          quotedMessageId: null,
+          timestamp: Date.now(),
+          isRead: false,
+        };
+      }
+    }
+    if (!msg) {
+      msg = {
+        conversationId: conv.id,
+        sender: 'character',
+        content: STICKER_REPLY_TEXTS[Math.floor(Math.random() * STICKER_REPLY_TEXTS.length)],
+        type: 'text',
+        status: 'sent',
+        quotedMessageId: null,
+        timestamp: Date.now(),
+        isRead: false,
+      };
+    }
+
+    await db.messages.add(msg);
+
+    const list = await db.messages.where('conversationId').equals(conv.id).sortBy('timestamp');
+    const lastUser = [...list].reverse().find((m) => m.sender === 'user' && !m.isRead);
+    if (lastUser) await db.messages.update(lastUser.id, { isRead: true });
+
+    const preview = msg.type === 'sticker' ? `[表情] ${msg.content}` : msg.content;
+    await db.conversations.update(conv.id, {
+      lastMessage: preview,
+      lastMessageTime: Date.now(),
+    });
+
+    triggerNotification(char, conv, preview, false);
+    window.dispatchEvent(new CustomEvent('active-message-received', {
+      detail: { conversationId: conv.id, characterId: char.id }
+    }));
+  } catch (e) {
+    console.error('表情回复后台补发失败:', e);
   }
 }
 
@@ -302,17 +399,19 @@ function triggerNotification(character, conv, text, isInThisChat) {
     if (isInThisChat) {
       // 🟢 如果用户正在这个聊天页面，不弹顶部 Toast，直接静默播放 chimes 提示音即可
       sound.loadConfig().then(() => {
-        sound.play('character', conv.soundOption, conv.customSoundUrl).catch((e) => {
-          console.warn('当前聊天室消息播放声音受限:', e);
-        });
+        const p = sound.play('character', conv.soundOption, conv.customSoundUrl);
+        if (p && typeof p.catch === 'function') {
+          p.catch((e) => console.warn('当前聊天室消息播放声音受限:', e));
+        }
       });
     } else {
       // 前台可见但在其他页面：显示 Toast 并播放声音
       toast(`${character.name}: ${text.slice(0, 30)}${text.length > 30 ? '...' : ''}`);
       sound.loadConfig().then(() => {
-        sound.play('character', conv.soundOption, conv.customSoundUrl).catch((e) => {
-          console.warn('前台主动消息播放声音受限:', e);
-        });
+        const p = sound.play('character', conv.soundOption, conv.customSoundUrl);
+        if (p && typeof p.catch === 'function') {
+          p.catch((e) => console.warn('前台主动消息播放声音受限:', e));
+        }
       });
     }
   } else {

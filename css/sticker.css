@@ -1,0 +1,591 @@
+/* ============================================================
+   表情包：底部面板、格子、工具面板、聊天气泡、管理/添加
+   只用主题变量；图标全部走内联 SVG，不出现 emoji。
+   ============================================================ */
+
+/* ---------- 底部面板（dock 在上，面板在下） ---------- */
+
+.chat-page .sticker-panel,
+.chat-page .sticker-tools {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-width: 456px;
+  margin: 0 auto;
+  z-index: 39;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  box-shadow: 0 -18px 50px var(--color-shadow);
+  transform: translateY(calc(100% + 24px));
+  transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  visibility: hidden;
+}
+
+.chat-page .sticker-panel {
+  height: 286px;
+  padding: 8px 16px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-page .sticker-tools {
+  height: 150px;
+  padding: 18px 16px 16px;
+}
+
+.chat-page .sticker-panel.open,
+.chat-page .sticker-tools.open {
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.chat-page.sticker-panel-open .chat-input-dock,
+.chat-page.sticker-tools-open .chat-input-dock {
+  bottom: calc(env(safe-area-inset-bottom) + 298px);
+}
+
+.chat-page.sticker-panel-open .msg-scroll {
+  padding-bottom: 394px;
+}
+
+.chat-page.sticker-tools-open .chat-input-dock {
+  bottom: calc(env(safe-area-inset-bottom) + 162px);
+}
+
+.chat-page.sticker-tools-open .msg-scroll {
+  padding-bottom: 258px;
+}
+
+/* ---------- 面板头部 ---------- */
+
+.sticker-panel-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 2px 10px;
+}
+
+.sticker-panel-title {
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--color-text-primary);
+}
+
+.sticker-panel-meta {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sticker-panel-gear {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  flex: none;
+}
+
+.sticker-panel-gear:active {
+  background: var(--color-bg-tertiary);
+}
+
+/* ---------- 表情格子 ---------- */
+
+.sticker-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 86px));
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sticker-tile {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  padding: 0;
+  display: block;
+}
+
+.sticker-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sticker-tile-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 21px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  letter-spacing: 0.5px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.74) 48%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sticker-tile.gif::after {
+  content: 'GIF';
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 7px;
+  letter-spacing: 1px;
+  line-height: 1;
+  padding: 2px 3px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.sticker-tile.missing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  font-size: 9px;
+  text-align: center;
+  padding: 6px;
+}
+
+.sticker-tile.add {
+  border-style: dashed;
+  border-color: var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  background: transparent;
+}
+
+/* ---------- 空态 ---------- */
+
+.sticker-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--color-text-tertiary);
+}
+
+.sticker-empty-title {
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--color-text-secondary);
+}
+
+.sticker-empty-hint {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.sticker-empty-btn {
+  margin-top: 10px;
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 17px;
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--color-text-primary);
+}
+
+/* ---------- 包切换 ---------- */
+
+.sticker-packs {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 2px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.sticker-packs::-webkit-scrollbar {
+  display: none;
+}
+
+.sticker-pack-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex: none;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  padding: 0;
+}
+
+.sticker-pack-dot.on {
+  border-color: var(--color-text-primary);
+  box-shadow: 0 0 0 1px var(--color-text-primary);
+}
+
+.sticker-pack-dot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sticker-pack-dot.add {
+  border-style: dashed;
+}
+
+/* ---------- ＋ 工具面板 ---------- */
+
+.sticker-tools-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.sticker-tool {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  padding: 0;
+}
+
+.sticker-tool-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sticker-tool-label {
+  font-size: 9.5px;
+  letter-spacing: 0.5px;
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+}
+
+.sticker-tool.muted {
+  opacity: 0.45;
+}
+
+/* ---------- 聊天里的表情气泡 ---------- */
+
+.msg-sticker {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  box-shadow: 0 1px 2px var(--color-shadow);
+}
+
+.msg-sticker img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.msg-sticker .sticker-tile-label {
+  height: 24px;
+  font-size: 10px;
+}
+
+.msg-sticker .sticker-gif-tag {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 7px;
+  letter-spacing: 1px;
+  line-height: 1;
+  padding: 2px 3px;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.msg-sticker-missing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  text-align: center;
+  color: var(--color-text-tertiary);
+}
+
+.msg-sticker-missing b {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.msg-sticker-missing span {
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+/* ---------- 管理 / 添加 sheet ---------- */
+
+.sticker-manage-summary {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 6px;
+}
+
+.sticker-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sticker-manage-row:last-child {
+  border-bottom: none;
+}
+
+.sticker-manage-cover {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex: none;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+}
+
+.sticker-manage-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sticker-manage-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sticker-manage-name {
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sticker-manage-meta {
+  margin-top: 3px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-text-tertiary);
+}
+
+.sticker-manage-badge {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.sticker-manage-act {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--color-text-secondary);
+  padding: 6px 2px;
+}
+
+.sticker-manage-act.danger {
+  color: var(--color-danger, #b06a6a);
+}
+
+.sticker-role-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  margin: 14px 0 4px;
+}
+
+.sticker-role-row span:first-child {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  letter-spacing: 1px;
+}
+
+.sticker-role-row select {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-align: right;
+  max-width: 60%;
+}
+
+.sticker-form {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.sticker-form-preview {
+  width: 132px;
+  height: 132px;
+  flex: none;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  font-size: 10px;
+  letter-spacing: 1px;
+  position: relative;
+}
+
+.sticker-form-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sticker-form-preview .sticker-crop-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to right, transparent 33.33%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) 33.33%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) calc(33.33% + 1px), transparent calc(33.33% + 1px)),
+    linear-gradient(to right, transparent 66.66%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) 66.66%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) calc(66.66% + 1px), transparent calc(66.66% + 1px)),
+    linear-gradient(to bottom, transparent 33.33%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) 33.33%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) calc(33.33% + 1px), transparent calc(33.33% + 1px)),
+    linear-gradient(to bottom, transparent 66.66%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) 66.66%, color-mix(in srgb, var(--color-text-primary) 18%, transparent) calc(66.66% + 1px), transparent calc(66.66% + 1px));
+}
+
+.sticker-form-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sticker-form-fields label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--color-text-tertiary);
+  display: block;
+  margin-bottom: 5px;
+}
+
+.sticker-form-file {
+  height: 34px;
+  border-radius: 9px;
+  border: 1px dashed var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.sticker-form-hint {
+  margin-top: 12px;
+  font-size: 9px;
+  line-height: 1.8;
+  letter-spacing: 0.5px;
+  color: var(--color-text-tertiary);
+}
+
+.sticker-form-hint b {
+  color: var(--color-text-secondary);
+  font-weight: 400;
+}
+
+@media (max-width: 360px) {
+  .chat-page .sticker-panel {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .sticker-tool-icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .sticker-form-preview {
+    width: 112px;
+    height: 112px;
+  }
+}
+
+/* 面板打开时让出右下角的悬浮音乐徽章，避免压住礼物/表情格 */
+body.sticker-panel-active .music-player-container,
+body:has(.sticker-sheet) .music-player-container {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 「立即触发」放在工具面板里后，保留原来的旋转反馈 */
+.sticker-tool.spin .sticker-tool-icon {
+  animation: sparkSpin 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}

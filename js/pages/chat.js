@@ -4,7 +4,7 @@ import { navigate, goBack } from '../router.js';
 import {
   ICON, avatarHTML, groupAvatarHTML, escapeHtml, escapeAttr, formatTime, formatDateSep,
   haptic, toast, sleep, randInt, pick, fileToResizedDataURL,
-  openSheet, confirmSheet,
+  openSheet, confirmSheet, downloadJSON,
 } from '../utils.js';
 import {
   generateForCharacter,
@@ -23,6 +23,34 @@ import { GROUP, generateForMember } from '../lib/groupChat.js';
 import { renderMusicCardHTML } from '../lib/musicBarRenderer.js';
 // 在其他 import 语句后添加：
 import { getShufflingHTML, getShufflingHint } from '../lib/shufflingRenderer.js';
+import {
+  listPacks,
+  listStickers,
+  addSticker,
+  deleteSticker,
+  deletePack,
+  createPack,
+  ensureDefaultPack,
+  getCharacterPackId,
+  setCharacterPackId,
+  pickCharacterSticker,
+  getRecentStickers,
+  markStickerUsed,
+  buildStickerMap,
+  collectStickerIdsFromMessages,
+  buildPackFile,
+  importPackFile,
+  estimatePackBytes,
+  formatBytes,
+  getPackCover,
+} from '../lib/stickers.js';
+import {
+  STICKER_LIMITS,
+  STICKER_COPY,
+  STICKER_REPLY_TEXTS,
+  STICKER_REPLY_CHANCE,
+  STICKER_IMAGE_REPLY_CHANCE,
+} from '../lib/stickerData.js';
 
 
 
@@ -59,6 +87,17 @@ let state = {
   panelExpanded: false,
   panelTab: 'status',
   statusCardIndex: 0,
+
+  stickerPanel: 'closed',      // 'closed' | 'stickers' | 'tools'
+  stickerTab: 'pack',          // 'pack' | 'recent'
+  stickerPackId: null,
+  stickerPacks: [],
+  stickerItems: [],
+  stickerMap: new Map(),
+  stickerReplyTimer: null,
+  stickerLongPressTimer: null,
+  stickerLongPressFired: false,
+  stickerLongPressAt: 0,
 
   draftMessages: [],
 
@@ -98,6 +137,11 @@ const SVG_PLAY = `<svg viewBox="0 0 24 24" width="12" height="12" fill="currentC
 const SVG_PHONE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v2.2a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.45 19.45 0 0 1-6-6A19.8 19.8 0 0 1 2.12 3.38 2 2 0 0 1 4.11 1.2h2.2a2 2 0 0 1 2 1.72c.13.96.35 1.9.66 2.8a2 2 0 0 1-.45 2.11L7.6 8.75a16 16 0 0 0 7.65 7.65l.92-.92a2 2 0 0 1 2.11-.45c.9.31 1.84.53 2.8.66A2 2 0 0 1 22 16.92Z"/></svg>`;
 const SVG_PHONE_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.7 5.1 10 2.6A2 2 0 0 0 8.07 1.2H5.84A2 2 0 0 0 3.86 3.5a19.7 19.7 0 0 0 5.23 9.65"/><path d="M14.8 18.45a19.6 19.6 0 0 0 5.7 1.66 2 2 0 0 0 2.3-1.98v-2.2a2 2 0 0 0-1.72-1.98l-2.55-.37a2 2 0 0 0-1.78.58l-.92.92"/><path d="m2 2 20 20"/></svg>`;
 const SVG_MINIMIZE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+const SVG_PLUS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+const SVG_STICKER = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.2 1.8 3.5 1.8 3.5-1.8 3.5-1.8"/><line x1="9" y1="9.8" x2="9.01" y2="9.8"/><line x1="15" y1="9.8" x2="15.01" y2="9.8"/></svg>`;
+const SVG_GEAR = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`;
+const SVG_CLOCK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><polyline points="12 7.5 12 12 15 14"/></svg>`;
+const SVG_IMAGE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5L5 20"/></svg>`;
 const SVG_SILENT_ON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
 const SVG_SILENT_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
 
@@ -149,6 +193,7 @@ function choiceSummary(content) {
 function msgPreviewContent(msg) {
   if (!msg) return '';
   if (msg.type === 'choice') return choiceSummary(msg.content);
+  if (msg.type === 'sticker') return `[表情] ${msg.content || '表情'}`;
   return msg.content;
 }
 
@@ -483,6 +528,44 @@ function bubbleHTML(msg, character, user, showTimeSep, opts = {}) {
     `;
   }
 
+  // 4. type === 'sticker' 图片表情气泡
+  if (msg.type === 'sticker') {
+    const isUser = msg.sender === 'user';
+    const av = isUser
+      ? avatarHTML(user && user.avatar, (user && user.name) || '我', 32)
+      : avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
+    const readMark = isUser
+      ? `<span class="msg-read">${msg.isRead ? '已读' : '送达'}</span>`
+      : '';
+    const quote = quoteCardHTML(msg.quotedMessageId);
+    const st = state.stickerMap && state.stickerMap.get(msg.stickerId);
+    const label = escapeHtml(msg.content || (st && st.text) || '表情');
+    const body = st && st.image
+      ? `<div class="msg-sticker">
+          <img src="${escapeAttr(st.image)}" alt="${escapeAttr(st.text || '')}" loading="lazy">
+          ${st.animated ? '<span class="sticker-gif-tag">GIF</span>' : ''}
+          <span class="sticker-tile-label">${label}</span>
+        </div>`
+      : `<div class="msg-sticker msg-sticker-missing">
+          <b>${label}</b>
+          <span>${STICKER_COPY.deleted}</span>
+        </div>`;
+
+    return `
+      ${timeSep}
+      <div class="msg-row ${isUser ? 'msg-user' : 'msg-char'} msg-sticker-row" data-id="${msg.id}">
+        ${!isUser ? `<div class="msg-avatar ${showMeta ? '' : 'msg-avatar-ghost'}">${av}</div>` : ''}
+        <div class="msg-bubble-wrap">
+          ${isGroup && !isUser && showMeta ? `<div class="msg-who">${escapeHtml((character && character.name) || '')}</div>` : ''}
+          ${quote}
+          ${body}
+          ${isUser ? `<div class="msg-meta">${readMark}</div>` : ''}
+        </div>
+        ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+      </div>
+    `;
+  }
+
   const isUser = msg.sender === 'user';
   const av = isUser
     ? avatarHTML(user && user.avatar, (user && user.name) || '我', 32)
@@ -563,6 +646,7 @@ async function loadAll(convId) {
     user = await db.user.get(uid);
   }
   const messages = await db.messages.where('conversationId').equals(convId).sortBy('timestamp');
+  const stickerMap = await buildStickerMap(await collectStickerIdsFromMessages(messages));
   
   // 🟢 最终加载到的对话可能在 checkAndRotateCharacterStatus 中被更新过，再次校正 state
   const freshConv = await db.conversations.get(convId);
@@ -577,10 +661,10 @@ async function loadAll(convId) {
       const map = new Map(rows.map((c) => [c.id, c]));
       members = ids.map((id) => map.get(id)).filter(Boolean);
     }
-    return { conv: freshConv, character: null, members, isGroup: true, user, messages };
+    return { conv: freshConv, character: null, members, isGroup: true, user, messages, stickerMap };
   }
 
-  return { conv: freshConv, character, members: [], isGroup: false, user, messages };
+  return { conv: freshConv, character, members: [], isGroup: false, user, messages, stickerMap };
 }
 
 /* ---------- 消息渲染 ---------- */
@@ -661,12 +745,12 @@ function appendMessage(msg) {
 async function persistConvSummary() {
   const last = state.messages[state.messages.length - 1];
   if (!last) return;
-  let text = last.content;
+  let text = msgPreviewContent(last) || '';
   if (state.isGroup && last.sender !== 'system' && last.sender !== 'sync') {
     const name = last.sender === 'user'
       ? ((state.user && state.user.name) || '我')
       : ((speakerOf(last) && speakerOf(last).name) || '');
-    text = `${name}：${last.content}`;
+    text = `${name}：${text}`;
   }
   await db.conversations.update(state.convId, {
     lastMessage: text,
@@ -900,7 +984,669 @@ async function sendUserMessage() {
   }
 }
 
+/* ============================================================
+   表情包：面板 / 发送 / 角色回复
+   ============================================================ */
 
+const STICKER_REPLY_DELAY_MIN = 1500;
+const STICKER_REPLY_DELAY_MAX = 4500;
+
+function stickerTileHTML(s) {
+  return `<button class="sticker-tile ${s.animated ? 'gif' : ''}" type="button" data-sticker-id="${s.id}" aria-label="${escapeAttr(s.text)}">
+    <img src="${escapeAttr(s.image)}" alt="${escapeAttr(s.text)}" loading="lazy">
+    <span class="sticker-tile-label">${escapeHtml(s.text)}</span>
+  </button>`;
+}
+
+function setStickerPanelMode(mode) {
+  const page = document.querySelector('.chat-page');
+  if (!page) return;
+  page.classList.toggle('sticker-panel-open', mode === 'stickers');
+  page.classList.toggle('sticker-tools-open', mode === 'tools');
+  document.body.classList.toggle('sticker-panel-active', mode !== 'closed');
+
+  const panel = document.getElementById('sticker-panel');
+  if (panel) {
+    panel.classList.toggle('open', mode === 'stickers');
+    panel.setAttribute('aria-hidden', mode === 'stickers' ? 'false' : 'true');
+  }
+  const tools = document.getElementById('sticker-tools');
+  if (tools) {
+    tools.classList.toggle('open', mode === 'tools');
+    tools.setAttribute('aria-hidden', mode === 'tools' ? 'false' : 'true');
+  }
+
+  const stickerToggle = document.querySelector('[data-act=toggle-stickers]');
+  if (stickerToggle) stickerToggle.classList.toggle('on', mode === 'stickers');
+  const toolsToggle = document.querySelector('[data-act=open-tools]');
+  if (toolsToggle) toolsToggle.classList.toggle('on', mode === 'tools');
+
+  state.stickerPanel = mode;
+}
+
+function closeStickerPanels() {
+  if (state.stickerPanel === 'closed') return;
+  setStickerPanelMode('closed');
+  const page = document.querySelector('.chat-page');
+  if (page) page.classList.remove('sticker-panel-open', 'sticker-tools-open');
+}
+
+async function openStickerPanel() {
+  if (state.isGroup) return;
+  haptic(6);
+  setStickerPanelMode('stickers');
+  const input = document.getElementById('chat-input');
+  if (input) input.blur();
+  await renderStickerPanel();
+  scrollToBottom(false);
+}
+
+function openStickerTools() {
+  haptic(6);
+  setStickerPanelMode('tools');
+  const input = document.getElementById('chat-input');
+  if (input) input.blur();
+  scrollToBottom(false);
+}
+
+function toggleStickerPanel() {
+  if (state.stickerPanel === 'stickers') {
+    closeStickerPanels();
+    const input = document.getElementById('chat-input');
+    if (input) input.focus();
+  } else {
+    openStickerPanel();
+  }
+}
+
+function toggleStickerTools() {
+  if (state.stickerPanel === 'tools') {
+    closeStickerPanels();
+  } else {
+    openStickerTools();
+  }
+}
+
+async function renderStickerPanel() {
+  const grid = document.getElementById('sticker-grid');
+  const metaEl = document.getElementById('sticker-panel-meta');
+  const packsEl = document.getElementById('sticker-packs');
+  if (!grid || !packsEl) return;
+
+  const packs = await listPacks();
+  state.stickerPacks = packs;
+
+  if (!packs.some((p) => p.id === state.stickerPackId)) {
+    state.stickerPackId = packs.length ? packs[0].id : null;
+  }
+
+  let items = [];
+  let meta = '';
+  if (state.stickerTab === 'recent') {
+    items = await getRecentStickers();
+    meta = `最近 · ${items.length} 张`;
+  } else if (state.stickerPackId) {
+    const pack = packs.find((p) => p.id === state.stickerPackId);
+    items = await listStickers(state.stickerPackId);
+    meta = `${pack ? pack.name : ''} · ${items.length} 张`;
+  } else {
+    meta = '还没有表情包';
+  }
+  state.stickerItems = items;
+  if (metaEl) metaEl.textContent = meta;
+
+  if (items.length) {
+    grid.innerHTML = items.map(stickerTileHTML).join('');
+  } else {
+    const inRecent = state.stickerTab === 'recent';
+    grid.innerHTML = `<div class="sticker-empty" style="grid-column:1/-1">
+      <span class="sticker-empty-title">${inRecent ? '最近还没有发过表情' : STICKER_COPY.empty}</span>
+      <span class="sticker-empty-hint">${inRecent ? '发一张之后会出现在这里' : STICKER_COPY.emptyHint}</span>
+      ${inRecent ? '' : '<button class="sticker-empty-btn" data-act="sticker-add">添加表情</button>'}
+    </div>`;
+  }
+
+  const covers = await Promise.all(packs.map((p) => getPackCover(p.id).catch(() => null)));
+  const dots = packs.map((p, i) => {
+    const cover = covers[i];
+    return `<button class="sticker-pack-dot ${state.stickerTab === 'pack' && p.id === state.stickerPackId ? 'on' : ''}" type="button" data-sticker-pack="${p.id}" title="${escapeAttr(p.name)}" aria-label="${escapeAttr(p.name)}">
+      ${cover ? `<img src="${escapeAttr(cover.image)}" alt="">` : ''}
+    </button>`;
+  }).join('');
+
+  packsEl.innerHTML = `
+    <button class="sticker-pack-dot ${state.stickerTab === 'recent' ? 'on' : ''}" type="button" data-sticker-tab="recent" title="最近" aria-label="最近">${SVG_CLOCK}</button>
+    ${dots}
+    <button class="sticker-pack-dot add" type="button" data-act="sticker-add" title="添加表情包" aria-label="添加表情包">${SVG_PLUS}</button>
+  `;
+}
+
+async function sendSticker(sticker) {
+  if (!sticker || !state.convId) return;
+  const quotedId = state.pendingQuoteId || null;
+  const msg = {
+    conversationId: state.convId,
+    sender: 'user',
+    content: sticker.text,
+    type: 'sticker',
+    stickerId: sticker.id,
+    status: 'sent',
+    quotedMessageId: quotedId,
+    timestamp: Date.now(),
+    isRead: false,
+  };
+
+  haptic(6);
+  playUserSound();
+  state.stickerMap.set(sticker.id, sticker);
+
+  const id = await db.messages.add(msg);
+  msg.id = id;
+
+  if (quotedId) await clearPendingQuote();
+  appendMessage(msg);
+  await markStickerUsed(sticker.id);
+  await persistConvSummary();
+
+  if (state.silentMode) {
+    toast('讯息已静默投递');
+    return;
+  }
+  await scheduleStickerReply(sticker);
+}
+
+function scheduleStickerReplyTimer() {
+  clearTimeout(state.stickerReplyTimer);
+  const at = state.conv && state.conv.pendingStickerReplyAt;
+  if (!at) return;
+  const remain = at - Date.now();
+  if (remain <= 0) {
+    executeStickerReply();
+    return;
+  }
+  state.stickerReplyTimer = setTimeout(() => {
+    if (!state.destroyed) executeStickerReply();
+  }, remain);
+}
+
+async function scheduleStickerReply(sticker) {
+  if (state.isGroup) return;
+  if (Math.random() >= STICKER_REPLY_CHANCE) return;
+
+  const characterPackId = await getCharacterPackId();
+  const wantImage = !!characterPackId && Math.random() < STICKER_IMAGE_REPLY_CHANCE;
+  const target = Date.now() + randInt(STICKER_REPLY_DELAY_MIN, STICKER_REPLY_DELAY_MAX);
+
+  await db.conversations.update(state.convId, {
+    pendingStickerReplyAt: target,
+    pendingStickerReplyImage: wantImage,
+  });
+  if (state.conv) {
+    state.conv.pendingStickerReplyAt = target;
+    state.conv.pendingStickerReplyImage = wantImage;
+  }
+  scheduleStickerReplyTimer();
+}
+
+async function executeStickerReply() {
+  if (state.destroyed || state.isGroup || !state.convId) return;
+  const conv = await db.conversations.get(state.convId);
+  if (!conv || !conv.pendingStickerReplyAt) return;
+
+  const wantImage = !!conv.pendingStickerReplyImage;
+  await db.conversations.update(state.convId, {
+    pendingStickerReplyAt: null,
+    pendingStickerReplyImage: false,
+  });
+  if (state.conv) {
+    state.conv.pendingStickerReplyAt = null;
+    state.conv.pendingStickerReplyImage = false;
+  }
+
+  if (state.silentMode) return;
+
+  let msg = null;
+  if (wantImage) {
+    const lastUserSticker = [...state.messages].reverse().find((m) => m.sender === 'user' && m.type === 'sticker');
+    const st = await pickCharacterSticker(lastUserSticker ? lastUserSticker.stickerId : null);
+    if (st) {
+      state.stickerMap.set(st.id, st);
+      msg = {
+        conversationId: state.convId,
+        sender: 'character',
+        content: st.text,
+        type: 'sticker',
+        stickerId: st.id,
+        status: 'sent',
+        quotedMessageId: null,
+        timestamp: Date.now(),
+        isRead: false,
+      };
+    }
+  }
+
+  if (!msg) {
+    msg = {
+      conversationId: state.convId,
+      sender: 'character',
+      content: pick(STICKER_REPLY_TEXTS),
+      type: 'text',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: false,
+    };
+  }
+
+  const id = await db.messages.add(msg);
+  msg.id = id;
+  if (state.destroyed) return;
+
+  appendMessage(msg);
+  await markLatestUserUnreadAsRead();
+  await persistConvSummary();
+  playCharSound();
+}
+
+async function openStickerActions(stickerId) {
+  const st = state.stickerItems.find((s) => s.id === stickerId) || state.stickerMap.get(stickerId);
+  if (!st) return;
+  haptic(8);
+
+  const { root, close } = openSheet({
+    title: escapeHtml(st.text),
+    body: `<div class="sheet-list">
+      <button class="sheet-list-item" data-act="sticker-delete" type="button">
+        <span class="sheet-list-body">
+          <span class="sheet-list-title">删除这张表情</span>
+          <span class="sheet-list-sub">聊天里已发出的会显示为占位</span>
+        </span>
+      </button>
+    </div>`,
+    actions: `<button class="btn btn-ghost" data-act="sticker-cancel">取消</button>`,
+    maxHeight: '60vh',
+  });
+
+  root.querySelector('[data-act=sticker-cancel]').addEventListener('click', () => close());
+  root.querySelector('[data-act=sticker-delete]').addEventListener('click', async () => {
+    close();
+    await deleteSticker(stickerId);
+    state.stickerMap.delete(stickerId);
+    renderMessages();
+    await renderStickerPanel();
+    toast('已删除');
+  });
+}
+
+function bindStickerPanelEvents() {
+  const panel = document.getElementById('sticker-panel');
+  if (!panel || panel.dataset.bound === '1') return;
+  panel.dataset.bound = '1';
+
+  panel.addEventListener('click', async (e) => {
+    if (state.stickerLongPressFired) {
+      state.stickerLongPressFired = false;
+      if (Date.now() - (state.stickerLongPressAt || 0) < 600) return;
+    }
+    const add = e.target.closest('[data-act=sticker-add]');
+    if (add) {
+      const packId = state.stickerPackId;
+      openStickerAddSheet(packId);
+      return;
+    }
+    const manage = e.target.closest('[data-act=sticker-manage]');
+    if (manage) {
+      openStickerManage();
+      return;
+    }
+    const recent = e.target.closest('[data-sticker-tab=recent]');
+    if (recent) {
+      state.stickerTab = state.stickerTab === 'recent' ? 'pack' : 'recent';
+      await renderStickerPanel();
+      return;
+    }
+    const packBtn = e.target.closest('[data-sticker-pack]');
+    if (packBtn) {
+      state.stickerTab = 'pack';
+      state.stickerPackId = Number(packBtn.getAttribute('data-sticker-pack'));
+      await renderStickerPanel();
+      return;
+    }
+    const tile = e.target.closest('[data-sticker-id]');
+    if (tile) {
+      const id = Number(tile.getAttribute('data-sticker-id'));
+      const sticker = state.stickerItems.find((s) => s.id === id);
+      if (sticker) await sendSticker(sticker);
+    }
+  });
+
+  panel.addEventListener('pointerdown', (e) => {
+    const tile = e.target.closest('[data-sticker-id]');
+    if (!tile) return;
+    const id = Number(tile.getAttribute('data-sticker-id'));
+    state.stickerLongPressFired = false;
+    clearTimeout(state.stickerLongPressTimer);
+    state.stickerLongPressTimer = setTimeout(() => {
+      state.stickerLongPressFired = true;
+      state.stickerLongPressAt = Date.now();
+      openStickerActions(id);
+    }, 500);
+  });
+
+  ['pointerup', 'pointerleave', 'pointercancel', 'pointermove'].forEach((evt) => {
+    panel.addEventListener(evt, () => clearTimeout(state.stickerLongPressTimer));
+  });
+}
+
+function bindStickerToolsEvents() {
+  const tools = document.getElementById('sticker-tools');
+  if (!tools || tools.dataset.bound === '1') return;
+  tools.dataset.bound = '1';
+  tools.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-act]');
+    if (!el) return;
+    const act = el.getAttribute('data-act');
+    if (act === 'open-draft') {
+      haptic(6);
+      closeStickerPanels();
+      openDraftSheet();
+      return;
+    }
+    if (act === 'open-choice-creator') {
+      haptic(6);
+      closeStickerPanels();
+      openChoiceCreatorSheet();
+      return;
+    }
+    if (act === 'open-star-dice') {
+      haptic(8);
+      closeStickerPanels();
+      openSynchronicityDiceSheet();
+    }
+  });
+}
+
+function pickLocalFile(accept) {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.style.display = 'none';
+    input.addEventListener('change', () => {
+      const file = (input.files && input.files[0]) || null;
+      input.remove();
+      resolve(file);
+    });
+    document.body.appendChild(input);
+    input.click();
+  });
+}
+
+function safeFileName(name) {
+  return String(name || 'stickers').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40);
+}
+
+async function openStickerManage() {
+  closeStickerPanels();
+  const packs = await listPacks();
+  const currentCharacterPack = await getCharacterPackId();
+
+  const stats = [];
+  let totalCount = 0;
+  let totalBytes = 0;
+  for (const pack of packs) {
+    const rows = await listStickers(pack.id);
+    const bytes = rows.reduce((sum, r) => sum + Math.floor((String(r.image || '').length * 3) / 4), 0);
+    totalCount += rows.length;
+    totalBytes += bytes;
+    stats.push({ pack, count: rows.length, cover: rows[0] || null, bytes });
+  }
+
+  const rowsHTML = stats.map(({ pack, count, cover, bytes }) => `
+    <div class="sticker-manage-row" data-manage-pack="${pack.id}">
+      <div class="sticker-manage-cover">${cover ? `<img src="${escapeAttr(cover.image)}" alt="">` : ''}</div>
+      <div class="sticker-manage-body">
+        <div class="sticker-manage-name">
+          ${escapeHtml(pack.name)}
+          ${pack.id === currentCharacterPack ? '<span class="sticker-manage-badge">角色可用</span>' : ''}
+        </div>
+        <div class="sticker-manage-meta">${count} 张 · ${formatBytes(bytes)} · ${new Date(pack.createdAt).toLocaleDateString()}</div>
+      </div>
+      <button class="sticker-manage-act" data-pack-export="${pack.id}" type="button">导出</button>
+      <button class="sticker-manage-act danger" data-pack-delete="${pack.id}" type="button">删除</button>
+    </div>
+  `).join('');
+
+  const roleOptions = [
+    `<option value="">不指定</option>`,
+    ...packs.map((p) => `<option value="${p.id}" ${p.id === currentCharacterPack ? 'selected' : ''}>${escapeHtml(p.name)}</option>`),
+  ].join('');
+
+  const { root, close } = openSheet({
+    title: '表情包管理',
+    body: `
+      <div class="sticker-manage-summary">${packs.length} 个包 · ${totalCount} 张 · 约 ${formatBytes(totalBytes)}</div>
+      <div>${rowsHTML || '<div class="sticker-manage-meta">还没有表情包</div>'}</div>
+      <div class="sticker-role-row">
+        <span>${STICKER_COPY.characterPack}</span>
+        <select id="sticker-role-pack">${roleOptions}</select>
+      </div>
+      <div class="sticker-form-hint">导入 / 导出为单个 JSON，图片以 dataURL 存在文件里；旧备份导入不会清掉表情包。</div>
+    `,
+    actions: `
+      <button class="btn btn-ghost" data-act="sticker-new-pack">新建表情包</button>
+      <button class="btn btn-primary" data-act="sticker-import">导入表情包</button>
+    `,
+    maxHeight: '80vh',
+  });
+  root.classList.add('sticker-sheet');
+
+  root.querySelector('#sticker-role-pack').addEventListener('change', async (e) => {
+    const value = e.target.value ? Number(e.target.value) : null;
+    try {
+      await setCharacterPackId(value);
+      toast(value ? '已设为角色可用表情包' : '角色不再使用表情包');
+    } catch (err) {
+      toast(err.message || '设置失败');
+    }
+  });
+
+  root.querySelectorAll('[data-pack-export]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const packId = Number(btn.getAttribute('data-pack-export'));
+      const pack = packs.find((p) => p.id === packId);
+      try {
+        const payload = await buildPackFile(packId);
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+        downloadJSON(`unrequited-stickers-${safeFileName(pack && pack.name)}-${stamp}.json`, payload);
+        toast(`已导出 ${payload.stickers.length} 张`);
+      } catch (err) {
+        toast(err.message || '导出失败');
+      }
+    });
+  });
+
+  root.querySelectorAll('[data-pack-delete]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const packId = Number(btn.getAttribute('data-pack-delete'));
+      const pack = packs.find((p) => p.id === packId);
+      if (!pack) return;
+      const ok = await confirmSheet(
+        `删除「${pack.name}」和里面的表情？聊天里已经发出的会显示为占位。`,
+        { okText: '删除', danger: true }
+      );
+      if (!ok) return;
+
+      const rows = await listStickers(packId);
+      rows.forEach((s) => state.stickerMap.delete(s.id));
+      await deletePack(packId);
+      if (state.stickerPackId === packId) state.stickerPackId = null;
+      renderMessages();
+      close();
+      await openStickerManage();
+      await renderStickerPanel();
+    });
+  });
+
+  root.querySelector('[data-act=sticker-new-pack]').addEventListener('click', () => {
+    close();
+    openStickerCreateSheet();
+  });
+
+  root.querySelector('[data-act=sticker-import]').addEventListener('click', async () => {
+    const file = await pickLocalFile('application/json,.json');
+    if (!file) return;
+    if (file.size > STICKER_LIMITS.importFileBytes) {
+      toast('文件太大，先删减一些表情');
+      return;
+    }
+    let json = null;
+    try {
+      json = JSON.parse(await file.text());
+    } catch (e) {
+      toast('文件解析失败，不是有效的 JSON');
+      return;
+    }
+    try {
+      const result = await importPackFile(json);
+      state.stickerPackId = result.id;
+      state.stickerTab = 'pack';
+      toast(`已导入 ${result.count} 张`);
+      close();
+      await openStickerManage();
+      await renderStickerPanel();
+    } catch (err) {
+      toast(err.message || '导入失败');
+    }
+  });
+}
+
+function openStickerCreateSheet() {
+  const { root, close } = openSheet({
+    title: STICKER_COPY.addPack,
+    body: `
+      <div class="field">
+        <label class="field-label">名字</label>
+        <input class="input" id="sticker-new-name" maxlength="${STICKER_LIMITS.packNameMax}" placeholder="比如：日常" autocomplete="off">
+      </div>
+      <div class="sticker-form-hint">建好后可以直接往里加图。</div>
+    `,
+    actions: `
+      <button class="btn btn-ghost" data-act="cancel">取消</button>
+      <button class="btn btn-primary" data-act="create">创建</button>
+    `,
+    maxHeight: '50vh',
+  });
+  root.classList.add('sticker-sheet');
+
+  const input = root.querySelector('#sticker-new-name');  setTimeout(() => input && input.focus(), 260);
+
+  root.querySelector('[data-act=cancel]').addEventListener('click', () => close());
+  root.querySelector('[data-act=create]').addEventListener('click', async () => {
+    try {
+      const pack = await createPack(input.value);
+      state.stickerPackId = pack.id;
+      state.stickerTab = 'pack';
+      close();
+      await openStickerManage();
+      await renderStickerPanel();
+      toast('已创建');
+    } catch (err) {
+      toast(err.message || '创建失败');
+    }
+  });
+}
+
+async function openStickerAddSheet(packId) {
+  let packs = await listPacks();
+  let activeId = Number(packId) || (packs[0] && packs[0].id) || null;
+
+  if (!packs.length) {
+    const pack = await ensureDefaultPack();
+    packs = [pack];
+    activeId = pack.id;
+  }
+  if (!packs.some((p) => p.id === activeId)) activeId = packs[0].id;
+
+  const options = packs.map((p) => `<option value="${p.id}" ${p.id === activeId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('');
+
+  const { root, close } = openSheet({
+    title: '添加表情',
+    body: `
+      <div class="sticker-form">
+        <div class="sticker-form-preview" id="sticker-preview">${SVG_IMAGE}<span>选一张图</span></div>
+        <div class="sticker-form-fields">
+          <div>
+            <label>图片</label>
+            <input type="file" id="sticker-file" accept="image/*,.gif" hidden>
+            <label class="sticker-form-file" for="sticker-file" id="sticker-file-label">选择图片</label>
+          </div>
+          <div>
+            <label>文字</label>
+            <input class="input" id="sticker-text" maxlength="${STICKER_LIMITS.textMax}" placeholder="比如：微笑" autocomplete="off">
+          </div>
+          <div>
+            <label>归属包</label>
+            <select class="input" id="sticker-pack">${options}</select>
+          </div>
+        </div>
+      </div>
+      <div class="sticker-form-hint">
+        <b>静态图</b>：居中裁成方形，缩到 320px，转 WebP，单张约 30–60KB。<br>
+        <b>GIF</b>：保留动画，上限 2MB。<br>
+        <b>备份</b>：图片随 dataURL 进备份文件；旧备份导入不会清掉表情包。
+      </div>
+    `,
+    actions: `
+      <button class="btn btn-ghost" data-act="cancel">取消</button>
+      <button class="btn btn-primary" data-act="save" disabled>保存</button>
+    `,
+    maxHeight: '80vh',
+  });
+  root.classList.add('sticker-sheet');
+
+  const fileInput = root.querySelector('#sticker-file');
+  const preview = root.querySelector('#sticker-preview');
+  const textInput = root.querySelector('#sticker-text');
+  const packSelect = root.querySelector('#sticker-pack');
+  const saveBtn = root.querySelector('[data-act=save]');
+  let picked = null;
+
+  const refresh = () => {
+    saveBtn.disabled = !picked || !textInput.value.trim();
+  };
+
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    picked = file;
+    const reader = new FileReader();
+    reader.onload = () => {
+      preview.innerHTML = `<img src="${escapeAttr(reader.result)}" alt=""><span class="sticker-crop-grid"></span>`;
+    };
+    reader.readAsDataURL(file);
+    refresh();
+  });
+
+  textInput.addEventListener('input', refresh);
+  saveBtn.addEventListener('click', async () => {
+    if (!picked) return;
+    saveBtn.disabled = true;
+    try {
+      const sticker = await addSticker(Number(packSelect.value), textInput.value, picked);
+      state.stickerPackId = Number(packSelect.value);
+      state.stickerTab = 'pack';
+      close();
+      await renderStickerPanel();
+      toast(`已添加「${sticker.text}」`);
+    } catch (err) {
+      toast(err.message || '添加失败');
+      saveBtn.disabled = false;
+    }
+  });
+
+  root.querySelector('[data-act=cancel]').addEventListener('click', () => close());
+}
 
 function openChoiceCreatorSheet() {
 
@@ -3416,6 +4162,14 @@ async function checkPendingReplyOnVisible() {
   } else {
     cancelTimers({ keepSubtitle: false });
   }
+
+  if (conv.pendingStickerReplyAt) {
+    if (state.conv) {
+      state.conv.pendingStickerReplyAt = conv.pendingStickerReplyAt;
+      state.conv.pendingStickerReplyImage = !!conv.pendingStickerReplyImage;
+    }
+    scheduleStickerReplyTimer();
+  }
 }
 
 
@@ -3667,6 +4421,50 @@ function updateSilentModeUI() {
 }
 
 
+function stickerPanelHTML() {
+  return `
+    <div class="sticker-panel" id="sticker-panel" aria-hidden="true">
+      <div class="sticker-panel-head">
+        <span class="sticker-panel-title">${STICKER_COPY.panelTitle}</span>
+        <span class="sticker-panel-meta" id="sticker-panel-meta"></span>
+        <button class="sticker-panel-gear" data-act="sticker-manage" aria-label="表情包管理">${SVG_GEAR}</button>
+      </div>
+      <div class="sticker-grid" id="sticker-grid"></div>
+      <div class="sticker-packs" id="sticker-packs"></div>
+    </div>
+  `;
+}
+
+function stickerToolsHTML() {
+  return `
+    <div class="sticker-tools" id="sticker-tools" aria-hidden="true">
+      <div class="sticker-tools-grid">
+        <button class="sticker-tool" data-act="open-draft">
+          <span class="sticker-tool-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+          <span class="sticker-tool-label">草稿</span>
+        </button>
+        <button class="sticker-tool" data-act="open-choice-creator">
+          <span class="sticker-tool-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 0 1 5.7 1c0 1.8-2.7 2.6-2.7 2.6"/><line x1="12" y1="16.6" x2="12.01" y2="16.6"/></svg></span>
+          <span class="sticker-tool-label">选择题</span>
+        </button>
+        <button class="sticker-tool" data-act="open-star-dice">
+          <span class="sticker-tool-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2.5 21 8 21 16 12 21.5 3 16 3 8 12 2.5"/><line x1="12" y1="21.5" x2="12" y2="15.5"/><line x1="21" y1="8" x2="12" y2="12"/><line x1="3" y1="8" x2="12" y2="12"/></svg></span>
+          <span class="sticker-tool-label">星骰</span>
+        </button>
+        <button class="sticker-tool" data-act="trigger">
+          <span class="sticker-tool-icon">${ICON.spark}</span>
+          <span class="sticker-tool-label">触发</span>
+        </button>
+        <button class="sticker-tool muted" data-act="sticker-gift-soon" disabled>
+          <span class="sticker-tool-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M4 10h16M12 10V6M8 6h8"/></svg></span>
+          <span class="sticker-tool-label">礼物</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+
 export async function render(root, params = {}) {
   state = {
   convId: Number(params.id),
@@ -3693,6 +4491,17 @@ export async function render(root, params = {}) {
   panelExpanded: false,
   panelTab: 'status',
   statusCardIndex: 0,
+
+  stickerPanel: 'closed',      // 'closed' | 'stickers' | 'tools'
+  stickerTab: 'pack',          // 'pack' | 'recent'
+  stickerPackId: null,
+  stickerPacks: [],
+  stickerItems: [],
+  stickerMap: new Map(),
+  stickerReplyTimer: null,
+  stickerLongPressTimer: null,
+  stickerLongPressFired: false,
+  stickerLongPressAt: 0,
 
   draftMessages: [],
   
@@ -3738,35 +4547,14 @@ export async function render(root, params = {}) {
 
      
     <div class="chat-input-dock">
-  <button class="dock-btn draft" data-act="open-draft" title="草稿箱" aria-label="草稿箱">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
-    </svg>
-  </button>
-
-  <button class="dock-btn choice-trigger" data-act="open-choice-creator" title="发起选择题" aria-label="发起选择题">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-      <line x1="12" y1="17" x2="12.01" y2="17"/>
-    </svg>
-  </button>
-
-  <button class="dock-btn dice-trigger" data-act="open-star-dice" title="共时星骰" aria-label="共时星骰">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
-      <line x1="12" y1="22" x2="12" y2="15.5"/>
-      <line x1="22" y1="8.5" x2="12" y2="12"/>
-      <line x1="2" y1="8.5" x2="12" y2="12"/>
-      <line x1="12" y1="2" x2="12" y2="12"/>
-    </svg>
-  </button>
-
-  <button class="dock-btn spark" data-act="trigger" title="立即触发回复">${ICON.spark}</button>
+  <button class="dock-btn" data-act="open-tools" title="更多功能" aria-label="更多功能">${SVG_PLUS}</button>
   <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
+  <button class="dock-btn sticker-toggle" id="sticker-toggle-btn" data-act="toggle-stickers" title="表情包" aria-label="表情包">${SVG_STICKER}</button>
   <button class="dock-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
 </div>
+
+${stickerPanelHTML()}
+${stickerToolsHTML()}
 
 
 
@@ -5196,6 +5984,8 @@ export async function render(root, params = {}) {
       if (choiceBtn) choiceBtn.style.display = 'none';
       const silentBtn = root.querySelector('[data-act=toggle-silent]');
       if (silentBtn) silentBtn.style.display = 'none';
+      const stickerBtn = root.querySelector('[data-act=toggle-stickers]');
+      if (stickerBtn) stickerBtn.style.display = 'none';
 
       if (state.conv.groupReplyPending && !state.silentMode) {
         setTimeout(() => {
@@ -5204,6 +5994,7 @@ export async function render(root, params = {}) {
       }
     }
   } catch (e) {
+    console.error('对话加载失败', e);
     toast(e.message || '对话加载失败');
     goBack('/cards');
     return;
@@ -5293,6 +6084,7 @@ root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => {
   root.querySelector('[data-act=trigger]').addEventListener('click', () => {
     sound.unlock();
     haptic(10);
+    closeStickerPanels();
     manualTrigger();
   });
 
@@ -5305,6 +6097,7 @@ root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => {
 
   const input = document.getElementById('chat-input');
   input.addEventListener('input', () => { autoGrow(input); updateSendBtn(); });
+  input.addEventListener('focus', () => closeStickerPanels());
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
@@ -5313,36 +6106,27 @@ root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => {
     }
   });
 
- const dock = root.querySelector('.chat-input-dock');
-dock.addEventListener('click', (e) => {
-  const closeBtn = e.target.closest('[data-act=clear-quote]');
-  if (closeBtn) {
-    haptic(6);
-    clearPendingQuote();
-    return;
-  }
+  const dock = root.querySelector('.chat-input-dock');
+  dock.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('[data-act=clear-quote]');
+    if (closeBtn) {
+      haptic(6);
+      clearPendingQuote();
+      return;
+    }
 
-  const draftBtn = e.target.closest('[data-act=open-draft]');
-  if (draftBtn) {
-    haptic(6);
-    openDraftSheet();
-    return;
-  }
+    const toolsBtn = e.target.closest('[data-act=open-tools]');
+    if (toolsBtn) {
+      toggleStickerTools();
+      return;
+    }
 
-  const choiceBtn = e.target.closest('[data-act=open-choice-creator]');
-  if (choiceBtn) {
-    haptic(6);
-    openChoiceCreatorSheet();
-    return;
-  }
-
-  const diceBtn = e.target.closest('[data-act=open-star-dice]');
-  if (diceBtn) {
-    haptic(8);
-    openSynchronicityDiceSheet();
-    return;
-  }
-});
+    const stickerBtn = e.target.closest('[data-act=toggle-stickers]');
+    if (stickerBtn) {
+      toggleStickerPanel();
+      return;
+    }
+  });
 
 
 
@@ -5364,6 +6148,8 @@ dock.addEventListener('click', (e) => {
   });
 
   bindViewportFollow();
+  bindStickerPanelEvents();
+  bindStickerToolsEvents();
 
 
     state.onVisibility = () => {
@@ -5385,18 +6171,26 @@ dock.addEventListener('click', (e) => {
   state.onActiveMessageReceived = async (e) => {
     if (e.detail.conversationId === state.convId) {
       state.messages = await db.messages.where('conversationId').equals(state.convId).sortBy('timestamp');
+      state.stickerMap = await buildStickerMap(await collectStickerIdsFromMessages(state.messages));
       renderMessages();
     }
   };
   window.addEventListener('active-message-received', state.onActiveMessageReceived);
 
-  if (!state.isGroup) scheduleTimers();
+  if (!state.isGroup) {
+    scheduleTimers();
+    scheduleStickerReplyTimer();
+  }
 }
 
 export function destroy() {
   state.destroyed = true;
   cancelTimers();
   clearGroupTimers();
+  clearTimeout(state.stickerReplyTimer);
+  clearTimeout(state.stickerLongPressTimer);
+  closeStickerPanels();
+  document.body.classList.remove('sticker-panel-active');
   if (state.onViewport) state.onViewport();
   if (state.onVisibility) {
     document.removeEventListener('visibilitychange', state.onVisibility);

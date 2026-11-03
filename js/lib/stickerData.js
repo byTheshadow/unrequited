@@ -42,7 +42,7 @@ export const STICKER_COPY = {
   importPack: '导入表情包',
   exportPack: '导出',
   deletePack: '删除',
-  characterPack: '角色用哪一个',
+  characterPack: '角色用哪一包',
   deleted: '表情已删除',
   tooManyPacks: `最多 ${STICKER_LIMITS.maxPacks} 个表情包`,
   tooManyStickers: `每个包最多 ${STICKER_LIMITS.maxPerPack} 张`,

@@ -47,9 +47,7 @@ import {
 import {
   STICKER_LIMITS,
   STICKER_COPY,
-  STICKER_REPLY_TEXTS,
-  STICKER_REPLY_CHANCE,
-  STICKER_IMAGE_REPLY_CHANCE,
+  STICKER_REPLY_STICKER_CHANCE,
 } from '../lib/stickerData.js';
 
 
@@ -94,7 +92,6 @@ let state = {
   stickerPacks: [],
   stickerItems: [],
   stickerMap: new Map(),
-  stickerReplyTimer: null,
   stickerLongPressTimer: null,
   stickerLongPressFired: false,
   stickerLongPressAt: 0,
@@ -139,6 +136,7 @@ const SVG_PHONE_OFF = `<svg viewBox="0 0 24 24" width="18" height="18" fill="non
 const SVG_MINIMIZE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
 const SVG_PLUS = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
 const SVG_STICKER = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5s1.2 1.8 3.5 1.8 3.5-1.8 3.5-1.8"/><line x1="9" y1="9.8" x2="9.01" y2="9.8"/><line x1="15" y1="9.8" x2="15.01" y2="9.8"/></svg>`;
+const SVG_REPLY = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M4 9h9a6 6 0 0 1 6 6v2"/></svg>`;
 const SVG_GEAR = `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>`;
 const SVG_CLOCK = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><polyline points="12 7.5 12 12 15 14"/></svg>`;
 const SVG_IMAGE = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5L5 20"/></svg>`;
@@ -693,6 +691,7 @@ function renderMessages() {
   scrollToBottom(false);
   bindBubbleEvents();
   updateMessageCount();
+  updateStickerReplyButton();
 }
 
 function scrollToBottom(smooth = true) {
@@ -740,12 +739,15 @@ function appendMessage(msg) {
     state.conv.pendingReplyAt = null;
     cancelTimers();
   }
+
+  updateStickerReplyButton();
 }
 
 async function persistConvSummary() {
   const last = state.messages[state.messages.length - 1];
   if (!last) return;
-  let text = msgPreviewContent(last) || '';
+  let text = last.content;
+  if (last.type === 'sticker') text = `[表情] ${last.content || '表情'}`;
   if (state.isGroup && last.sender !== 'system' && last.sender !== 'sync') {
     const name = last.sender === 'user'
       ? ((state.user && state.user.name) || '我')
@@ -988,9 +990,6 @@ async function sendUserMessage() {
    表情包：面板 / 发送 / 角色回复
    ============================================================ */
 
-const STICKER_REPLY_DELAY_MIN = 1500;
-const STICKER_REPLY_DELAY_MAX = 4500;
-
 function stickerTileHTML(s) {
   return `<button class="sticker-tile ${s.animated ? 'gif' : ''}" type="button" data-sticker-id="${s.id}" aria-label="${escapeAttr(s.text)}">
     <img src="${escapeAttr(s.image)}" alt="${escapeAttr(s.text)}" loading="lazy">
@@ -1150,102 +1149,65 @@ async function sendSticker(sticker) {
 
   if (state.silentMode) {
     toast('讯息已静默投递');
-    return;
   }
-  await scheduleStickerReply(sticker);
+  updateStickerReplyButton();
 }
 
-function scheduleStickerReplyTimer() {
-  clearTimeout(state.stickerReplyTimer);
-  const at = state.conv && state.conv.pendingStickerReplyAt;
-  if (!at) return;
-  const remain = at - Date.now();
-  if (remain <= 0) {
-    executeStickerReply();
-    return;
-  }
-  state.stickerReplyTimer = setTimeout(() => {
-    if (!state.destroyed) executeStickerReply();
-  }, remain);
-}
+async function maybeDeliverReplySticker() {
+  if (state.destroyed || state.isGroup) return false;
+  if (Math.random() >= STICKER_REPLY_STICKER_CHANCE) return false;
 
-async function scheduleStickerReply(sticker) {
-  if (state.isGroup) return;
-  if (Math.random() >= STICKER_REPLY_CHANCE) return;
+  const lastUserSticker = [...state.messages].reverse().find((m) => m.sender === 'user' && m.type === 'sticker');
+  const st = await pickCharacterSticker(lastUserSticker ? lastUserSticker.stickerId : null);
+  if (!st) return false;
 
-  const characterPackId = await getCharacterPackId();
-  const wantImage = !!characterPackId && Math.random() < STICKER_IMAGE_REPLY_CHANCE;
-  const target = Date.now() + randInt(STICKER_REPLY_DELAY_MIN, STICKER_REPLY_DELAY_MAX);
-
-  await db.conversations.update(state.convId, {
-    pendingStickerReplyAt: target,
-    pendingStickerReplyImage: wantImage,
-  });
-  if (state.conv) {
-    state.conv.pendingStickerReplyAt = target;
-    state.conv.pendingStickerReplyImage = wantImage;
-  }
-  scheduleStickerReplyTimer();
-}
-
-async function executeStickerReply() {
-  if (state.destroyed || state.isGroup || !state.convId) return;
-  const conv = await db.conversations.get(state.convId);
-  if (!conv || !conv.pendingStickerReplyAt) return;
-
-  const wantImage = !!conv.pendingStickerReplyImage;
-  await db.conversations.update(state.convId, {
-    pendingStickerReplyAt: null,
-    pendingStickerReplyImage: false,
-  });
-  if (state.conv) {
-    state.conv.pendingStickerReplyAt = null;
-    state.conv.pendingStickerReplyImage = false;
-  }
-
-  if (state.silentMode) return;
-
-  let msg = null;
-  if (wantImage) {
-    const lastUserSticker = [...state.messages].reverse().find((m) => m.sender === 'user' && m.type === 'sticker');
-    const st = await pickCharacterSticker(lastUserSticker ? lastUserSticker.stickerId : null);
-    if (st) {
-      state.stickerMap.set(st.id, st);
-      msg = {
-        conversationId: state.convId,
-        sender: 'character',
-        content: st.text,
-        type: 'sticker',
-        stickerId: st.id,
-        status: 'sent',
-        quotedMessageId: null,
-        timestamp: Date.now(),
-        isRead: false,
-      };
-    }
-  }
-
-  if (!msg) {
-    msg = {
-      conversationId: state.convId,
-      sender: 'character',
-      content: pick(STICKER_REPLY_TEXTS),
-      type: 'text',
-      status: 'sent',
-      quotedMessageId: null,
-      timestamp: Date.now(),
-      isRead: false,
-    };
-  }
+  state.stickerMap.set(st.id, st);
+  const msg = {
+    conversationId: state.convId,
+    sender: 'character',
+    content: st.text,
+    type: 'sticker',
+    stickerId: st.id,
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: true,
+  };
 
   const id = await db.messages.add(msg);
   msg.id = id;
-  if (state.destroyed) return;
+  if (state.destroyed) return true;
 
   appendMessage(msg);
-  await markLatestUserUnreadAsRead();
-  await persistConvSummary();
   playCharSound();
+  return true;
+}
+
+function lastMessageOfThread() {
+  return state.messages.length ? state.messages[state.messages.length - 1] : null;
+}
+
+function canTriggerStickerReply() {
+  if (state.isGroup || state.silentMode || !state.conv) return false;
+  if (state.conv.pendingReplyAt) return false;
+  const last = lastMessageOfThread();
+  return !!last && last.sender === 'user' && last.type === 'sticker';
+}
+
+function updateStickerReplyButton() {
+  const btn = document.getElementById('sticker-reply-btn');
+  if (!btn) return;
+  const can = canTriggerStickerReply();
+  btn.classList.toggle('on', can);
+  btn.disabled = !can;
+}
+
+async function triggerStickerReply() {
+  if (!canTriggerStickerReply()) return;
+  haptic(8);
+  await schedulePendingReply();
+  updateStickerReplyButton();
+  scrollToBottom(true);
 }
 
 async function openStickerActions(stickerId) {
@@ -2127,6 +2089,7 @@ async function schedulePendingReply() {
     }
 
     scheduleTimers();
+    updateStickerReplyButton();
     return;
   }
 
@@ -2147,6 +2110,7 @@ async function schedulePendingReply() {
   // 保留你原有的自定义思考文案和思考阶段
   showImmediateStatusIndicator();
   scheduleTimers();
+  updateStickerReplyButton();
 }
 
 
@@ -2388,6 +2352,13 @@ async function executeReply() {
 
       await markLatestUserUnreadAsRead();
 
+      const stickerDelivered = await maybeDeliverReplySticker();
+      if (stickerDelivered) {
+        await persistConvSummary();
+        updateStickerReplyButton();
+        return;
+      }
+
       const sysMsg = {
         conversationId: state.convId,
         sender: 'system',
@@ -2404,6 +2375,7 @@ async function executeReply() {
 
       appendMessage(sysMsg);
       await persistConvSummary();
+      updateStickerReplyButton();
       return;
     }
   }
@@ -2420,6 +2392,8 @@ async function executeReply() {
   if (state.destroyed) return;
 
   await markLatestUserUnreadAsRead();
+
+  await maybeDeliverReplySticker();
 
   /**
    * 分支 A：
@@ -2499,6 +2473,13 @@ async function executeReply() {
 
   if ((!messages || !messages.length) && (!choices || !choices.length)) {
     hideTyping();
+    const stickerDelivered = await maybeDeliverReplySticker();
+    if (stickerDelivered) {
+      await persistConvSummary();
+      updateStickerReplyButton();
+      return;
+    }
+    updateStickerReplyButton();
     toast(
       reason === 'no_fragments'
         ? '此角色暂无可用的字卡内容'
@@ -2708,6 +2689,7 @@ for (let i = 0; i < choices.length; i++) {
 }
 
 await persistConvSummary();
+updateStickerReplyButton();
 }
 
 // 辅助工具方法重构（使其接受参数，解耦 state）
@@ -4162,14 +4144,7 @@ async function checkPendingReplyOnVisible() {
   } else {
     cancelTimers({ keepSubtitle: false });
   }
-
-  if (conv.pendingStickerReplyAt) {
-    if (state.conv) {
-      state.conv.pendingStickerReplyAt = conv.pendingStickerReplyAt;
-      state.conv.pendingStickerReplyImage = !!conv.pendingStickerReplyImage;
-    }
-    scheduleStickerReplyTimer();
-  }
+  updateStickerReplyButton();
 }
 
 
@@ -4498,7 +4473,6 @@ export async function render(root, params = {}) {
   stickerPacks: [],
   stickerItems: [],
   stickerMap: new Map(),
-  stickerReplyTimer: null,
   stickerLongPressTimer: null,
   stickerLongPressFired: false,
   stickerLongPressAt: 0,
@@ -4550,6 +4524,7 @@ export async function render(root, params = {}) {
   <button class="dock-btn" data-act="open-tools" title="更多功能" aria-label="更多功能">${SVG_PLUS}</button>
   <textarea id="chat-input" class="dock-input" rows="1" placeholder="说点什么..." maxlength="2000"></textarea>
   <button class="dock-btn sticker-toggle" id="sticker-toggle-btn" data-act="toggle-stickers" title="表情包" aria-label="表情包">${SVG_STICKER}</button>
+  <button class="dock-btn sticker-reply" id="sticker-reply-btn" data-act="sticker-reply" disabled title="让 ta 回" aria-label="让 ta 回">${SVG_REPLY}</button>
   <button class="dock-btn send" id="send-btn" data-act="send" disabled title="发送">${ICON.send}</button>
 </div>
 
@@ -5986,6 +5961,8 @@ ${stickerToolsHTML()}
       if (silentBtn) silentBtn.style.display = 'none';
       const stickerBtn = root.querySelector('[data-act=toggle-stickers]');
       if (stickerBtn) stickerBtn.style.display = 'none';
+      const stickerReplyBtn = root.querySelector('[data-act=sticker-reply]');
+      if (stickerReplyBtn) stickerReplyBtn.style.display = 'none';
 
       if (state.conv.groupReplyPending && !state.silentMode) {
         setTimeout(() => {
@@ -6048,6 +6025,7 @@ root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
       if (state.conv) state.conv.silentMode = state.silentMode;
       
       updateSilentModeUI();
+      updateStickerReplyButton();
       
       if (!state.silentMode) {
         // 用户手动关闭静默模式 -> 触发 1 - 20 分钟内随机回复周期
@@ -6121,6 +6099,12 @@ root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => {
       return;
     }
 
+    const replyBtn = e.target.closest('[data-act=sticker-reply]');
+    if (replyBtn) {
+      triggerStickerReply();
+      return;
+    }
+
     const stickerBtn = e.target.closest('[data-act=toggle-stickers]');
     if (stickerBtn) {
       toggleStickerPanel();
@@ -6179,7 +6163,6 @@ root.querySelector('[data-act=toggle-panel]').addEventListener('click', () => {
 
   if (!state.isGroup) {
     scheduleTimers();
-    scheduleStickerReplyTimer();
   }
 }
 
@@ -6187,7 +6170,6 @@ export function destroy() {
   state.destroyed = true;
   cancelTimers();
   clearGroupTimers();
-  clearTimeout(state.stickerReplyTimer);
   clearTimeout(state.stickerLongPressTimer);
   closeStickerPanels();
   document.body.classList.remove('sticker-panel-active');

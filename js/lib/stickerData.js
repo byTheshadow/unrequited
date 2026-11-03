@@ -19,20 +19,8 @@ export const STICKER_LIMITS = {
 
 export const DEFAULT_PACK_NAME = '我的表情';
 
-// 角色没有角色包、或走文本分支时的预置短句。零 AI，不调用 cardEngine。
-export const STICKER_REPLY_TEXTS = [
-  '……',
-  '嗯。',
-  '干嘛',
-  '？',
-  '在。',
-  '……别闹',
-  '知道了',
-];
-
-export const STICKER_REPLY_CHANCE = 0.6;   // 用户发表情后，角色回应的概率
-export const STICKER_IMAGE_REPLY_CHANCE = 0.7; // 回应里，选表情而不是短句的概率
-export const STICKER_ACTIVE_CHANCE = 0.2;  // 主动消息里先带一张表情的概率
+// 角色拼完时，独立掷一张表情的概率；与文字是否出现无关。
+export const STICKER_REPLY_STICKER_CHANCE = 0.4;
 
 export const STICKER_COPY = {
   panelTitle: '表情包',

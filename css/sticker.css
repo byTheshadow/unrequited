@@ -577,6 +577,24 @@
   }
 }
 
+/* 「让 ta 回」：固定底栏按钮，只在最后一条是表情且无待回复时点亮 */
+.chat-page .dock-btn.sticker-reply {
+  color: var(--color-text-tertiary);
+  opacity: 0.4;
+  transition: opacity 0.2s, background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.chat-page .dock-btn.sticker-reply.on {
+  color: var(--color-text-primary);
+  background: var(--color-bg-tertiary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text-primary) 22%, transparent);
+  opacity: 1;
+}
+
+.chat-page .dock-btn.sticker-reply:disabled {
+  opacity: 0.35;
+}
+
 /* 面板打开时让出右下角的悬浮音乐徽章，避免压住礼物/表情格 */
 body.sticker-panel-active .music-player-container,
 body:has(.sticker-sheet) .music-player-container {

@@ -2328,10 +2328,15 @@ async function executeReply() {
     return;
   }
 
+  // 回复生成过程中页面可能被切走（state.character 会被清空），先把角色信息固定下来
+  const charRef = state.character;
+  const charId = charRef.id;
+  const charLinkedDeckIds = Array.isArray(charRef.linkedDeckIds) ? charRef.linkedDeckIds : [];
+
   await db.conversations.update(state.convId, { pendingReplyAt: null });
   if (state.conv) state.conv.pendingReplyAt = null;
 
-  const cfg = state.character.replyConfig || {};
+  const cfg = charRef.replyConfig || {};
   const quoteChance = typeof cfg.quoteChance === 'number'
     ? cfg.quoteChance
     : DEFAULT_QUOTE_CHANCE;
@@ -2410,7 +2415,7 @@ async function executeReply() {
     }
 
     // 可选：融合一条角色字卡内容
-    const generated = await generateForCharacter(state.character.id);
+    const generated = await generateForCharacter(charId);
     const generatedMessages = generated && generated.messages ? generated.messages : [];
 
     let extraText = '';
@@ -2426,7 +2431,7 @@ async function executeReply() {
         extraText = `。${pickedContent}`;
 
         // 新增：统计被融合抽取的那条字卡碎片的共鸣频次
-        await incrementFragmentResonance(state.character.id, pickedContent);
+        await incrementFragmentResonance(charId, pickedContent);
       }
     }
 
@@ -2464,7 +2469,7 @@ async function executeReply() {
    * 分支 B：
    * 普通回复：从角色字卡里生成消息。
    */
-  const generated = await generateForCharacter(state.character.id);
+  const generated = await generateForCharacter(charId);
   const messages = generated && generated.messages ? generated.messages : [];
   const choices = generated && generated.choices ? generated.choices : [];
   const reason = generated && generated.reason;
@@ -2516,11 +2521,7 @@ async function executeReply() {
     let attachedAudio = null;
 
     try {
-      const linkedDeckIds =
-        state.character &&
-        Array.isArray(state.character.linkedDeckIds)
-          ? state.character.linkedDeckIds
-          : [];
+      const linkedDeckIds = charLinkedDeckIds;
 
       let decks = [];
 
@@ -2620,14 +2621,12 @@ async function executeReply() {
     /**
      * 增加字卡共鸣频次统计
      */
-    await incrementFragmentResonance(
-      state.character.id,
-      text
-    );
+    await incrementFragmentResonance(charId, text);
 
     /**
      * 更新界面
      */
+    if (state.destroyed) return;
     hideTyping();
     appendMessage(msg);
     playCharSound();

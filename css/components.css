@@ -5901,10 +5901,10 @@
 /* ============ 音乐播放器悬浮窗 ============ */
 #global-call-overlay .call-player-widget {
   position: fixed !important;
-  top: 40px !important;
-  right: 16px !important;
-  left: auto !important;
-  bottom: auto !important;
+  top: 40px;
+  right: 16px;
+  left: auto;
+  bottom: auto;
   width: 320px !important;
   max-width: calc(100vw - 32px) !important;
   height: auto !important;
@@ -6182,10 +6182,10 @@
 /* ============ 悬浮球 ============ */
 #global-call-overlay .call-ball-widget {
   position: fixed !important;
-  top: 40px !important;
-  right: 16px !important;
-  left: auto !important;
-  bottom: auto !important;
+  top: 40px;
+  right: 16px;
+  left: auto;
+  bottom: auto;
   width: 60px !important;
   height: 60px !important;
   min-width: 60px !important;

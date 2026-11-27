@@ -554,6 +554,11 @@ export const CallManager = {
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
       document.removeEventListener('pointercancel', onPointerUp);
+      document.removeEventListener('mousemove', onLegacyMove);
+      document.removeEventListener('mouseup', onLegacyUp);
+      document.removeEventListener('touchmove', onLegacyMove);
+      document.removeEventListener('touchend', onLegacyUp);
+      document.removeEventListener('touchcancel', onLegacyUp);
 
       try {
         if (dragHandle.hasPointerCapture(e.pointerId)) {
@@ -641,10 +646,49 @@ export const CallManager = {
         document.addEventListener('pointercancel', onPointerUp);
       }
 
+      // Pointer Events 不完整的浏览器/触控模拟环境：使用传统鼠标和触摸事件兜底。
+      document.addEventListener('mousemove', onLegacyMove, { passive: false });
+      document.addEventListener('mouseup', onLegacyUp);
+      document.addEventListener('touchmove', onLegacyMove, { passive: false });
+      document.addEventListener('touchend', onLegacyUp);
+      document.addEventListener('touchcancel', onLegacyUp);
+
       if (e.cancelable) e.preventDefault();
     };
 
+    const onLegacyMove = (e) => {
+      if (!this.dragState.active) return;
+      const point = e.touches && e.touches[0] ? e.touches[0] : e;
+      onPointerMove({
+        pointerId: this.dragState.pointerId,
+        clientX: point.clientX,
+        clientY: point.clientY,
+        cancelable: e.cancelable,
+        preventDefault: () => e.preventDefault(),
+      });
+    };
+
+    const onLegacyUp = () => {
+      if (!this.dragState.active) return;
+      onPointerUp({ pointerId: this.dragState.pointerId });
+    };
+
+    const onLegacyDown = (e) => {
+      if (this.dragState.active) return;
+      onPointerDown({
+        target: e.target,
+        button: e.type === 'mousedown' ? e.button : 0,
+        pointerId: 'legacy-drag',
+        clientX: e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX,
+        clientY: e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY,
+        cancelable: e.cancelable,
+        preventDefault: () => e.preventDefault(),
+      });
+    };
+
     dragHandle.addEventListener('pointerdown', onPointerDown, { passive: false });
+    dragHandle.addEventListener('mousedown', onLegacyDown);
+    dragHandle.addEventListener('touchstart', onLegacyDown, { passive: false });
   },
 
   wasJustDragged() {

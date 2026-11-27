@@ -3548,6 +3548,70 @@ async function toggleKeepAlive() {
   toast(ok ? '已开启，保活运行中' : '已开启，点一下页面再试');
 }
 
+async function updateGroupMembers(nextMembers, notice) {
+  clearGroupTimers();
+  const memberIds = nextMembers.map((member) => member.id);
+  await db.conversations.update(state.convId, { memberIds });
+  state.conv.memberIds = memberIds;
+  state.members = nextMembers;
+
+  const systemMessage = {
+    conversationId: state.convId,
+    sender: 'system',
+    content: notice,
+    type: 'system',
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: true,
+  };
+  systemMessage.id = await db.messages.add(systemMessage);
+  appendMessage(systemMessage);
+  await persistConvSummary();
+  renderPill();
+}
+
+async function openAddGroupMemberSheet() {
+  const currentIds = new Set((state.members || []).map((member) => member.id));
+  const characters = await db.characters.toArray();
+  const candidates = characters.filter((character) => !currentIds.has(character.id));
+
+  const { root, close } = openSheet({
+    title: '添加成员',
+    body: candidates.length ? `
+      <div class="field-hint" style="margin-bottom:10px;">选择一个角色加入群聊 · ${currentIds.size} / 6 人</div>
+      <div class="sheet-list">
+        ${candidates.map((character) => `
+          <button class="sheet-list-item" data-act="add-member" data-member-id="${character.id}" type="button">
+            ${avatarHTML(character.avatar, character.name, 40)}
+            <span class="sheet-list-body">
+              <span class="sheet-list-title">${escapeHtml(character.name || '未命名角色')}</span>
+              <span class="sheet-list-sub">加入群聊</span>
+            </span>
+          </button>`).join('')}
+      </div>` : '<div class="field-hint">没有可添加的角色了</div>',
+  });
+  if (!root) return;
+
+  root.addEventListener('click', async (event) => {
+    const item = event.target.closest('[data-act="add-member"]');
+    if (!item) return;
+    const memberId = Number(item.getAttribute('data-member-id'));
+    const member = candidates.find((candidate) => candidate.id === memberId);
+    if (!member) return;
+    if ((state.members || []).length >= 6) {
+      toast('群聊最多 6 个角色');
+      return;
+    }
+
+    const nextMembers = [...(state.members || []), member];
+    await updateGroupMembers(nextMembers, `你邀请 ${member.name} 加入了群聊`);
+    close();
+    await sleep(280);
+    openGroupInfo();
+  });
+}
+
 async function openGroupInfo() {
   if (!state.isGroup || !state.conv) return;
   const members = state.members || [];
@@ -3565,12 +3629,16 @@ async function openGroupInfo() {
           <div class="field-hint">群名和头像都可以改</div>
         </div>
       </div>
-      <div class="field-hint" style="margin:14px 0 8px;">成员 · ${members.length} 人</div>
+      <div class="field-hint" style="margin:14px 0 8px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <span>成员 · ${members.length} 人</span>
+        <button class="btn btn-ghost" data-act="add-member" type="button" ${members.length >= 6 ? 'disabled' : ''}>添加成员</button>
+      </div>
       <div class="group-members">
         ${members.map((m) => `
           <div class="group-member">
             ${avatarHTML(m.avatar, m.name, 36)}
             <span>${escapeHtml(m.name)}</span>
+            <button class="btn btn-ghost" data-act="remove-member" data-member-id="${m.id}" type="button" style="margin-left:auto;padding:4px 8px;font-size:12px;color:#dc2626;" ${members.length <= 2 ? 'disabled' : ''}>移除</button>
           </div>`).join('')}
       </div>
       <input type="file" id="group-avatar-file" accept="image/*" style="display:none">
@@ -3602,7 +3670,30 @@ async function openGroupInfo() {
     if (!el) return;
     const act = el.getAttribute('data-act');
 
-    if (act === 'save-group') {
+    if (act === 'add-member') {
+      close();
+      await sleep(280);
+      await openAddGroupMemberSheet();
+    } else if (act === 'remove-member') {
+      if (members.length <= 2) {
+        toast('群聊至少保留 2 个角色');
+        return;
+      }
+      const memberId = Number(el.getAttribute('data-member-id'));
+      const member = members.find((item) => item.id === memberId);
+      if (!member) return;
+      const ok = await confirmSheet(
+        `确定移除 ${member.name}？历史消息会保留，之后不再参与群聊`,
+        { danger: true, okText: '移除' }
+      );
+      if (!ok) return;
+
+      const nextMembers = members.filter((item) => item.id !== memberId);
+      await updateGroupMembers(nextMembers, `${member.name} 离开了群聊`);
+      close();
+      await sleep(280);
+      openGroupInfo();
+    } else if (act === 'save-group') {
       const inputEl = root.querySelector('#group-name-input');
       const name = ((inputEl && inputEl.value) || '').trim().slice(0, 40)
         || members.map((m) => m.name).join('、');

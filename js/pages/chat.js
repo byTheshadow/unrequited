@@ -1536,7 +1536,7 @@ async function openStickerAddSheet(packId) {
     title: '添加表情',
     body: `
       <div class="sticker-form">
-        <div class="sticker-form-preview" id="sticker-preview">${SVG_IMAGE}<span>选一张图</span></div>
+        <button class="sticker-form-preview" id="sticker-preview" type="button" aria-label="选择图片">${SVG_IMAGE}<span>选一张图</span></button>
         <div class="sticker-form-fields">
           <div>
             <label>图片</label>
@@ -1577,6 +1577,9 @@ async function openStickerAddSheet(packId) {
   const refresh = () => {
     saveBtn.disabled = !picked || !textInput.value.trim();
   };
+
+  // 左侧预览区就是主上传入口；右侧按钮保留为备用入口。
+  preview.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', () => {
     const file = fileInput.files && fileInput.files[0];

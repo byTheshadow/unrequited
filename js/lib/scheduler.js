@@ -27,6 +27,10 @@ async function checkActiveMessages() {
     const now = Date.now();
 
     for (const conv of convs) {
+      // 群聊没有单一 characterId；群聊回复由群聊自己的调度逻辑处理。
+      // 这里必须在 characters.get() 之前跳过，否则 Dexie 会因 get(undefined) 抛错。
+      if (conv.type === 'group') continue;
+
       const char = await db.characters.get(conv.characterId);
       if (!char) continue;
 

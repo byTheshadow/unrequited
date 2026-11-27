@@ -6039,13 +6039,13 @@ if (callNavBtn) callNavBtn.addEventListener('click', async () => {
 
   if (CallManager && CallManager.state && CallManager.state !== 'idle') {
     syncCallStateFromManager();
-    openCallFull();
+    CallManager.expand();
     return;
   }
 
   const ok = await startVirtualCall(true);
   if (ok) {
-    openCallFull();
+    CallManager.expand();
   }
 });
 

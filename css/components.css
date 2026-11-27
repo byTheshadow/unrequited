@@ -5920,11 +5920,16 @@
   backdrop-filter: blur(var(--glass-blur, 12px)) !important;
   -webkit-backdrop-filter: blur(var(--glass-blur, 12px)) !important;
   touch-action: none !important;
+  pointer-events: auto !important;
+  cursor: grab !important;
   user-select: none !important;
   -webkit-user-select: none !important;
   overflow: hidden !important;
   margin: 0 !important;
   transform: none !important;
+}
+#global-call-overlay .call-player-widget:active {
+  cursor: grabbing !important;
 }
 
 #global-call-overlay .call-player-inner {

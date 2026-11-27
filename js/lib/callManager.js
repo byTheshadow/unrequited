@@ -548,6 +548,9 @@ export const CallManager = {
     const onPointerUp = (e) => {
       if (e.pointerId !== this.dragState.pointerId) return;
 
+      dragHandle.removeEventListener('pointermove', onPointerMove);
+      dragHandle.removeEventListener('pointerup', onPointerUp);
+      dragHandle.removeEventListener('pointercancel', onPointerUp);
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
       document.removeEventListener('pointercancel', onPointerUp);
@@ -620,14 +623,22 @@ export const CallManager = {
       targetEl.style.transform = 'none';
       targetEl.style.margin = '0';
 
-      document.addEventListener('pointermove', onPointerMove, { passive: false });
-      document.addEventListener('pointerup', onPointerUp);
-      document.addEventListener('pointercancel', onPointerUp);
-
+      let captured = false;
       try {
         dragHandle.setPointerCapture(e.pointerId);
+        captured = true;
       } catch (err) {
-        // 不支持 Pointer Capture 时继续使用 document 级监听作为降级方案。
+        // 不支持 Pointer Capture 时使用 document 级监听作为降级方案。
+      }
+
+      if (captured) {
+        dragHandle.addEventListener('pointermove', onPointerMove, { passive: false });
+        dragHandle.addEventListener('pointerup', onPointerUp);
+        dragHandle.addEventListener('pointercancel', onPointerUp);
+      } else {
+        document.addEventListener('pointermove', onPointerMove, { passive: false });
+        document.addEventListener('pointerup', onPointerUp);
+        document.addEventListener('pointercancel', onPointerUp);
       }
 
       if (e.cancelable) e.preventDefault();

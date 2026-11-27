@@ -514,7 +514,11 @@ export const CallManager = {
     let hasMoved = false;
 
     const onPointerMove = (e) => {
-      if (!this.dragState.active || this.dragState.mode !== mode) return;
+      if (
+        !this.dragState.active ||
+        this.dragState.mode !== mode ||
+        e.pointerId !== this.dragState.pointerId
+      ) return;
 
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
@@ -542,9 +546,19 @@ export const CallManager = {
     };
 
     const onPointerUp = (e) => {
+      if (e.pointerId !== this.dragState.pointerId) return;
+
       document.removeEventListener('pointermove', onPointerMove);
       document.removeEventListener('pointerup', onPointerUp);
       document.removeEventListener('pointercancel', onPointerUp);
+
+      try {
+        if (dragHandle.hasPointerCapture(e.pointerId)) {
+          dragHandle.releasePointerCapture(e.pointerId);
+        }
+      } catch (err) {
+        // 某些旧浏览器不支持 Pointer Capture，普通 pointerup 仍可完成拖动。
+      }
 
       if (!this.dragState.active || this.dragState.mode !== mode) return;
 
@@ -582,6 +596,9 @@ export const CallManager = {
     const onPointerDown = (e) => {
       if (e.button !== undefined && e.button !== 0) return;
 
+      // 播放器整体可拖动，但缩小等操作按钮必须保留点击行为。
+      if (e.target.closest('button, a, input, textarea, select')) return;
+
       this.dragState.active = true;
       this.dragState.moved = false;
       this.dragState.suppressClick = false;
@@ -606,6 +623,12 @@ export const CallManager = {
       document.addEventListener('pointermove', onPointerMove, { passive: false });
       document.addEventListener('pointerup', onPointerUp);
       document.addEventListener('pointercancel', onPointerUp);
+
+      try {
+        dragHandle.setPointerCapture(e.pointerId);
+      } catch (err) {
+        // 不支持 Pointer Capture 时继续使用 document 级监听作为降级方案。
+      }
 
       if (e.cancelable) e.preventDefault();
     };
@@ -655,11 +678,11 @@ export const CallManager = {
     `;
 
     const player = this.overlay.querySelector('#global-call-player');
-    const handle = this.overlay.querySelector('#call-player-drag-handle');
     const toBallBtn = this.overlay.querySelector('#call-btn-to-ball');
 
     if (player) {
-      this.makeElementDraggable(player, handle || player, 'player');
+      // 整个播放器都可拖动；按钮在 makeElementDraggable 内单独排除。
+      this.makeElementDraggable(player, player, 'player');
       player.addEventListener('click', (e) => {
         if (this.wasJustDragged()) { e.preventDefault(); e.stopPropagation(); return; }
         this.expand();

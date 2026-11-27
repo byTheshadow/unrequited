@@ -210,7 +210,7 @@ async function openEditor(charId) {
             <input class="input" type="number" id="f-max-delay" min="0" max="1200" value="${cfg.maxReplyDelaySec ?? 0}">
           </div>
         </div>
-        <div class="field-hint" style="margin-top:8px;">0-1200 秒（约 20 分钟）。全设 0 则需手动触发。发消息后角色会在此区间内随机时刻回复。</div>
+        <div class="field-hint" style="margin-top:8px;">0-1200 秒（约 20 分钟）。这是回复窗口：最小值前不会回复，窗口期间随时可能回复，直到最大值兜底。全设 0 则需手动触发。</div>
 
         <div class="row-2col" style="margin-top:12px;">
           <div>

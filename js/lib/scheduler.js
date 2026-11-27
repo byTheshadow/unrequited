@@ -40,7 +40,37 @@ async function checkActiveMessages() {
       // ==========================================
       // 【新增：常规聊天回复后台静默处理】
       // ==========================================
-      if (conv.pendingReplyAt && now >= conv.pendingReplyAt) {
+      const windowDeadline = conv.replyWindowDeadlineAt || conv.pendingReplyAt;
+      const windowEarliest = conv.replyWindowEarliestAt || windowDeadline;
+      const windowNextCheck = conv.replyWindowNextCheckAt || windowEarliest;
+
+      if (windowDeadline && !isInThisChat) {
+        const isAtDeadline = now >= windowDeadline;
+        const isEligible = now >= windowEarliest && now >= windowNextCheck;
+
+        if (isAtDeadline) {
+          await executeBackgroundReply(conv, char, { forceFallback: true });
+          continue;
+        }
+
+        if (isEligible) {
+          const progress = Math.min(1, (now - windowEarliest) / Math.max(1, windowDeadline - windowEarliest));
+          const chance = Math.min(0.72, 0.18 + progress * 0.42);
+          if (Math.random() < chance) {
+            await executeBackgroundReply(conv, char);
+            continue;
+          }
+
+          const nextCheckAt = Math.min(windowDeadline, now + 15000 + Math.random() * 30000);
+          await db.conversations.update(conv.id, { replyWindowNextCheckAt: nextCheckAt });
+        }
+      }
+
+      /*
+       * 兼容旧版本只写入 pendingReplyAt 的会话：到期后仍由后台执行一次，
+       * 新窗口则走上面的“窗口内随机决策 / 截止兜底”流程。
+       */
+      if (conv.pendingReplyAt && !conv.replyWindowDeadlineAt && now >= conv.pendingReplyAt) {
         // 如果用户正好在当前聊天框，让 chat.js 的前台定时器去执行（带打字状态与飞卡动效）
         // 如果用户不在当前聊天框，则由本后台管理器静默生成并发送
         if (!isInThisChat) {
@@ -175,10 +205,70 @@ async function checkActiveMessages() {
 /**
  * 后台静默常规回复执行器 (当用户切出了该房间，由本函数在后台进行回复生成)
  */
-async function executeBackgroundReply(conv, char) {
+async function sendBackgroundNoReplyFallback(conv, char) {
+  const messagesList = await db.messages.where('conversationId').equals(conv.id).sortBy('timestamp');
+  const lastUserMsg = [...messagesList].reverse().find((m) => m.sender === 'user' && !m.isRead);
+  if (lastUserMsg) await db.messages.update(lastUserMsg.id, { isRead: true });
+
+  let inserted;
+  if (Math.random() < 0.5) {
+    const skipList = (char.replyConfig && char.replyConfig.skipHints && char.replyConfig.skipHints.length)
+      ? char.replyConfig.skipHints
+      : ['对方看到了，但暂时没有回复。', '对方似乎还在想要说什么。'];
+    inserted = {
+      conversationId: conv.id,
+      sender: 'system',
+      content: skipList[Math.floor(Math.random() * skipList.length)],
+      type: 'system',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: false,
+    };
+  } else {
+    const generated = await generateForCharacter(char.id, { allowChoice: false });
+    const messages = generated && generated.messages ? generated.messages : [];
+    const picked = messages[Math.floor(Math.random() * messages.length)];
+    const content = typeof picked === 'string' ? picked : (picked && picked.content ? picked.content : '');
+    inserted = content ? {
+      conversationId: conv.id,
+      sender: 'character',
+      content,
+      type: 'card',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: false,
+    } : null;
+  }
+
+  if (!inserted) return;
+  await db.messages.add(inserted);
+  await db.conversations.update(conv.id, {
+    lastMessage: inserted.type === 'sticker' ? `[表情] ${inserted.content}` : inserted.content,
+    lastMessageTime: Date.now(),
+  });
+  triggerNotification(char, conv, inserted.content, false);
+  window.dispatchEvent(new CustomEvent('active-message-received', {
+    detail: { conversationId: conv.id, characterId: char.id },
+  }));
+}
+
+async function executeBackgroundReply(conv, char, { forceFallback = false } = {}) {
   try {
     // 1. 清空待回复时间戳
-    await db.conversations.update(conv.id, { pendingReplyAt: null });
+    await db.conversations.update(conv.id, {
+      pendingReplyAt: null,
+      replyWindowStartedAt: null,
+      replyWindowEarliestAt: null,
+      replyWindowDeadlineAt: null,
+      replyWindowNextCheckAt: null,
+    });
+
+    if (forceFallback) {
+      await sendBackgroundNoReplyFallback(conv, char);
+      return;
+    }
 
     const messagesList = await db.messages.where('conversationId').equals(conv.id).sortBy('timestamp');
     
@@ -196,6 +286,12 @@ async function executeBackgroundReply(conv, char) {
     }
 
     let insertedMessages = [];
+
+    const skipChance = Math.min(1, Math.max(0, char.replyConfig && char.replyConfig.skipReplyChance || 0));
+    if (!unansweredChoice && skipChance > 0 && Math.random() < skipChance) {
+      await sendBackgroundNoReplyFallback(conv, char);
+      return;
+    }
 
     if (unansweredChoice) {
       // 答题分支
@@ -264,6 +360,11 @@ async function executeBackgroundReply(conv, char) {
           });
         }
       }
+    }
+
+    if (insertedMessages.length === 0) {
+      await sendBackgroundNoReplyFallback(conv, char);
+      return;
     }
 
     // 角色拼完时独立掷一张表情，与文字是否出现无关

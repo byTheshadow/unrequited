@@ -237,20 +237,28 @@ async function checkAndRotateCharacterStatus(character) {
     if (currentConv) {
       const shouldGoSilent = Math.random() < 0.3;
       if (shouldGoSilent) {
-        await db.conversations.update(state.convId, { 
+        await db.conversations.update(state.convId, {
           silentMode: true,
-          pendingReplyAt: null // 忙碌去了，取消普通回复
+          pendingReplyAt: null,
+          replyWindowStartedAt: null,
+          replyWindowEarliestAt: null,
+          replyWindowDeadlineAt: null,
+          replyWindowNextCheckAt: null,
         });
         state.silentMode = true;
       } else if (currentConv.silentMode) {
-        // 原来是静默模式，现在忙完了自动恢复，进入 9-20 分钟内随机回复周期
-        const minMin = 9;
-        const maxMin = 20;
-        const delayMs = Math.round((minMin * 60 + Math.random() * (maxMin - minMin) * 60) * 1000);
-        const targetTime = Date.now() + delayMs;
-        await db.conversations.update(state.convId, { 
+        // 原来是静默模式，现在按角色设置恢复一个正常回复窗口。
+        const cfg = character.replyConfig || {};
+        const now = Date.now();
+        const minD = Math.max(0, Number(cfg.minReplyDelaySec) || 0);
+        const maxD = Math.max(minD, Number(cfg.maxReplyDelaySec) || 0);
+        await db.conversations.update(state.convId, {
           silentMode: false,
-          pendingReplyAt: targetTime
+          pendingReplyAt: null,
+          replyWindowStartedAt: maxD > 0 ? now : null,
+          replyWindowEarliestAt: maxD > 0 ? now + minD * 1000 : null,
+          replyWindowDeadlineAt: maxD > 0 ? now + maxD * 1000 : null,
+          replyWindowNextCheckAt: maxD > 0 ? now + minD * 1000 : null,
         });
         state.silentMode = false;
       }
@@ -734,9 +742,19 @@ function appendMessage(msg) {
 
   // 🟢 新增：如果收到角色发来的消息，且原定有计时器在倒计时，说明角色提前完成了回复，
   // 我们直接打断并清空 pendingReplyAt，避免二次触发系统保底。
-  if (msg.sender === 'character' && state.conv && state.conv.pendingReplyAt) {
-    db.conversations.update(state.convId, { pendingReplyAt: null }).catch(()=>{});
+  if (msg.sender === 'character' && state.conv && (state.conv.replyWindowDeadlineAt || state.conv.pendingReplyAt)) {
+    db.conversations.update(state.convId, {
+      pendingReplyAt: null,
+      replyWindowStartedAt: null,
+      replyWindowEarliestAt: null,
+      replyWindowDeadlineAt: null,
+      replyWindowNextCheckAt: null,
+    }).catch(()=>{});
     state.conv.pendingReplyAt = null;
+    state.conv.replyWindowStartedAt = null;
+    state.conv.replyWindowEarliestAt = null;
+    state.conv.replyWindowDeadlineAt = null;
+    state.conv.replyWindowNextCheckAt = null;
     cancelTimers();
   }
 
@@ -1189,7 +1207,7 @@ function lastMessageOfThread() {
 
 function canTriggerStickerReply() {
   if (state.isGroup || state.silentMode || !state.conv) return false;
-  if (state.conv.pendingReplyAt) return false;
+  if (state.conv.replyWindowDeadlineAt || state.conv.pendingReplyAt) return false;
   const last = lastMessageOfThread();
   return !!last && last.sender === 'user' && last.type === 'sticker';
 }
@@ -2079,16 +2097,16 @@ async function schedulePendingReply() {
 
   if (maxD === 0) return;
 
-  // 如果已经有等待中的回复，沿用原来的时间
+  // 如果已经有回复窗口，沿用当前窗口，不重新开一个窗口。
   const currentConv = await db.conversations.get(state.convId);
 
   if (
     currentConv &&
-    currentConv.pendingReplyAt &&
-    currentConv.pendingReplyAt > Date.now()
+    (currentConv.replyWindowDeadlineAt || currentConv.pendingReplyAt) &&
+    (currentConv.replyWindowDeadlineAt || currentConv.pendingReplyAt) > Date.now()
   ) {
     if (state.conv) {
-      state.conv.pendingReplyAt = currentConv.pendingReplyAt;
+      Object.assign(state.conv, currentConv);
     }
 
     scheduleTimers();
@@ -2096,96 +2114,88 @@ async function schedulePendingReply() {
     return;
   }
 
-  const delayMs = Math.round(
-    (minD + Math.random() * (maxD - minD)) * 1000
-  );
-
-  const target = Date.now() + delayMs;
+  const startedAt = Date.now();
+  const earliestAt = startedAt + minD * 1000;
+  const deadlineAt = startedAt + maxD * 1000;
 
   await db.conversations.update(state.convId, {
-    pendingReplyAt: target,
+    pendingReplyAt: null,
+    replyWindowStartedAt: startedAt,
+    replyWindowEarliestAt: earliestAt,
+    replyWindowDeadlineAt: deadlineAt,
+    replyWindowNextCheckAt: earliestAt,
   });
 
   if (state.conv) {
-    state.conv.pendingReplyAt = target;
+    state.conv.pendingReplyAt = null;
+    state.conv.replyWindowStartedAt = startedAt;
+    state.conv.replyWindowEarliestAt = earliestAt;
+    state.conv.replyWindowDeadlineAt = deadlineAt;
+    state.conv.replyWindowNextCheckAt = earliestAt;
   }
 
-  // 保留你原有的自定义思考文案和思考阶段
-  showImmediateStatusIndicator();
   scheduleTimers();
   updateStickerReplyButton();
 }
 
-
-
-
-
-function showImmediateStatusIndicator() {
-  if (state.destroyed) return;
-
-  hideTyping();
-  hideShuffling();
-
-  const cfg = (state.character && state.character.replyConfig) || {};
-  const hints = (cfg.thinkingHints && cfg.thinkingHints.length) ? cfg.thinkingHints : DEFAULT_THINKING_HINTS;
-
-  // 🟢 新增：如果当前的 pendingReplyAt 距离现在超过 1 分钟，底部打字泡泡先隐藏，只启动顶部副标题的自定义文案轮播
-  const remain = (state.conv && state.conv.pendingReplyAt) ? (state.conv.pendingReplyAt - Date.now()) : 0;
-  if (remain <= 60000) {
-    showTyping(hints[0]);
-  }
-  
-  startThinkingUI(hints);
-}
-
 function scheduleTimers() {
   cancelTimers({ keepSubtitle: true });
-  if (!state.conv || !state.conv.pendingReplyAt) return;
+  if (!state.conv) return;
 
-  const remain = state.conv.pendingReplyAt - Date.now();
-  if (remain <= 0) { executeReply(); return; }
+  const deadlineAt = state.conv.replyWindowDeadlineAt || state.conv.pendingReplyAt;
+  if (!deadlineAt) return;
 
-  const cfg = (state.character && state.character.replyConfig) || {};
-  const hints = (cfg.thinkingHints && cfg.thinkingHints.length) ? cfg.thinkingHints : DEFAULT_THINKING_HINTS;
-
-  const typingDurationMs = 3000;
-  const shuffleDurationMs = 1500;
-
-  if (remain > typingDurationMs + shuffleDurationMs) {
-    // 🟢 新增：如果在长倒计时期间（>1分钟），且底部气泡被隐藏了，我们在倒计时快进入最后洗牌与输入阶段之前，把自定义的初始思考提示展示出来
-    const triggerBubbleDelay = remain - (typingDurationMs + shuffleDurationMs) - 5000; // 在进入洗牌前 5 秒显示思考泡泡
-    if (triggerBubbleDelay > 0) {
-      state.thinkingTimer = setTimeout(() => {
-        if (state.destroyed) return;
-        showTyping(hints[0]);
-      }, triggerBubbleDelay);
-    }
-
-    // 🟢 以下完全保留你原本的分阶段计时逻辑
-    state.thinkingTimer = setTimeout(() => {
-      if (state.destroyed) return;
-      showShuffling();
-
-      state.thinkingTimer = setTimeout(() => {
-        if (state.destroyed) return;
-        showTyping("正在输入...");
-      }, shuffleDurationMs);
-
-    }, remain - (typingDurationMs + shuffleDurationMs));
-  } else if (remain > typingDurationMs) {
-    showShuffling();
-    state.thinkingTimer = setTimeout(() => {
-      if (state.destroyed) return;
-      showTyping("正在输入...");
-    }, remain - typingDurationMs);
-  } else {
-    showTyping("正在输入...");
+  const earliestAt = state.conv.replyWindowEarliestAt || deadlineAt;
+  const now = Date.now();
+  if (now >= deadlineAt) {
+    executeReply({ forceFallback: true });
+    return;
   }
+
+  const waitUntil = Math.max(now, earliestAt);
+  const decisionDelay = waitUntil > now
+    ? waitUntil - now
+    : Math.min(30000, Math.max(5000, 5000 + Math.random() * 15000));
 
   state.replyTimer = setTimeout(() => {
     if (state.destroyed) return;
-    executeReply();
-  }, remain);
+    attemptReplyWindow();
+  }, decisionDelay);
+
+  const cfg = (state.character && state.character.replyConfig) || {};
+  const hints = (cfg.thinkingHints && cfg.thinkingHints.length) ? cfg.thinkingHints : DEFAULT_THINKING_HINTS;
+  startThinkingUI(hints);
+}
+
+async function attemptReplyWindow() {
+  if (state.destroyed || !state.convId) return;
+  const conv = await db.conversations.get(state.convId);
+  if (!conv) return;
+  state.conv = conv;
+
+  const deadlineAt = conv.replyWindowDeadlineAt || conv.pendingReplyAt;
+  const earliestAt = conv.replyWindowEarliestAt || deadlineAt;
+  if (!deadlineAt) return;
+
+  const now = Date.now();
+  if (now >= deadlineAt) {
+    await executeReply({ forceFallback: true });
+    return;
+  }
+  if (now < earliestAt) {
+    scheduleTimers();
+    return;
+  }
+
+  // 这是窗口内的随机回复机会，不预先生成内容，也不预先确定发送时刻。
+  const progress = Math.min(1, (now - earliestAt) / Math.max(1, deadlineAt - earliestAt));
+  const chance = Math.min(0.72, 0.18 + progress * 0.42);
+  if (Math.random() < chance) {
+    await executeReply();
+    return;
+  }
+
+  scheduleTimers();
 }
 
 
@@ -2322,7 +2332,60 @@ async function incrementFragmentResonance(characterId, text) {
   }
 }
 
-async function executeReply() {
+async function sendNoReplyFallback(charId, cfg) {
+  await markLatestUserUnreadAsRead();
+
+  // 不回复分支只允许系统提示或纯字卡兜底，绝不抽表情包。
+  if (Math.random() < 0.5) {
+    const skipList = (cfg.skipHints && cfg.skipHints.length)
+      ? cfg.skipHints
+      : DEFAULT_SKIP_HINTS;
+    const sysMsg = {
+      conversationId: state.convId,
+      sender: 'system',
+      content: pick(skipList),
+      type: 'system',
+      status: 'sent',
+      quotedMessageId: null,
+      timestamp: Date.now(),
+      isRead: true,
+    };
+    const sysId = await db.messages.add(sysMsg);
+    sysMsg.id = sysId;
+    appendMessage(sysMsg);
+    await persistConvSummary();
+    updateStickerReplyButton();
+    return;
+  }
+
+  const generated = await generateForCharacter(charId, { allowChoice: false });
+  const messages = generated && generated.messages ? generated.messages : [];
+  const picked = messages[Math.floor(Math.random() * messages.length)];
+  const content = typeof picked === 'string' ? picked : (picked && picked.content ? picked.content : '');
+  if (!content) {
+    toast('对方暂时没有组织好要说的话', 2200);
+    updateStickerReplyButton();
+    return;
+  }
+
+  const card = {
+    conversationId: state.convId,
+    sender: 'character',
+    content,
+    type: 'card',
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: true,
+  };
+  const id = await db.messages.add(card);
+  card.id = id;
+  appendMessage(card);
+  await persistConvSummary();
+  updateStickerReplyButton();
+}
+
+async function executeReply({ forceFallback = false } = {}) {
   cancelTimers();
 
   if (state.destroyed) return;
@@ -2336,8 +2399,20 @@ async function executeReply() {
   const charId = charRef.id;
   const charLinkedDeckIds = Array.isArray(charRef.linkedDeckIds) ? charRef.linkedDeckIds : [];
 
-  await db.conversations.update(state.convId, { pendingReplyAt: null });
-  if (state.conv) state.conv.pendingReplyAt = null;
+  await db.conversations.update(state.convId, {
+    pendingReplyAt: null,
+    replyWindowStartedAt: null,
+    replyWindowEarliestAt: null,
+    replyWindowDeadlineAt: null,
+    replyWindowNextCheckAt: null,
+  });
+  if (state.conv) {
+    state.conv.pendingReplyAt = null;
+    state.conv.replyWindowStartedAt = null;
+    state.conv.replyWindowEarliestAt = null;
+    state.conv.replyWindowDeadlineAt = null;
+    state.conv.replyWindowNextCheckAt = null;
+  }
 
   const cfg = charRef.replyConfig || {};
   const quoteChance = typeof cfg.quoteChance === 'number'
@@ -2349,41 +2424,12 @@ async function executeReply() {
 
   const userChoice = findLatestUnansweredUserChoice();
 
-  // 没有待回答的用户选项时，才允许触发“跳过回复”
-  if (!userChoice) {
+  // 没有待回答的用户选项时，才允许触发“不回复”分支。
+  if (forceFallback || !userChoice) {
     const skipChance = Math.min(1, Math.max(0, cfg.skipReplyChance || 0));
 
-    if (skipChance > 0 && Math.random() < skipChance) {
-      const skipList = (cfg.skipHints && cfg.skipHints.length)
-        ? cfg.skipHints
-        : DEFAULT_SKIP_HINTS;
-
-      await markLatestUserUnreadAsRead();
-
-      const stickerDelivered = await maybeDeliverReplySticker();
-      if (stickerDelivered) {
-        await persistConvSummary();
-        updateStickerReplyButton();
-        return;
-      }
-
-      const sysMsg = {
-        conversationId: state.convId,
-        sender: 'system',
-        content: pick(skipList),
-        type: 'system',
-        status: 'sent',
-        quotedMessageId: null,
-        timestamp: Date.now(),
-        isRead: true,
-      };
-
-      const sysId = await db.messages.add(sysMsg);
-      sysMsg.id = sysId;
-
-      appendMessage(sysMsg);
-      await persistConvSummary();
-      updateStickerReplyButton();
+    if (forceFallback || (skipChance > 0 && Math.random() < skipChance)) {
+      await sendNoReplyFallback(charId, cfg);
       return;
     }
   }
@@ -2481,13 +2527,7 @@ async function executeReply() {
 
   if ((!messages || !messages.length) && (!choices || !choices.length)) {
     hideTyping();
-    const stickerDelivered = await maybeDeliverReplySticker();
-    if (stickerDelivered) {
-      await persistConvSummary();
-      updateStickerReplyButton();
-      return;
-    }
-    updateStickerReplyButton();
+    await sendNoReplyFallback(charId, cfg);
     toast(
       reason === 'no_fragments'
         ? '此角色暂无可用的字卡内容'
@@ -4136,13 +4176,8 @@ async function checkPendingReplyOnVisible() {
   if (conv.pendingQuoteId) {
     state.pendingQuoteId = conv.pendingQuoteId;
   }
-  if (conv.pendingReplyAt) {
-    const remain = conv.pendingReplyAt - Date.now();
-    if (remain <= 0) {
-      executeReply();
-    } else {
-      scheduleTimers();
-    }
+  if (conv.replyWindowDeadlineAt || conv.pendingReplyAt) {
+    scheduleTimers();
   } else {
     cancelTimers({ keepSubtitle: false });
   }
@@ -6030,24 +6065,25 @@ root.querySelector('[data-act=menu]').addEventListener('click', openChatMenu);
       updateStickerReplyButton();
       
       if (!state.silentMode) {
-        // 用户手动关闭静默模式 -> 触发 1 - 20 分钟内随机回复周期
-        const minMin = 1;
-        const maxMin = 20;
-        const delayMs = Math.round((minMin * 60 + Math.random() * (maxMin - minMin) * 60) * 1000);
-        const targetTime = Date.now() + delayMs;
-        
-        await db.conversations.update(state.convId, { pendingReplyAt: targetTime });
-        if (state.conv) state.conv.pendingReplyAt = targetTime;
-        
+        // 用户手动关闭静默模式：按角色设置开启正常回复窗口。
+        await schedulePendingReply();
         toast('对方已恢复接收，正在默默感知留言');
-        
-        // 🟢 唤醒你原本的自定义思考状态与时间分段逻辑
-        showImmediateStatusIndicator();
-        scheduleTimers();
       } else {
-        // 用户手动开启静默模式 -> 取消当前还没发生的回复倒计时
-        await db.conversations.update(state.convId, { pendingReplyAt: null });
-        if (state.conv) state.conv.pendingReplyAt = null;
+        // 用户手动开启静默模式：取消当前回复窗口。
+        await db.conversations.update(state.convId, {
+          pendingReplyAt: null,
+          replyWindowStartedAt: null,
+          replyWindowEarliestAt: null,
+          replyWindowDeadlineAt: null,
+          replyWindowNextCheckAt: null,
+        });
+        if (state.conv) {
+          state.conv.pendingReplyAt = null;
+          state.conv.replyWindowStartedAt = null;
+          state.conv.replyWindowEarliestAt = null;
+          state.conv.replyWindowDeadlineAt = null;
+          state.conv.replyWindowNextCheckAt = null;
+        }
         cancelTimers();
         toast('已开启静默投递');
       }

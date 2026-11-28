@@ -241,6 +241,46 @@ export function render(root) {
         <!-- 板块二 -->
         <section class="tut-section">
           <div class="section-number">二</div>
+          <h2 class="section-title">字 卡 类 型 与 互 动</h2>
+
+          <div class="section-content">
+            <p>
+              除了普通的文字字卡之外，
+              目前还支持
+              <span class="tut-highlight">表情包</span>、
+              <span class="tut-highlight">语音</span>
+              以及
+              <span class="tut-highlight">礼物</span>
+              等不同类型的字卡。
+            </p>
+
+            <p>
+              如果你单独发送了一张表情包，
+              可以点击输入栏旁边的
+              <span class="tut-highlight">沙漏按钮</span>，
+              手动进入角色回复流程。
+              角色会按照原有的回复时间和字卡逻辑进行回应。
+            </p>
+
+            <p>
+              礼物卡片可以由你发送给爱人，
+              也可以由爱人发送给你。
+              你们都可以为礼物配置名称、描述和赠言，
+              并将它作为一份特别的心意放进聊天时间线。
+            </p>
+
+            <p>
+              现在支持
+              <span class="tut-highlight">群聊模式</span>。
+              你可以和你的爱人们在同一个群聊里聊天和回复，
+              也可以让爱人们按照各自的字卡库自主发言。
+            </p>
+          </div>
+        </section>
+
+        <!-- 板块三 -->
+        <section class="tut-section">
+          <div class="section-number">三</div>
           <h2 class="section-title">音 乐 播 放 器 & 片 刻 & 漂 流 瓶</h2>
 
           <div class="section-content">
@@ -272,9 +312,9 @@ export function render(root) {
           </div>
         </section>
 
-        <!-- 板块三 -->
+        <!-- 板块四 -->
         <section class="tut-section">
-          <div class="section-number">三</div>
+          <div class="section-number">四</div>
           <h2 class="section-title">共 时 星 骰</h2>
 
           <div class="section-content">
@@ -302,9 +342,9 @@ export function render(root) {
           </div>
         </section>
 
-        <!-- 板块四 -->
+        <!-- 板块五 -->
         <section class="tut-section">
-          <div class="section-number">四</div>
+          <div class="section-number">五</div>
           <h2 class="section-title">占 卜</h2>
 
           <div class="section-content">
@@ -327,9 +367,9 @@ export function render(root) {
           </div>
         </section>
 
-        <!-- 板块五 -->
+        <!-- 板块六 -->
         <section class="tut-section">
-          <div class="section-number">五</div>
+          <div class="section-number">六</div>
           <h2 class="section-title">未 知 与 寄 语</h2>
 
           <div class="section-content">
@@ -345,6 +385,46 @@ export function render(root) {
           </div>
         </section>
 
+        <!-- 板块七 -->
+        <section class="tut-section">
+          <div class="section-number">七</div>
+          <h2 class="section-title">备 份</h2>
+
+          <div class="section-content">
+            <p>
+              网站现在支持将数据上传到
+              <span class="tut-highlight">GitHub 仓库</span>
+              进行备份。
+            </p>
+
+            <p>
+              你可以在设置页配置 GitHub 仓库、分支和备份路径，
+              也可以手动执行备份或开启自动备份。
+            </p>
+
+            <p>
+              GitHub 访问令牌只保存在当前设备中，
+              不会写入备份文件。
+            </p>
+
+            <p>
+              <span class="tut-highlight">如何进行 GitHub 备份：</span>
+              打开设置页的数据管理区域，在 GitHub 备份中填写
+              Fine-grained Token、仓库地址、分支和备份路径。
+              仓库地址格式为“用户名/仓库名”，例如
+              <span class="tut-highlight">example/unrequited-backup</span>。
+              保存配置后，点击“立即备份到 GitHub”即可上传完整数据。
+            </p>
+
+            <p>
+              如果需要定期备份，可以打开自动备份开关，
+              系统每天最多自动备份一次。
+              建议为 Token 只授予目标仓库的 Contents 写入权限，
+              不要使用权限过大的访问令牌。
+            </p>
+          </div>
+        </section>
+
         <!-- 页脚 -->
         <footer class="tut-footer">
           <p>愿你在冷寂的星空，找到可以栖息的涟漪。</p>
@@ -353,13 +433,13 @@ export function render(root) {
 
           <div class="author-credits">
             <p>作者小红书：昼夜交影　|　by shadow</p>
-            <p>最后更新时间：10月29日</p>
+            <p>最后更新时间：11月28日</p>
 
             <div class="update-log">
               <p>本 次 更 新</p>
-              <p>· 备份系统更新：支持完整导出与安全导入</p>
-              <p>· 新增群聊、检查功能</p>
-              <p>· 保活系统调整</p>
+              <p>· 新增表情包、语音与礼物字卡</p>
+              <p>· 新增群聊与爱人自主发言</p>
+              <p>· 新增 GitHub 仓库备份</p>
             </div>
 
             <p>

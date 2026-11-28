@@ -868,6 +868,7 @@ async function openDeckSettingSheet(root, deckId) {
         </div>
         <textarea class="textarea" id="d-frags" placeholder="一行一条，直接粘贴进行批量覆盖" spellcheck="false">${escapeHtml((deck.fragments || []).join('\n'))}</textarea>
         <div class="field-hint">直接修改此处内容，保存后将完整覆盖原有字卡（去重并保留匹配项的频次统计）</div>
+        <div class="field-hint">角色礼物字卡格式：礼物：礼物名称|送出时想说的话|图标名。图标名可用 box、flower、letter、cup、moon、star、book、camera；角色有少量概率主动送出。</div>
       </div>
 
       <div class="field">

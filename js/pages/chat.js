@@ -21,6 +21,7 @@ import * as sound from '../lib/sound.js';
 import { CallManager } from '../lib/callManager.js';
 import { GROUP, generateForMember } from '../lib/groupChat.js';
 import { renderMusicCardHTML } from '../lib/musicBarRenderer.js';
+import { listGiftTemplates, saveGiftTemplate } from '../lib/gifts.js';
 // 在其他 import 语句后添加：
 import { getShufflingHTML, getShufflingHint } from '../lib/shufflingRenderer.js';
 import {
@@ -572,6 +573,23 @@ function bubbleHTML(msg, character, user, showTimeSep, opts = {}) {
     `;
   }
 
+  // 礼物卡片与角色的礼物反应
+  if (msg.type === 'gift' || msg.type === 'gift-reaction') {
+    const isUser = msg.sender === 'user';
+    const av = isUser
+      ? avatarHTML(user && user.avatar, (user && user.name) || '我', 32)
+      : avatarHTML(character && character.avatar, (character && character.name) || '?', 32);
+    const giftName = msg.giftName || '礼物';
+    const body = msg.type === 'gift'
+      ? `<div class="msg-gift-card"><div class="msg-gift-icon">${SVG_GIFT}</div><div><strong>${escapeHtml(giftName)}</strong><span>${isUser ? `送给 ${escapeHtml((character && character.name) || '对方')}` : `来自 ${escapeHtml((character && character.name) || '对方')}`}</span></div>${msg.giftDescription ? `<p>${escapeHtml(msg.giftDescription)}</p>` : ''}</div>`
+      : `<div class="msg-body">${escapeHtml(msg.content)}</div>`;
+    return `${timeSep}<div class="msg-row ${isUser ? 'msg-user' : 'msg-char'} msg-gift-row" data-id="${msg.id}">
+      ${!isUser ? `<div class="msg-avatar ${showMeta ? '' : 'msg-avatar-ghost'}">${av}</div>` : ''}
+      <div class="msg-bubble-wrap">${isGroup && !isUser && showMeta ? `<div class="msg-who">${escapeHtml((character && character.name) || '')}</div>` : ''}<div class="msg-bubble">${body}</div>${isUser ? '<div class="msg-meta"><span class="msg-read">已送达</span></div>' : ''}</div>
+      ${isUser ? `<div class="msg-avatar">${av}</div>` : ''}
+    </div>`;
+  }
+
   const isUser = msg.sender === 'user';
   const av = isUser
     ? avatarHTML(user && user.avatar, (user && user.name) || '我', 32)
@@ -766,6 +784,7 @@ async function persistConvSummary() {
   if (!last) return;
   let text = last.content;
   if (last.type === 'sticker') text = `[表情] ${last.content || '表情'}`;
+  if (last.type === 'gift') text = `[礼物] ${last.giftName || last.content || '礼物'}`;
   if (state.isGroup && last.sender !== 'system' && last.sender !== 'sync') {
     const name = last.sender === 'user'
       ? ((state.user && state.user.name) || '我')
@@ -1171,6 +1190,58 @@ async function sendSticker(sticker) {
   updateStickerReplyButton();
 }
 
+const SVG_GIFT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M4 10h16M12 10v10M12 10V6M8 6h8"/><path d="M8 6c-2.8 0-3.2-3.5-.8-3.5C9.1 2.5 12 6 12 6M16 6c2.8 0 3.2-3.5.8-3.5C14.9 2.5 12 6 12 6"/></svg>';
+
+async function openGiftEditor(template = {}) {
+  const draft = { id: template.id || null, name: template.name || '', description: template.description || '', icon: template.icon || 'box' };
+  const { root, close } = openSheet({
+    title: draft.id ? '编辑礼物' : '配置新的礼物',
+    body: `<div class="gift-compose"><div class="gift-compose-head"><span class="msg-gift-icon">${SVG_GIFT}</span><input class="input-field" data-gift-field="name" maxlength="32" placeholder="礼物名称" value="${escapeAttr(draft.name)}"></div><textarea class="input-field gift-compose-desc" data-gift-field="description" maxlength="120" rows="3" placeholder="送出时想说的话">${escapeHtml(draft.description)}</textarea><div class="gift-compose-count" data-gift-count>${draft.description.length}/120</div></div>`,
+    actions: `<button class="btn btn-ghost" data-act="gift-editor-cancel">取消</button><button class="btn btn-primary" data-act="gift-editor-save">保存</button>`,
+    maxHeight: '70vh',
+  });
+  const nameInput = root.querySelector('[data-gift-field=name]');
+  const descInput = root.querySelector('[data-gift-field=description]');
+  const saveBtn = root.querySelector('[data-act=gift-editor-save]');
+  const sync = () => { draft.name = nameInput.value; draft.description = descInput.value; saveBtn.disabled = !draft.name.trim(); root.querySelector('[data-gift-count]').textContent = `${draft.description.length}/120`; };
+  nameInput.addEventListener('input', sync); descInput.addEventListener('input', sync); sync();
+  root.querySelector('[data-act=gift-editor-cancel]')?.addEventListener('click', close);
+  saveBtn.addEventListener('click', async () => { try { await saveGiftTemplate(draft); close(); await openGiftSheet(); } catch (e) { toast(e.message || '保存失败'); } });
+  nameInput.focus();
+}
+
+async function openGiftSheet() {
+  if (state.isGroup) { toast('群聊暂不支持赠送礼物'); return; }
+  closeStickerPanels();
+  const templates = await listGiftTemplates();
+  let selectedId = templates[0]?.id || null;
+  const { root, close } = openSheet({
+    title: '送一份礼物',
+    body: `<div class="gift-sheet-hint">会作为一条消息出现在聊天里</div><div class="gift-list">${templates.length ? templates.map((gift) => `<div class="gift-item"><button class="gift-option" data-gift-id="${gift.id}" type="button"><span class="gift-option-icon">${SVG_GIFT}</span><span><strong>${escapeHtml(gift.name)}</strong><small>${escapeHtml(gift.description || '一份想送给对方的心意')}</small></span></button><button class="gift-edit" data-gift-edit="${gift.id}" type="button" aria-label="编辑 ${escapeAttr(gift.name)}">${ICON.edit || ICON.more}</button></div>`).join('') : '<div class="gift-empty">还没有礼物。先配置一份，之后可以反复送出。</div>'}</div><button class="gift-create" data-act="gift-create" type="button">${SVG_PLUS}配置新的礼物</button>`,
+    actions: `<button class="btn btn-ghost" data-act="gift-cancel">取消</button><button class="btn btn-primary" data-act="gift-send" ${selectedId ? '' : 'disabled'}>送出礼物</button>`,
+    maxHeight: '76vh',
+  });
+  const sendBtn = root.querySelector('[data-act=gift-send]');
+  const select = (id) => { selectedId = id; root.querySelectorAll('[data-gift-id]').forEach((el) => el.classList.toggle('selected', String(el.dataset.giftId) === String(id))); };
+  root.querySelectorAll('[data-gift-id]').forEach((el) => { el.addEventListener('click', () => { select(Number(el.dataset.giftId)); }); });
+  if (selectedId) select(selectedId);
+  root.querySelector('[data-act=gift-cancel]')?.addEventListener('click', close);
+  root.querySelector('[data-act=gift-create]')?.addEventListener('click', () => { close(); openGiftEditor(); });
+  root.querySelectorAll('[data-gift-edit]').forEach((el) => el.addEventListener('click', async (event) => { event.stopPropagation(); const gift = templates.find((item) => item.id === Number(el.dataset.giftEdit)); if (gift) { close(); await openGiftEditor(gift); } }));
+  sendBtn?.addEventListener('click', async () => { const gift = templates.find((item) => item.id === selectedId); if (gift) { close(); await sendGift(gift); } });
+}
+
+async function sendGift(gift) {
+  if (!gift || !state.convId) return;
+  const msg = { conversationId: state.convId, sender: 'user', content: gift.description || gift.name, type: 'gift', giftName: gift.name, giftDescription: gift.description || '', giftIcon: gift.icon || 'box', timestamp: Date.now(), isRead: false, status: 'sent' };
+  haptic(8); playUserSound();
+  msg.id = await db.messages.add(msg);
+  appendMessage(msg);
+  await persistConvSummary();
+  if (!state.silentMode) await schedulePendingReply();
+  else toast('礼物已静默送达');
+}
+
 async function maybeDeliverReplySticker() {
   if (state.destroyed || state.isGroup) return false;
   if (Math.random() >= STICKER_REPLY_STICKER_CHANCE) return false;
@@ -1326,6 +1397,11 @@ function bindStickerToolsEvents() {
     const el = e.target.closest('[data-act]');
     if (!el) return;
     const act = el.getAttribute('data-act');
+    if (act === 'open-gift') {
+      haptic(8);
+      openGiftSheet();
+      return;
+    }
     if (act === 'open-draft') {
       haptic(6);
       closeStickerPanels();
@@ -2385,6 +2461,29 @@ async function sendNoReplyFallback(charId, cfg) {
   updateStickerReplyButton();
 }
 
+async function sendCharacterGift(gift, characterId) {
+  const msg = {
+    conversationId: state.convId,
+    sender: 'character',
+    senderCharacterId: characterId,
+    content: gift.description || gift.name,
+    type: 'gift',
+    giftName: gift.name,
+    giftDescription: gift.description || '',
+    giftIcon: gift.icon || 'box',
+    status: 'sent',
+    quotedMessageId: null,
+    timestamp: Date.now(),
+    isRead: true,
+  };
+  msg.id = await db.messages.add(msg);
+  if (!state.destroyed) {
+    hideTyping();
+    appendMessage(msg);
+    playCharSound();
+  }
+}
+
 async function executeReply({ forceFallback = false } = {}) {
   cancelTimers();
 
@@ -2521,9 +2620,17 @@ async function executeReply({ forceFallback = false } = {}) {
   const generated = await generateForCharacter(charId);
   const messages = generated && generated.messages ? generated.messages : [];
   const choices = generated && generated.choices ? generated.choices : [];
+  const gifts = generated && generated.gifts ? generated.gifts : [];
   const reason = generated && generated.reason;
 
   if (state.destroyed) return;
+
+  if (gifts.length) {
+    for (const gift of gifts) await sendCharacterGift(gift, charId);
+    await persistConvSummary();
+    updateStickerReplyButton();
+    return;
+  }
 
   if ((!messages || !messages.length) && (!choices || !choices.length)) {
     hideTyping();
@@ -4558,7 +4665,7 @@ function stickerToolsHTML() {
           <span class="sticker-tool-icon">${ICON.spark}</span>
           <span class="sticker-tool-label">触发</span>
         </button>
-        <button class="sticker-tool muted" data-act="sticker-gift-soon" disabled>
+        <button class="sticker-tool" data-act="open-gift">
           <span class="sticker-tool-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M4 10h16M12 10V6M8 6h8"/></svg></span>
           <span class="sticker-tool-label">礼物</span>
         </button>
@@ -6066,6 +6173,33 @@ ${stickerToolsHTML()}
         .group-members { display: flex; flex-direction: column; gap: 10px; }
         .group-member { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--color-text-secondary); }
 
+        .msg-gift-card { display:flex; align-items:center; gap:10px; min-width:150px; padding:2px 1px; }
+        .msg-gift-icon, .msg-gift-reaction-mark { color:var(--color-accent); display:inline-flex; align-items:center; justify-content:center; }
+        .msg-gift-card strong { display:block; font-size:14px; color:var(--color-text-primary); }
+        .msg-gift-card span { display:block; margin-top:3px; font-size:11px; color:var(--color-text-secondary); }
+        .msg-gift-reaction { display:flex; align-items:flex-start; gap:8px; line-height:1.65; }
+        .gift-sheet-hint { margin-bottom:12px; color:var(--color-text-secondary); font-size:13px; }
+        .gift-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+        .gift-list { display:flex; flex-direction:column; gap:8px; max-height:46vh; overflow:auto; }
+        .gift-item { display:flex; align-items:center; gap:6px; }
+        .gift-option { display:flex; align-items:center; gap:10px; flex:1; min-width:0; padding:11px 12px; text-align:left; border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-bg-secondary); transition:border-color var(--transition-speed), background-color var(--transition-speed), transform .15s ease; }
+        .gift-option.selected, .gift-option:active { border-color:color-mix(in srgb, var(--color-accent) 55%, transparent); background:color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-secondary)); }
+        .gift-option:active { transform:scale(.985); }
+        .gift-option-icon { width:38px; height:38px; display:grid; place-items:center; flex:none; color:var(--color-accent); border:1px solid var(--color-border); border-radius:var(--radius-sm); background:color-mix(in srgb, var(--color-accent) 7%, transparent); }
+        .gift-option-icon svg { width:21px; height:21px; }
+        .gift-option strong { display:block; font-size:14px; font-weight:500; color:var(--color-text-primary); }
+        .gift-option small { display:block; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--color-text-secondary); font-size:11px; }
+        .gift-edit { width:34px; height:34px; flex:none; display:grid; place-items:center; color:var(--color-text-secondary); border-radius:50%; }
+        .gift-edit:active { color:var(--color-text-primary); background:var(--color-bg-tertiary); }
+        .gift-create { width:100%; min-height:44px; margin-top:10px; display:flex; align-items:center; justify-content:center; gap:6px; color:var(--color-text-secondary); border:1px dashed var(--color-border); border-radius:var(--radius-md); font-size:13px; }
+        .gift-create:active { color:var(--color-text-primary); border-color:var(--color-accent); }
+        .gift-empty { padding:18px 10px; text-align:center; color:var(--color-text-secondary); font-size:13px; line-height:1.7; }
+        .gift-compose { display:flex; flex-direction:column; gap:10px; padding:14px; border:1px solid var(--color-border); border-radius:var(--radius-lg); background:var(--color-bg-secondary); }
+        .gift-compose-head { display:flex; align-items:center; gap:10px; }
+        .gift-compose-head .input-field { flex:1; min-width:0; }
+        .gift-compose-desc { min-height:82px; resize:vertical; }
+        .gift-compose-count { text-align:right; color:var(--color-text-tertiary); font-size:11px; }
+        .msg-gift-card p { margin:10px 0 0; padding-top:9px; border-top:1px dashed color-mix(in srgb, var(--color-bubble-text) 20%, transparent); color:color-mix(in srgb, var(--color-bubble-text) 82%, transparent); font-size:12px; line-height:1.6; }
       </style>
       <style id="chat-user-css"></style>
     </div>

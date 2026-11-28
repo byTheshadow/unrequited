@@ -1,5 +1,6 @@
 import { db } from './db.js';
 import { randInt, pick } from './utils.js';
+import { parseGiftFragment } from './lib/gifts.js';
 
 export const CHOICE_PREFIX = '??';
 export const MAX_CHOICE_OPTIONS = 5;
@@ -116,7 +117,7 @@ export function generateMessages(fragments, config = {}) {
   const pureRandom = !!config.pureRandom;
   const joiner = typeof config.joiner === 'string' ? config.joiner : '';
 
-  const normalFragments = fragments.filter((f) => !isChoiceFragment(f));
+  const normalFragments = fragments.filter((f) => !isChoiceFragment(f) && !parseGiftFragment(f));
   const source = normalFragments.length ? normalFragments : fragments;
 
   const msgCount = randInt(minMsgs, maxMsgs);
@@ -145,14 +146,22 @@ export function generateChoiceFromFragments(fragments) {
 
 export async function generateForCharacter(characterId, options = {}) {
   const char = await db.characters.get(characterId);
-  if (!char) return { messages: [], reason: 'no_character', choices: [] };
+  if (!char) return { messages: [], reason: 'no_character', choices: [], gifts: [] };
 
   const fragments = await getFragmentsForCharacter(characterId);
-  if (!fragments.length) return { messages: [], reason: 'no_fragments', choices: [] };
+  if (!fragments.length) return { messages: [], reason: 'no_fragments', choices: [], gifts: [] };
+
+  const giftFragments = fragments.map(parseGiftFragment).filter(Boolean);
+  const normalFragments = fragments.filter((fragment) => !parseGiftFragment(fragment));
 
   const cfg = char.replyConfig || {};
   const choiceChance = Math.min(1, Math.max(0, cfg.choiceChance ?? 0));
   const allowChoice = options.allowChoice !== false;
+
+  const giftChance = Math.min(1, Math.max(0, cfg.giftChance ?? 0.08));
+  if (giftFragments.length && normalFragments.length && Math.random() < giftChance) {
+    return { messages: [], choices: [], gifts: [pick(giftFragments)], reason: 'ok' };
+  }
 
   if (allowChoice && choiceChance > 0 && Math.random() < choiceChance) {
     const choice = generateChoiceFromFragments(fragments);
@@ -160,15 +169,17 @@ export async function generateForCharacter(characterId, options = {}) {
       return {
         messages: [],
         choices: [choice],
+        gifts: [],
         reason: 'ok',
       };
     }
   }
 
-  const messages = generateMessages(fragments, cfg);
+  const messages = generateMessages(normalFragments, cfg);
   return {
     messages,
     choices: [],
+    gifts: [],
     reason: 'ok',
   };
 }

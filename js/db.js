@@ -112,6 +112,51 @@ db.version(9).stores({
   stickers: '++id, packId, createdAt, lastUsedAt',
 });
 
+// 升级至版本 10：礼物库存与赠送记录
+db.version(10).stores({
+  user: '++id',
+  characters: '++id, name, createdAt',
+  conversations: '++id, characterId, type, pinned, lastMessageTime',
+  messages: '++id, conversationId, timestamp, sender, senderCharacterId',
+  decks: '++id, name, bindCharacterId, createdAt',
+  divinationHistory: '++id, type, timestamp',
+  statusPool: '++id',
+  settings: 'key',
+  missRecords: '++id, characterId, timestamp, isRead',
+  driftLetters: '++id, characterId, timestamp, type, isRead',
+  longFragments: '++id, content, createdAt',
+  musicPlaylist: '++id, name, url, bindCharacterId',
+  moments: '++id, image, caption, timestamp, expiryTimestamp',
+  momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments',
+  stickerPacks: '++id, name, createdAt, kind',
+  stickers: '++id, packId, createdAt, lastUsedAt',
+  giftInventory: '++id, giftId, updatedAt',
+  giftRecords: '++id, giftId, characterId, conversationId, timestamp',
+});
+
+// 升级至版本 11：礼物改为可反复使用的自定义模板，不再有库存或消耗。
+db.version(11).stores({
+  user: '++id',
+  characters: '++id, name, createdAt',
+  conversations: '++id, characterId, type, pinned, lastMessageTime',
+  messages: '++id, conversationId, timestamp, sender, senderCharacterId',
+  decks: '++id, name, bindCharacterId, createdAt',
+  divinationHistory: '++id, type, timestamp',
+  statusPool: '++id',
+  settings: 'key',
+  missRecords: '++id, characterId, timestamp, isRead',
+  driftLetters: '++id, characterId, timestamp, type, isRead',
+  longFragments: '++id, content, createdAt',
+  musicPlaylist: '++id, name, url, bindCharacterId',
+  moments: '++id, image, caption, timestamp, expiryTimestamp',
+  momentInteractions: '++id, momentId, characterId, characterName, scheduledTime, reactionIcon, fragments',
+  stickerPacks: '++id, name, createdAt, kind',
+  stickers: '++id, packId, createdAt, lastUsedAt',
+  giftInventory: '++id, giftId, updatedAt',
+  giftRecords: '++id, giftId, characterId, conversationId, timestamp',
+  giftTemplates: '++id, name, createdAt, updatedAt',
+});
+
 // 系统内置默认字卡配置
 const DEFAULT_PRESET_DECKS = [
   {

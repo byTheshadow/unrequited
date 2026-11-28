@@ -1048,6 +1048,11 @@ function setStickerPanelMode(mode) {
   }
   const tools = document.getElementById('sticker-tools');
   if (tools) {
+    // 面板内按钮可能仍保留焦点，先移出焦点再设置 aria-hidden，避免把聚焦元素藏进无障碍树之外。
+    const active = document.activeElement;
+    if (mode !== 'tools' && active && tools.contains(active) && typeof active.blur === 'function') {
+      active.blur();
+    }
     tools.classList.toggle('open', mode === 'tools');
     tools.setAttribute('aria-hidden', mode === 'tools' ? 'false' : 'true');
   }
@@ -1190,7 +1195,7 @@ async function sendSticker(sticker) {
   updateStickerReplyButton();
 }
 
-const SVG_GIFT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M4 10h16M12 10v10M12 10V6M8 6h8"/><path d="M8 6c-2.8 0-3.2-3.5-.8-3.5C9.1 2.5 12 6 12 6M16 6c2.8 0 3.2-3.5.8-3.5C14.9 2.5 12 6 12 6"/></svg>';
+const SVG_GIFT = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h16v10H4z"/><path d="M3 7h18v2.5H3z"/><path d="M12 7v12.5"/><path d="M12 7c-1.6-3.4-5.6-3.2-5.1-.9C7.2 7.7 10 7 12 7Z"/><path d="M12 7c1.6-3.4 5.6-3.2 5.1-.9C16.8 7.7 14 7 12 7Z"/></svg>';
 
 async function openGiftEditor(template = {}) {
   const draft = { id: template.id || null, name: template.name || '', description: template.description || '', icon: template.icon || 'box' };
@@ -4666,7 +4671,7 @@ function stickerToolsHTML() {
           <span class="sticker-tool-label">触发</span>
         </button>
         <button class="sticker-tool" data-act="open-gift">
-          <span class="sticker-tool-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M4 10h16M12 10V6M8 6h8"/></svg></span>
+          <span class="sticker-tool-icon">${SVG_GIFT}</span>
           <span class="sticker-tool-label">礼物</span>
         </button>
       </div>

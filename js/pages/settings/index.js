@@ -424,6 +424,7 @@ function renderKeepAliveSection() {
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
   };
   const playlist = state.keepAlivePlaylist || [];
+  const hasCustomAudio = playlist.length > 0;
   return `
     <section class="settings-section" data-section="keepalive">
       <div class="section-title">后 台 保 活</div>
@@ -439,16 +440,21 @@ function renderKeepAliveSection() {
         </div>
       </div>
       <div class="ka-playlist" data-role="keepalive-playlist">
-        ${playlist.length ? playlist.map((item, index) => `
+        ${hasCustomAudio ? playlist.map((item, index) => `
           <div class="ka-playlist-item">
             <span class="ka-playlist-index">${index + 1}</span>
             <span class="ka-playlist-name">${escapeHtml(item.name || '未命名音频')}</span>
             <span class="ka-playlist-duration">${formatDuration(item.duration)}</span>
             <button class="btn btn-inline btn-danger" data-act="remove-keepalive-audio" data-index="${index}" type="button">移除</button>
-          </div>`).join('') : '<div class="ka-playlist-empty">还没有保活音频</div>'}
+          </div>`).join('') : `
+          <div class="ka-default-card">
+            <span class="ka-default-icon">静</span>
+            <span class="ka-default-copy"><strong>默认静音保活音频</strong><small>10:00 · 开启后无限循环</small></span>
+            <span class="ka-default-badge">当前使用</span>
+          </div>`}
       </div>
       <label class="btn btn-inline ka-upload-keepalive">
-        添加音频
+        ${hasCustomAudio ? '继续添加音频' : '添加自定义音频'}
         <input type="file" accept="audio/*" multiple hidden data-act="upload-keepalive">
       </label>
       <div class="ka-url-row">
@@ -456,7 +462,7 @@ function renderKeepAliveSection() {
         <button class="btn btn-inline" data-act="add-keepalive-url" type="button">添加 URL</button>
       </div>
       <div class="section-desc">
-        通过音频维持后台运行，用于让角色的自动回复在切后台后仍能触发。音频只会在保活开启时循环播放；Android Chrome 有效，iOS 只能延缓被暂停的时间。
+        未上传自定义音频时，使用上面的默认静音音频循环播放。上传后会改用你的音频；支持歌单循环或单曲循环。保活只在开启时播放，Android Chrome 有效，iOS 只能延缓被暂停的时间。
       </div>
     </section>
   `;
@@ -529,25 +535,27 @@ function renderDataSection() {
         <div class="row-label">从 JSON 导入</div>
         <div class="row-chev">${chev()}</div>
       </button>
-      <button class="row row-btn" data-act="wipe-data" type="button">
-        <div class="row-label" style="color:#dc2626">清空所有数据</div>
+      <button class="row row-btn row-danger" data-act="wipe-data" type="button">
+        <div class="row-label">清空所有数据</div>
         <div class="row-chev">${chev()}</div>
       </button>
       <div class="section-desc">
         导入采用覆盖模式：只清空备份里包含的表，其余数据保持不动。备份会把图片、语音以 base64 写进同一个 JSON，文件可能很大。
       </div>
       <div class="github-backup" data-section="github-backup">
-        <div class="row-label">GitHub 备份</div>
-        <input type="password" data-role="github-token" placeholder="Fine-grained PAT" value="${escapeAttr(g.token || '')}">
-        <input type="text" data-role="github-repo" placeholder="用户名/私有仓库" value="${escapeAttr(g.repo || '')}">
-        <div class="github-backup-row">
-          <input type="text" data-role="github-branch" placeholder="分支" value="${escapeAttr(g.branch || 'main')}">
-          <input type="text" data-role="github-path" placeholder="备份路径" value="${escapeAttr(g.path || '')}">
+        <div class="github-heading">
+          <div><div class="row-label">GitHub 私有备份</div><div class="github-subtitle">把完整本地数据保存到你指定的仓库</div></div>
+          <span class="github-mark">GIT</span>
         </div>
-        <label class="github-auto"><input type="checkbox" data-role="github-auto" ${g.auto ? 'checked' : ''}> 允许自动备份（每天最多一次）</label>
-        <button class="btn btn-full" data-act="github-backup" type="button">立即备份到 GitHub</button>
+        <label class="github-field"><span>访问令牌</span><input type="password" data-role="github-token" placeholder="Fine-grained PAT" value="${escapeAttr(g.token || '')}"></label>
+        <label class="github-field"><span>私有仓库</span><input type="text" data-role="github-repo" placeholder="用户名/仓库名" value="${escapeAttr(g.repo || '')}"></label>
+        <div class="github-backup-row">
+          <label class="github-field"><span>分支</span><input type="text" data-role="github-branch" placeholder="main" value="${escapeAttr(g.branch || 'main')}"></label>
+          <label class="github-field"><span>文件路径</span><input type="text" data-role="github-path" placeholder="backups/unrequited-backup.json" value="${escapeAttr(g.path || '')}"></label>
+        </div>
+        <div class="github-actions"><label class="github-auto"><input type="checkbox" data-role="github-auto" ${g.auto ? 'checked' : ''}> 每天最多自动备份一次</label><button class="btn btn-primary github-submit" data-act="github-backup" type="button">立即备份</button></div>
         <div class="github-backup-status${needsReminder ? ' is-warning' : ''}">${escapeHtml(backupStatus)}</div>
-        <div class="section-desc">只建议使用私有仓库和仅限目标仓库 Contents 写入权限的 Fine-grained Token。Token 只保存在本机，不会写入数据备份包。</div>
+        <div class="github-note">建议使用仅限目标仓库 Contents 写入权限的 Fine-grained Token。Token 只保存在本机，不会写入数据备份包。</div>
       </div>
     </section>
   `;
@@ -1216,6 +1224,7 @@ function pageCSS() {
     .row + .row { border-top: 1px solid var(--color-border); }
     .row-btn { cursor: pointer; }
     .row-btn:active { background: var(--color-bg-tertiary); }
+    .row-danger .row-label { color: var(--color-accent); }
     .row-vertical { flex-direction: column; align-items: stretch; gap: 8px; }
     .row-vertical .row-header { display: flex; justify-content: space-between; align-items: center; }
     .row-label { font-size: 14px; color: var(--color-text-primary); }
@@ -1229,18 +1238,31 @@ function pageCSS() {
     .ka-playlist-item { display: flex; align-items: center; gap: 8px; min-height: 38px; border-bottom: 1px solid var(--color-border); }
     .ka-playlist-index, .ka-playlist-duration { color: var(--color-text-tertiary); font-size: 11px; }
     .ka-playlist-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: 12px; }
-    .ka-playlist-empty { padding: 12px 0; color: var(--color-text-tertiary); font-size: 12px; }
+    .ka-default-card { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg-tertiary); }
+    .ka-default-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9px; color: var(--color-accent); border: 1px solid var(--color-border); font-size: 12px; }
+    .ka-default-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+    .ka-default-copy strong { color: var(--color-text-primary); font-size: 12px; font-weight: 500; }
+    .ka-default-copy small { color: var(--color-text-tertiary); font-size: 11px; }
+    .ka-default-badge { color: var(--color-accent); font-size: 10px; white-space: nowrap; }
     .ka-upload-keepalive { margin: 0 16px 12px; }
     .ka-url-row { display: flex; gap: 8px; margin: 0 16px 12px; }
     .ka-url-row input { min-width: 0; flex: 1; padding: 7px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); font-size: 12px; }
-    .github-backup { display: grid; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--color-border); }
-    .github-backup input[type="text"], .github-backup input[type="password"] { width: 100%; padding: 8px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); font-size: 12px; }
-    .github-backup-row { display: flex; gap: 8px; }
-    .github-backup-row input:first-child { width: 28%; }
-    .github-backup-row input:last-child { flex: 1; min-width: 0; }
-    .github-auto { color: var(--color-text-secondary); font-size: 12px; }
+    .github-backup { display: grid; gap: 12px; margin: 4px 12px 14px; padding: 14px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-tertiary); }
+    .github-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .github-subtitle { margin-top: 4px; color: var(--color-text-tertiary); font-size: 11px; }
+    .github-mark { padding: 4px 7px; border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text-tertiary); font-size: 9px; letter-spacing: 1px; }
+    .github-field { display: grid; gap: 5px; min-width: 0; }
+    .github-field > span { color: var(--color-text-tertiary); font-size: 10px; letter-spacing: 1px; }
+    .github-backup input[type="text"], .github-backup input[type="password"] { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-secondary); color: var(--color-text-primary); font-size: 12px; outline: none; }
+    .github-backup input:focus { border-color: var(--color-accent); }
+    .github-backup-row { display: grid; grid-template-columns: 0.7fr 1.3fr; gap: 8px; }
+    .github-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .github-auto { display: flex; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 11px; }
+    .github-auto input { accent-color: var(--color-accent); }
+    .github-submit { flex-shrink: 0; padding: 8px 13px; font-size: 12px; }
     .github-backup-status { color: var(--color-text-tertiary); font-size: 12px; line-height: 1.5; }
     .github-backup-status.is-warning { color: var(--color-accent); }
+    .github-note { color: var(--color-text-tertiary); font-size: 10px; line-height: 1.6; }
 
     .switch { position: relative; width: 44px; height: 26px; flex-shrink: 0;
       border-radius: 999px; background: var(--color-bg-tertiary);

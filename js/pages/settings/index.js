@@ -7,6 +7,7 @@ import {
 import { setTheme, getCurrentTheme, setAnimEnabled } from '../../themeManager.js';
 import * as sound from '../../lib/sound.js';
 import * as keepAlive from '../../lib/keepAlive.js';
+import * as githubBackup from '../../lib/githubBackup.js';
 
 const THEMES = [
   { id: 'minimal-dark',  name: '极简 · 夜' },
@@ -69,6 +70,8 @@ const CALL_SKINS = [
   // { id: 'cyberpunk', name: '赛博朋克' }
 ];
 
+const GITHUB_BACKUP_REMINDER_DAYS = 7;
+
 let state = {};
 let rootRef = null;
 
@@ -89,6 +92,7 @@ export async function render(root) {
     keepAliveOn: false,
     keepAlivePlaylist: [],
     keepAliveLoopMode: 'playlist',
+    githubBackup: { token: '', repo: '', branch: 'main', path: 'backups/unrequited-backup.json', auto: false },
     animEnabled: (localStorage.getItem('animEnabled') ?? '1') === '1',
     currentTheme: getCurrentTheme(),
     ai: { baseUrl: '', apiKey: '', model: '', models: [] },
@@ -106,6 +110,19 @@ export async function render(root) {
   state.keepAliveOn = await keepAlive.loadEnabled();
   state.keepAlivePlaylist = await keepAlive.loadPlaylist();
   state.keepAliveLoopMode = await keepAlive.loadLoopMode();
+  const savedGithubBackup = await getSetting('github.backup', state.githubBackup);
+  state.githubBackup = {
+    ...state.githubBackup,
+    ...(savedGithubBackup && typeof savedGithubBackup === 'object' ? savedGithubBackup : {}),
+    token: githubBackup.loadToken(),
+  };
+  // 旧版本曾把 Token 写入 settings，迁移时只保留非敏感配置。
+  if (savedGithubBackup?.token) {
+    githubBackup.saveToken(savedGithubBackup.token);
+    const { token: _discarded, ...safeConfig } = savedGithubBackup;
+    await setSetting('github.backup', safeConfig);
+    state.githubBackup = { ...state.githubBackup, ...safeConfig };
+  }
 
   state.ai.baseUrl = await getSetting('ai.baseUrl', '') || '';
   state.ai.apiKey  = await getSetting('ai.apiKey', '')  || '';
@@ -493,6 +510,14 @@ function renderAISection() {
 /* ---------- 数据管理 ---------- */
 
 function renderDataSection() {
+  const g = state.githubBackup || {};
+  const hasConfig = !!(g.token && g.repo && g.path);
+  const lastBackup = Number(g.lastUploadedAt || 0);
+  const ageDays = lastBackup ? (Date.now() - lastBackup) / 86400000 : Infinity;
+  const needsReminder = hasConfig && ageDays >= GITHUB_BACKUP_REMINDER_DAYS;
+  const backupStatus = lastBackup
+    ? `上次备份：${formatBackupTime(lastBackup)}${needsReminder ? ' · 建议现在备份一次' : ''}`
+    : (hasConfig ? '尚未完成过 GitHub 备份' : '配置私有仓库后，可把完整数据上传到 GitHub');
   return `
     <section class="settings-section">
       <div class="section-title">数 据 管 理</div>
@@ -510,6 +535,19 @@ function renderDataSection() {
       </button>
       <div class="section-desc">
         导入采用覆盖模式：只清空备份里包含的表，其余数据保持不动。备份会把图片、语音以 base64 写进同一个 JSON，文件可能很大。
+      </div>
+      <div class="github-backup" data-section="github-backup">
+        <div class="row-label">GitHub 备份</div>
+        <input type="password" data-role="github-token" placeholder="Fine-grained PAT" value="${escapeAttr(g.token || '')}">
+        <input type="text" data-role="github-repo" placeholder="用户名/私有仓库" value="${escapeAttr(g.repo || '')}">
+        <div class="github-backup-row">
+          <input type="text" data-role="github-branch" placeholder="分支" value="${escapeAttr(g.branch || 'main')}">
+          <input type="text" data-role="github-path" placeholder="备份路径" value="${escapeAttr(g.path || '')}">
+        </div>
+        <label class="github-auto"><input type="checkbox" data-role="github-auto" ${g.auto ? 'checked' : ''}> 允许自动备份（每天最多一次）</label>
+        <button class="btn btn-full" data-act="github-backup" type="button">立即备份到 GitHub</button>
+        <div class="github-backup-status${needsReminder ? ' is-warning' : ''}">${escapeHtml(backupStatus)}</div>
+        <div class="section-desc">只建议使用私有仓库和仅限目标仓库 Contents 写入权限的 Fine-grained Token。Token 只保存在本机，不会写入数据备份包。</div>
       </div>
     </section>
   `;
@@ -532,6 +570,8 @@ function rebindMain() {
   main.oninput = onMainInput;
   main.onchange = onMainChange;
   main.onblur = null;
+  const githubAuto = main.querySelector('[data-role="github-auto"]');
+  if (githubAuto) githubAuto.onchange = () => saveGitHubConfigFromUI(false);
   // blur 事件不冒泡，需在具体输入上绑
   const $base = main.querySelector('#ai-base-url');
   const $key = main.querySelector('#ai-api-key');
@@ -744,6 +784,9 @@ async function onMainClick(e) {
     case 'export-data':
       await handleExport();
       break;
+    case 'github-backup':
+      await handleGitHubBackup();
+      break;
     case 'import-data':
       await handleImport();
       break;
@@ -845,31 +888,71 @@ async function handleFetchModels() {
 const BACKUP_VERSION = 2;
 
 async function handleExport() {
-  const tables = db.tables.slice();
-  const data = {};
-
-  // 大文件 stringify 会阻塞主线程，先让 toast 渲染出来
-  toast('正在打包，请稍候…');
-  await new Promise((r) => setTimeout(r, 30));
-
-  for (const t of tables) {
-    try {
-      data[t.name] = await t.toArray();
-    } catch (err) {
-      toast(`导出失败：表 ${t.name} 读取失败${err && err.message ? '（' + err.message + '）' : ''}`);
-      return;
-    }
-  }
-
-  const payload = {
-    version: BACKUP_VERSION,
-    exportedAt: Date.now(),
-    tables: tables.map((t) => t.name),
-    data,
-  };
+  const payload = await buildBackupPayload();
+  if (!payload) return;
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   downloadJSON(`unrequited-backup-${stamp}.json`, payload);
-  toast(`已导出 ${tables.length} 张表`);
+  toast(`已导出 ${payload.tables.length} 张表`);
+}
+
+async function buildBackupPayload() {
+  const tables = db.tables.slice();
+  const data = {};
+  toast('正在打包，请稍候…');
+  await new Promise((r) => setTimeout(r, 30));
+  for (const t of tables) {
+    try { data[t.name] = await t.toArray(); }
+    catch (err) { toast(`导出失败：表 ${t.name} 读取失败`); return null; }
+  }
+  return { version: BACKUP_VERSION, exportedAt: Date.now(), tables: tables.map((t) => t.name), data };
+}
+
+async function handleGitHubBackup() {
+  const section = rootRef.querySelector('[data-section="github-backup"]') || rootRef.querySelector('.github-backup');
+  const read = (role, fallback = '') => section.querySelector(`[data-role="${role}"]`)?.value.trim() || fallback;
+  const token = read('github-token');
+  const repo = read('github-repo');
+  const branch = read('github-branch', 'main');
+  const path = read('github-path', 'backups/unrequited-backup.json');
+  if (!token || !repo || !path) { toast('请填写 Token、仓库和备份路径'); return; }
+  if (!/^[^/]+\/[^/]+$/.test(repo)) { toast('仓库格式应为 用户名/仓库名'); return; }
+  githubBackup.saveToken(token);
+  state.githubBackup = {
+    ...state.githubBackup,
+    repo,
+    branch,
+    path,
+    auto: !!section.querySelector('[data-role="github-auto"]')?.checked,
+    token,
+  };
+  await saveGitHubConfigFromUI(false);
+  const payload = await buildBackupPayload();
+  if (!payload) return;
+  try {
+    const result = await githubBackup.uploadBackup({ token, repo, branch, path, payload });
+    state.githubBackup.lastUploadedAt = result.uploadedAt;
+    await saveGitHubConfigFromUI(false);
+    toast('已备份到 GitHub');
+    refreshGitHubBackupSection();
+  } catch (err) { toast(`GitHub 备份失败：${err.message || '网络错误'}`); }
+}
+
+async function saveGitHubConfigFromUI(showToast = true) {
+  const section = rootRef?.querySelector('[data-section="github-backup"]');
+  if (!section) return;
+  const read = (role, fallback = '') => section.querySelector(`[data-role="${role}"]`)?.value.trim() || fallback;
+  const token = read('github-token') || githubBackup.loadToken();
+  if (token) githubBackup.saveToken(token);
+  const safeConfig = {
+    repo: read('github-repo'),
+    branch: read('github-branch', 'main'),
+    path: read('github-path', 'backups/unrequited-backup.json'),
+    auto: !!section.querySelector('[data-role="github-auto"]')?.checked,
+    ...(state.githubBackup?.lastUploadedAt ? { lastUploadedAt: state.githubBackup.lastUploadedAt } : {}),
+  };
+  state.githubBackup = { ...state.githubBackup, ...safeConfig, token };
+  await setSetting('github.backup', safeConfig);
+  if (showToast) toast('GitHub 备份设置已保存');
 }
 
 function parseBackup(json) {
@@ -1021,6 +1104,17 @@ function refreshAISection() {
   rebindMain();
 }
 
+function refreshGitHubBackupSection() {
+  const old = rootRef && rootRef.querySelector('[data-section="github-backup"]');
+  if (!old) return;
+  const section = old.closest('.settings-section');
+  if (!section) return;
+  const holder = document.createElement('div');
+  holder.innerHTML = renderDataSection().trim();
+  section.replaceWith(holder.firstElementChild);
+  rebindMain();
+}
+
 function fileToDataURL(file) {
   return new Promise((resolve, reject) => {
     const r = new FileReader();
@@ -1028,6 +1122,17 @@ function fileToDataURL(file) {
     r.onerror = reject;
     r.readAsDataURL(file);
   });
+}
+
+function formatBackupTime(timestamp) {
+  try {
+    return new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }).format(new Date(timestamp));
+  } catch (_) {
+    return new Date(timestamp).toLocaleString();
+  }
 }
 
 function readAudioDuration(file) {
@@ -1128,6 +1233,14 @@ function pageCSS() {
     .ka-upload-keepalive { margin: 0 16px 12px; }
     .ka-url-row { display: flex; gap: 8px; margin: 0 16px 12px; }
     .ka-url-row input { min-width: 0; flex: 1; padding: 7px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); font-size: 12px; }
+    .github-backup { display: grid; gap: 8px; padding: 12px 16px 14px; border-top: 1px solid var(--color-border); }
+    .github-backup input[type="text"], .github-backup input[type="password"] { width: 100%; padding: 8px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); font-size: 12px; }
+    .github-backup-row { display: flex; gap: 8px; }
+    .github-backup-row input:first-child { width: 28%; }
+    .github-backup-row input:last-child { flex: 1; min-width: 0; }
+    .github-auto { color: var(--color-text-secondary); font-size: 12px; }
+    .github-backup-status { color: var(--color-text-tertiary); font-size: 12px; line-height: 1.5; }
+    .github-backup-status.is-warning { color: var(--color-accent); }
 
     .switch { position: relative; width: 44px; height: 26px; flex-shrink: 0;
       border-radius: 999px; background: var(--color-bg-tertiary);

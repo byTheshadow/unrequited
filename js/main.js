@@ -1,8 +1,9 @@
 import { initRouter } from './router.js';
 import { initTheme } from './themeManager.js';
-import { initDB } from './db.js';
+import { db, initDB } from './db.js';
 import * as scheduler from './lib/scheduler.js';
 import * as keepAlive from './lib/keepAlive.js';
+import * as githubBackup from './lib/githubBackup.js';
 import { CallManager } from './lib/callManager.js';
 import { MissManager } from './lib/missManager.js';
 import { runAwayChat } from './lib/groupChat.js';
@@ -24,6 +25,9 @@ async function boot() {
 
     // 群聊离场结算：每次启动，每个群每个成员各自掷一次骰
     await runAwayChat();
+
+    // GitHub 自动备份：每天最多一次，不阻塞应用启动。
+    void runScheduledGitHubBackup();
 
     // 后台保活：如果上次是开着的，等第一次用户交互时静默恢复
     // （浏览器要求音频必须由用户手势触发，所以不能直接在 boot 里 start）
@@ -74,6 +78,32 @@ async function boot() {
         console.warn('SW register failed:', e);
       });
     });
+  }
+}
+
+async function runScheduledGitHubBackup() {
+  try {
+    const configRow = await db.settings.get('github.backup');
+    const config = configRow?.value;
+    if (!config?.auto || !config.repo || !config.path) return;
+    const token = githubBackup.loadToken();
+    if (!token) return;
+    const last = Number(config.lastUploadedAt || 0);
+    if (last && Date.now() - last < 24 * 60 * 60 * 1000) return;
+    const payload = await githubBackup.buildBackupPayload(db);
+    const result = await githubBackup.uploadBackup({
+      token,
+      repo: config.repo,
+      branch: config.branch || 'main',
+      path: config.path,
+      payload,
+    });
+    await db.settings.put({
+      key: 'github.backup',
+      value: { ...config, lastUploadedAt: result.uploadedAt },
+    });
+  } catch (err) {
+    console.warn('GitHub auto backup skipped:', err);
   }
 }
 

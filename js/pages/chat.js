@@ -468,10 +468,12 @@ function bubbleHTML(msg, character, user, showTimeSep, opts = {}) {
       callLabel = '通话已结束';
     }
 
-    // 拼装微信风格通话气泡，内含电话图标
+    const callIcon = callData.status === 'finished' ? SVG_PHONE : (isUser ? SVG_PHONE_OFF : SVG_PHONE);
+
+    // 拼装微信风格通话气泡，图标与文字保持在同一行
     const body = `
       <div class="msg-body msg-call-body">
-        <span class="call-bubble-icon">${isUser ? SVG_PHONE_OFF : SVG_PHONE}</span>
+        <span class="call-bubble-icon">${callIcon}</span>
         <span class="call-bubble-text">${escapeHtml(callLabel)}</span>
       </div>
     `;
@@ -5184,6 +5186,20 @@ ${stickerToolsHTML()}
           white-space: pre-wrap;
           word-break: break-word;
         }
+        .msg-call-body {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          white-space: nowrap;
+        }
+        .call-bubble-icon {
+          display: inline-flex;
+          align-items: center;
+          flex: none;
+          line-height: 0;
+        }
+        .call-bubble-icon svg { display: block; }
+        .call-bubble-text { white-space: nowrap; }
         .msg-meta {
           font-size: 10px;
           color: var(--color-text-tertiary);

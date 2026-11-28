@@ -1003,26 +1003,40 @@ class MusicPlayer {
     window.addEventListener('user-avatar-updated', () => {
       this.updateUserCover();
     });
+
+    window.addEventListener('hashchange', () => {
+      const hash = location.hash || '#/';
+      if (hash === '#/' || hash === '#/home') {
+        this.startAlignWithMoonIcon();
+      } else {
+        const stray = document.getElementById('music-page-trigger-btn');
+        if (stray && !stray.closest('.home-header')) {
+          stray.remove();
+        }
+      }
+    });
   }
 
-  // 轮询并在星轨/月相图标右侧并排挂载“音乐符号触发器”
+  // 轮询并在首页顶部导航栏月相图标旁挂载“音乐符号触发器”
   startAlignWithMoonIcon() {
-    const alignTimer = setInterval(() => {
-      const moonElement = document.querySelector('#moon-phase, .moon-phase, [class*="moon"], [id*="moon"]') ||
-        Array.from(document.querySelectorAll('button, a, div, span')).find(el => el.textContent.includes('月相'));
+    // 先清理任何误挂在 body 或其他页面的游离按钮
+    const stray = document.getElementById('music-page-trigger-btn');
+    if (stray && !stray.closest('.home-header')) {
+      stray.remove();
+    }
 
-      if (moonElement) {
-        // 双重保险：强制防止月相组件在真机布局下因空间挤压而垂直换行
+    const alignTimer = setInterval(() => {
+      const moonElement = document.querySelector('.home-header .moon-widget');
+
+      if (moonElement && moonElement.parentNode && moonElement.parentNode.classList.contains('home-header')) {
         moonElement.style.flexShrink = '0';
         moonElement.style.whiteSpace = 'nowrap';
 
-        if (!document.querySelector('#music-page-trigger-btn')) {
-          const musicPageBtn = document.createElement(moonElement.tagName.toLowerCase() === 'button' ? 'button' : 'div');
+        if (!moonElement.parentNode.querySelector('#music-page-trigger-btn')) {
+          const musicPageBtn = document.createElement('button');
           musicPageBtn.id = 'music-page-trigger-btn';
-          musicPageBtn.className = moonElement.className + ' music-page-trigger-btn';
-          if (musicPageBtn.tagName.toLowerCase() === 'button') {
-            musicPageBtn.type = 'button';
-          }
+          musicPageBtn.className = 'top-btn music-page-trigger-btn';
+          musicPageBtn.type = 'button';
 
           // 音乐触发小按钮 (极细笔触)
           musicPageBtn.innerHTML = `
@@ -1036,7 +1050,7 @@ class MusicPlayer {
           
           musicPageBtn.onclick = (e) => {
             e.stopPropagation();
-            this.playlistPage.show(); // 点击主界面按钮，可以直接呼出设置子页面
+            this.playlistPage.show();
           };
           
           moonElement.parentNode.insertBefore(musicPageBtn, moonElement.nextSibling);

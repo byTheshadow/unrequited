@@ -93,6 +93,7 @@ export async function render(root) {
     keepAlivePlaylist: [],
     keepAliveLoopMode: 'playlist',
     githubBackup: { token: '', repo: '', branch: 'main', path: 'backups/unrequited-backup.json', auto: false },
+    githubTokenRevealed: false,
     animEnabled: (localStorage.getItem('animEnabled') ?? '1') === '1',
     currentTheme: getCurrentTheme(),
     ai: { baseUrl: '', apiKey: '', model: '', models: [] },
@@ -524,8 +525,10 @@ function renderDataSection() {
   const backupStatus = lastBackup
     ? `上次备份：${formatBackupTime(lastBackup)}${needsReminder ? ' · 建议现在备份一次' : ''}`
     : (hasConfig ? '尚未完成过 GitHub 备份' : '配置私有仓库后，可把完整数据上传到 GitHub');
+  const tokenType = state.githubTokenRevealed ? 'text' : 'password';
+
   return `
-    <section class="settings-section">
+    <section class="settings-section" data-section="data-and-backup">
       <div class="section-title">数 据 管 理</div>
       <button class="row row-btn" data-act="export-data" type="button">
         <div class="row-label">导出全部内容</div>
@@ -542,20 +545,46 @@ function renderDataSection() {
       <div class="section-desc">
         导入采用覆盖模式：只清空备份里包含的表，其余数据保持不动。备份会把图片、语音以 base64 写进同一个 JSON，文件可能很大。
       </div>
-      <div class="github-backup" data-section="github-backup">
-        <div class="github-heading">
-          <div><div class="row-label">GitHub 私有备份</div><div class="github-subtitle">把完整本地数据保存到你指定的仓库</div></div>
-          <span class="github-mark">GIT</span>
+
+      <div class="section-divider"></div>
+      <div class="section-title" style="padding-top: 14px;">G I T H U B   私 有 备 份</div>
+      <div data-section="github-backup">
+        <div class="input-row">
+          <div class="input-label">访 问 令 牌 ( P A T )</div>
+          <div class="input-field">
+            <input type="${tokenType}" data-role="github-token" placeholder="Fine-grained PAT" value="${escapeAttr(g.token || '')}" autocomplete="off">
+            <button class="eye-btn" data-act="toggle-github-eye" type="button" aria-label="显示或隐藏">${state.githubTokenRevealed ? eyeOff() : eye()}</button>
+          </div>
         </div>
-        <label class="github-field"><span>访问令牌</span><input type="password" data-role="github-token" placeholder="Fine-grained PAT" value="${escapeAttr(g.token || '')}"></label>
-        <label class="github-field"><span>私有仓库</span><input type="text" data-role="github-repo" placeholder="用户名/仓库名" value="${escapeAttr(g.repo || '')}"></label>
-        <div class="github-backup-row">
-          <label class="github-field"><span>分支</span><input type="text" data-role="github-branch" placeholder="main" value="${escapeAttr(g.branch || 'main')}"></label>
-          <label class="github-field"><span>文件路径</span><input type="text" data-role="github-path" placeholder="backups/unrequited-backup.json" value="${escapeAttr(g.path || '')}"></label>
+        <div class="input-row">
+          <div class="input-label">私 有 仓 库</div>
+          <div class="input-field">
+            <input type="text" data-role="github-repo" placeholder="用户名/仓库名" value="${escapeAttr(g.repo || '')}">
+          </div>
         </div>
-        <div class="github-actions"><label class="github-auto"><input type="checkbox" data-role="github-auto" ${g.auto ? 'checked' : ''}> 每天最多自动备份一次</label><button class="btn btn-primary github-submit" data-act="github-backup" type="button">立即备份</button></div>
-        <div class="github-backup-status${needsReminder ? ' is-warning' : ''}">${escapeHtml(backupStatus)}</div>
-        <div class="github-note">建议使用仅限目标仓库 Contents 写入权限的 Fine-grained Token。Token 只保存在本机，不会写入数据备份包。</div>
+        <div class="input-row">
+          <div class="input-label">分 支</div>
+          <div class="input-field">
+            <input type="text" data-role="github-branch" placeholder="main" value="${escapeAttr(g.branch || 'main')}">
+          </div>
+        </div>
+        <div class="input-row">
+          <div class="input-label">备 份 路 径</div>
+          <div class="input-field">
+            <input type="text" data-role="github-path" placeholder="backups/unrequited-backup.json" value="${escapeAttr(g.path || 'backups/unrequited-backup.json')}">
+          </div>
+        </div>
+        <div class="row">
+          <div class="row-label">每天最多自动备份一次</div>
+          <div class="switch" data-act="toggle-github-auto" data-on="${g.auto ? '1' : '0'}"></div>
+        </div>
+        <div class="btn-row" style="padding-top: 8px;">
+          <button class="btn btn-full btn-primary" data-act="github-backup" type="button">立即备份到 GitHub</button>
+        </div>
+        <div class="section-desc">
+          <div class="github-backup-status${needsReminder ? ' is-warning' : ''}" style="margin-bottom: 4px;">${escapeHtml(backupStatus)}</div>
+          建议使用仅限目标仓库 Contents 写入权限的 Fine-grained Token。Token 只保存在本机，不会写入数据备份包。
+        </div>
       </div>
     </section>
   `;
@@ -578,8 +607,10 @@ function rebindMain() {
   main.oninput = onMainInput;
   main.onchange = onMainChange;
   main.onblur = null;
-  const githubAuto = main.querySelector('[data-role="github-auto"]');
-  if (githubAuto) githubAuto.onchange = () => saveGitHubConfigFromUI(false);
+  const githubInputs = main.querySelectorAll('[data-section="github-backup"] input');
+  githubInputs.forEach(input => {
+    input.onblur = () => saveGitHubConfigFromUI(false);
+  });
   // blur 事件不冒泡，需在具体输入上绑
   const $base = main.querySelector('#ai-base-url');
   const $key = main.querySelector('#ai-api-key');
@@ -771,6 +802,19 @@ async function onMainClick(e) {
       break;
     }
 
+    case 'toggle-github-eye': {
+      state.githubTokenRevealed = !state.githubTokenRevealed;
+      refreshGitHubBackupSection();
+      break;
+    }
+
+    case 'toggle-github-auto': {
+      state.githubBackup.auto = !state.githubBackup.auto;
+      await saveGitHubConfigFromUI(false);
+      refreshGitHubBackupSection();
+      break;
+    }
+
     case 'fetch-models': {
       await handleFetchModels();
       break;
@@ -930,7 +974,7 @@ async function handleGitHubBackup() {
     repo,
     branch,
     path,
-    auto: !!section.querySelector('[data-role="github-auto"]')?.checked,
+    auto: !!state.githubBackup?.auto,
     token,
   };
   await saveGitHubConfigFromUI(false);
@@ -946,7 +990,7 @@ async function handleGitHubBackup() {
 }
 
 async function saveGitHubConfigFromUI(showToast = true) {
-  const section = rootRef?.querySelector('[data-section="github-backup"]');
+  const section = rootRef?.querySelector('[data-section="github-backup"]') || rootRef?.querySelector('.github-backup');
   if (!section) return;
   const read = (role, fallback = '') => section.querySelector(`[data-role="${role}"]`)?.value.trim() || fallback;
   const token = read('github-token') || githubBackup.loadToken();
@@ -955,7 +999,7 @@ async function saveGitHubConfigFromUI(showToast = true) {
     repo: read('github-repo'),
     branch: read('github-branch', 'main'),
     path: read('github-path', 'backups/unrequited-backup.json'),
-    auto: !!section.querySelector('[data-role="github-auto"]')?.checked,
+    auto: !!state.githubBackup?.auto,
     ...(state.githubBackup?.lastUploadedAt ? { lastUploadedAt: state.githubBackup.lastUploadedAt } : {}),
   };
   state.githubBackup = { ...state.githubBackup, ...safeConfig, token };
@@ -1247,22 +1291,9 @@ function pageCSS() {
     .ka-upload-keepalive { margin: 0 16px 12px; }
     .ka-url-row { display: flex; gap: 8px; margin: 0 16px 12px; }
     .ka-url-row input { min-width: 0; flex: 1; padding: 7px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); font-size: 12px; }
-    .github-backup { display: grid; gap: 12px; margin: 4px 12px 14px; padding: 14px; border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-tertiary); }
-    .github-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-    .github-subtitle { margin-top: 4px; color: var(--color-text-tertiary); font-size: 11px; }
-    .github-mark { padding: 4px 7px; border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text-tertiary); font-size: 9px; letter-spacing: 1px; }
-    .github-field { display: grid; gap: 5px; min-width: 0; }
-    .github-field > span { color: var(--color-text-tertiary); font-size: 10px; letter-spacing: 1px; }
-    .github-backup input[type="text"], .github-backup input[type="password"] { width: 100%; box-sizing: border-box; padding: 9px 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-secondary); color: var(--color-text-primary); font-size: 12px; outline: none; }
-    .github-backup input:focus { border-color: var(--color-accent); }
-    .github-backup-row { display: grid; grid-template-columns: 0.7fr 1.3fr; gap: 8px; }
-    .github-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-    .github-auto { display: flex; align-items: center; gap: 6px; color: var(--color-text-secondary); font-size: 11px; }
-    .github-auto input { accent-color: var(--color-accent); }
-    .github-submit { flex-shrink: 0; padding: 8px 13px; font-size: 12px; }
+    .section-divider { height: 1px; background: var(--color-border); margin: 4px 0 2px; }
     .github-backup-status { color: var(--color-text-tertiary); font-size: 12px; line-height: 1.5; }
     .github-backup-status.is-warning { color: var(--color-accent); }
-    .github-note { color: var(--color-text-tertiary); font-size: 10px; line-height: 1.6; }
 
     .switch { position: relative; width: 44px; height: 26px; flex-shrink: 0;
       border-radius: 999px; background: var(--color-bg-tertiary);

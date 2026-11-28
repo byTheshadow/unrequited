@@ -42,6 +42,32 @@ async function boot() {
 
   initRouter();
 
+  if (keepAlive.consumeInterruptedNotice()) {
+    const notice = document.createElement('aside');
+    notice.className = 'keepalive-global-notice';
+    notice.setAttribute('role', 'status');
+    notice.setAttribute('aria-live', 'polite');
+    notice.innerHTML = `
+      <span class="keepalive-global-notice-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></span>
+      <span class="keepalive-global-notice-copy"><strong>保活已被打断</strong><span>后台音频已经停止，需要重新开启保活。</span></span>
+      <button type="button" data-action="restart">重新开启</button>
+      <button type="button" data-action="dismiss" aria-label="关闭提示">知道了</button>`;
+    document.body.appendChild(notice);
+    requestAnimationFrame(() => notice.classList.add('show'));
+    notice.addEventListener('click', async (event) => {
+      const action = event.target.closest('[data-action]')?.dataset.action;
+      if (!action) return;
+      if (action === 'restart') {
+        const ok = await keepAlive.start();
+        await keepAlive.saveEnabled(true);
+        if (ok) notice.remove();
+      } else {
+        notice.classList.remove('show');
+        setTimeout(() => notice.remove(), 320);
+      }
+    });
+  }
+
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch((e) => {

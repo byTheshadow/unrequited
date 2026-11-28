@@ -70,6 +70,43 @@ input, textarea, select {
   overflow-x: hidden;
 }
 
+.keepalive-global-notice {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  left: 50%;
+  width: min(100%, 480px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) var(--space-md) 10px;
+  transform: translate(-50%, -110%);
+  color: var(--color-text-primary);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 12px 28px -18px var(--color-shadow);
+  transition: transform var(--transition-speed) ease;
+}
+.keepalive-global-notice.show { transform: translate(-50%, 0); }
+.keepalive-global-notice-icon {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+}
+.keepalive-global-notice-icon svg { display: block; }
+.keepalive-global-notice-copy { min-width: 0; flex: 1; font-size: 11px; line-height: 1.45; }
+.keepalive-global-notice-copy strong { display: block; font-size: 12px; font-weight: 500; }
+.keepalive-global-notice button { flex: none; color: var(--color-text-secondary); font-size: 11px; }
+.keepalive-global-notice button[data-action="restart"] { color: var(--color-accent); }
+
 .hidden { display: none !important; }
 
 /* 桌面端居中夹住宽度，模拟手机窗口 */

@@ -87,6 +87,8 @@ export async function render(root) {
     user: null,
     soundCfg: null,
     keepAliveOn: false,
+    keepAlivePlaylist: [],
+    keepAliveLoopMode: 'playlist',
     animEnabled: (localStorage.getItem('animEnabled') ?? '1') === '1',
     currentTheme: getCurrentTheme(),
     ai: { baseUrl: '', apiKey: '', model: '', models: [] },
@@ -102,6 +104,8 @@ export async function render(root) {
 
   state.soundCfg = await sound.loadConfig();
   state.keepAliveOn = await keepAlive.loadEnabled();
+  state.keepAlivePlaylist = await keepAlive.loadPlaylist();
+  state.keepAliveLoopMode = await keepAlive.loadLoopMode();
 
   state.ai.baseUrl = await getSetting('ai.baseUrl', '') || '';
   state.ai.apiKey  = await getSetting('ai.apiKey', '')  || '';
@@ -398,15 +402,44 @@ function renderSoundSection() {
 /* ---------- 后台保活 ---------- */
 
 function renderKeepAliveSection() {
+  const formatDuration = (seconds) => {
+    const s = Math.max(0, Math.floor(Number(seconds) || 0));
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  };
+  const playlist = state.keepAlivePlaylist || [];
   return `
-    <section class="settings-section">
+    <section class="settings-section" data-section="keepalive">
       <div class="section-title">后 台 保 活</div>
       <div class="row">
         <div class="row-label">开 启</div>
         <div class="switch" data-act="toggle-keepalive" data-on="${state.keepAliveOn ? '1' : '0'}"></div>
       </div>
+      <div class="ka-loop-row">
+        <span class="row-label">循 环</span>
+        <div class="ka-loop-mode" role="group" aria-label="保活循环模式">
+          <button class="btn btn-inline ${state.keepAliveLoopMode === 'playlist' ? 'is-on' : ''}" data-act="keepalive-loop" data-mode="playlist" type="button">歌单循环</button>
+          <button class="btn btn-inline ${state.keepAliveLoopMode === 'single' ? 'is-on' : ''}" data-act="keepalive-loop" data-mode="single" type="button">单曲循环</button>
+        </div>
+      </div>
+      <div class="ka-playlist" data-role="keepalive-playlist">
+        ${playlist.length ? playlist.map((item, index) => `
+          <div class="ka-playlist-item">
+            <span class="ka-playlist-index">${index + 1}</span>
+            <span class="ka-playlist-name">${escapeHtml(item.name || '未命名音频')}</span>
+            <span class="ka-playlist-duration">${formatDuration(item.duration)}</span>
+            <button class="btn btn-inline btn-danger" data-act="remove-keepalive-audio" data-index="${index}" type="button">移除</button>
+          </div>`).join('') : '<div class="ka-playlist-empty">还没有保活音频</div>'}
+      </div>
+      <label class="btn btn-inline ka-upload-keepalive">
+        添加音频
+        <input type="file" accept="audio/*" multiple hidden data-act="upload-keepalive">
+      </label>
+      <div class="ka-url-row">
+        <input type="url" data-role="keepalive-url" placeholder="粘贴音频 URL">
+        <button class="btn btn-inline" data-act="add-keepalive-url" type="button">添加 URL</button>
+      </div>
       <div class="section-desc">
-        通过静默音频维持后台运行，用于让角色的自动回复在切后台后仍能触发。Android Chrome 有效；iOS 只能延缓被暂停的时间，锁屏或长时间后台仍会被系统回收。
+        通过音频维持后台运行，用于让角色的自动回复在切后台后仍能触发。音频只会在保活开启时循环播放；Android Chrome 有效，iOS 只能延缓被暂停的时间。
       </div>
     </section>
   `;
@@ -646,6 +679,44 @@ async function onMainClick(e) {
       break;
     }
 
+    case 'keepalive-loop': {
+      state.keepAliveLoopMode = await keepAlive.saveLoopMode(t.getAttribute('data-mode'));
+      refreshKeepAliveSection();
+      toast(state.keepAliveLoopMode === 'single' ? '已切换为单曲循环' : '已切换为歌单循环');
+      break;
+    }
+
+    case 'remove-keepalive-audio': {
+      const index = Number(t.getAttribute('data-index'));
+      const next = state.keepAlivePlaylist.filter((_, i) => i !== index);
+      state.keepAlivePlaylist = await keepAlive.savePlaylist(next);
+      refreshKeepAliveSection();
+      toast('已移除保活音频');
+      break;
+    }
+
+    case 'add-keepalive-url': {
+      const input = rootRef.querySelector('[data-role="keepalive-url"]');
+      const url = input && input.value.trim();
+      if (!url) { toast('请先粘贴音频 URL'); return; }
+      let parsed;
+      try { parsed = new URL(url); } catch (_) { toast('URL 格式不正确'); return; }
+      if (!/^https?:$/.test(parsed.protocol)) { toast('只支持 http 或 https 音频 URL'); return; }
+      try {
+        const duration = await readAudioDuration(url);
+        const name = decodeURIComponent(parsed.pathname.split('/').pop() || '远程音频');
+        state.keepAlivePlaylist = await keepAlive.savePlaylist([
+          ...state.keepAlivePlaylist,
+          { name, duration, data: url, source: 'url' },
+        ]);
+        refreshKeepAliveSection();
+        toast('已添加远程音频');
+      } catch (_) {
+        toast('无法读取这个音频 URL 的时长');
+      }
+      break;
+    }
+
     case 'toggle-eye': {
       state.aiKeyRevealed = !state.aiKeyRevealed;
       refreshAISection();
@@ -698,6 +769,22 @@ async function onMainChange(e) {
     } catch (err) {
       toast('音频读取失败');
     }
+  }
+  if (act === 'upload-keepalive') {
+    const files = [...(t.files || [])];
+    t.value = '';
+    if (!files.length) return;
+    const added = [];
+    for (const file of files) {
+      try {
+        const [data, duration] = await Promise.all([fileToDataURL(file), readAudioDuration(file)]);
+        added.push({ name: file.name, duration, data });
+      } catch (_) { /* 跳过无法读取的音频 */ }
+    }
+    if (!added.length) { toast('音频读取失败'); return; }
+    state.keepAlivePlaylist = await keepAlive.savePlaylist([...state.keepAlivePlaylist, ...added]);
+    refreshKeepAliveSection();
+    toast(`已添加 ${added.length} 首保活音频`);
   }
 }
 
@@ -918,6 +1005,15 @@ function refreshSoundSection() {
   rebindMain();
 }
 
+function refreshKeepAliveSection() {
+  const old = rootRef && rootRef.querySelector('[data-section="keepalive"]');
+  if (!old) return;
+  const holder = document.createElement('div');
+  holder.innerHTML = renderKeepAliveSection().trim();
+  old.replaceWith(holder.firstElementChild);
+  rebindMain();
+}
+
 function refreshAISection() {
   const sec = rootRef.querySelector('[data-section="ai"]');
   if (!sec) return;
@@ -931,6 +1027,26 @@ function fileToDataURL(file) {
     r.onload = () => resolve(r.result);
     r.onerror = reject;
     r.readAsDataURL(file);
+  });
+}
+
+function readAudioDuration(file) {
+  return new Promise((resolve, reject) => {
+    const isFile = typeof file !== 'string';
+    const url = isFile ? URL.createObjectURL(file) : file;
+    const audio = new Audio();
+    const cleanup = () => { if (isFile) URL.revokeObjectURL(url); audio.removeAttribute('src'); };
+    const timer = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 8000);
+    audio.preload = 'metadata';
+    audio.onloadedmetadata = () => {
+      clearTimeout(timer);
+      const duration = Number(audio.duration);
+      cleanup();
+      if (Number.isFinite(duration) && duration > 0) resolve(duration);
+      else reject(new Error('invalid duration'));
+    };
+    audio.onerror = () => { clearTimeout(timer); cleanup(); reject(new Error('audio error')); };
+    audio.src = url;
   });
 }
 
@@ -1001,6 +1117,17 @@ function pageCSS() {
     .row-value { font-size: 12px; color: var(--color-text-secondary); max-width: 60%;
       overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .row-chev { color: var(--color-text-tertiary); flex-shrink: 0; }
+    .ka-loop-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px 12px; }
+    .ka-loop-mode { display: flex; gap: 4px; }
+    .ka-loop-mode .btn.is-on { color: var(--color-text-primary); background: var(--color-bg-tertiary); }
+    .ka-playlist { margin: 0 16px 10px; border-top: 1px solid var(--color-border); }
+    .ka-playlist-item { display: flex; align-items: center; gap: 8px; min-height: 38px; border-bottom: 1px solid var(--color-border); }
+    .ka-playlist-index, .ka-playlist-duration { color: var(--color-text-tertiary); font-size: 11px; }
+    .ka-playlist-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: 12px; }
+    .ka-playlist-empty { padding: 12px 0; color: var(--color-text-tertiary); font-size: 12px; }
+    .ka-upload-keepalive { margin: 0 16px 12px; }
+    .ka-url-row { display: flex; gap: 8px; margin: 0 16px 12px; }
+    .ka-url-row input { min-width: 0; flex: 1; padding: 7px 9px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text-primary); font-size: 12px; }
 
     .switch { position: relative; width: 44px; height: 26px; flex-shrink: 0;
       border-radius: 999px; background: var(--color-bg-tertiary);

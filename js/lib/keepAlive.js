@@ -20,6 +20,14 @@ let osc = null;
 let gain = null;
 let started = false;
 let onVisibility = null;
+let playlist = [];
+let currentIndex = 0;
+let loopMode = 'playlist';
+let stopping = false;
+
+const PLAYLIST_KEY = 'keepAlive.playlist';
+const LOOP_MODE_KEY = 'keepAlive.loopMode';
+const INTERRUPTED_KEY = 'keepAlive.interrupted';
 
 // 将默认时长修改为 600 秒（10分钟），大幅提升后台保活的稳定性
 function makeSilentWavBlob(seconds = 600) {
@@ -62,6 +70,42 @@ export async function saveEnabled(v) {
   await db.settings.put({ key: 'keepAlive.enabled', value: !!v });
 }
 
+export async function loadPlaylist() {
+  const rec = await db.settings.get(PLAYLIST_KEY);
+  playlist = Array.isArray(rec && rec.value) ? rec.value : [];
+  return playlist;
+}
+
+export async function savePlaylist(items) {
+  playlist = Array.isArray(items) ? items : [];
+  currentIndex = Math.min(currentIndex, Math.max(0, playlist.length - 1));
+  await db.settings.put({ key: PLAYLIST_KEY, value: playlist });
+  return playlist;
+}
+
+export async function loadLoopMode() {
+  const rec = await db.settings.get(LOOP_MODE_KEY);
+  loopMode = rec && rec.value === 'single' ? 'single' : 'playlist';
+  return loopMode;
+}
+
+export async function saveLoopMode(mode) {
+  loopMode = mode === 'single' ? 'single' : 'playlist';
+  await db.settings.put({ key: LOOP_MODE_KEY, value: loopMode });
+  if (audio) audio.loop = loopMode === 'single';
+  return loopMode;
+}
+
+export function consumeInterruptedNotice() {
+  const value = localStorage.getItem(INTERRUPTED_KEY) === '1';
+  if (value) localStorage.removeItem(INTERRUPTED_KEY);
+  return value;
+}
+
+function markInterrupted() {
+  if (started && !stopping) localStorage.setItem(INTERRUPTED_KEY, '1');
+}
+
 function setupMediaSession() {
   if (!('mediaSession' in navigator)) return;
   try {
@@ -98,16 +142,35 @@ async function tryPlay() {
 }
 
 async function startAudioElement() {
+  if (!playlist.length) await loadPlaylist();
   if (!audio) {
-    objectUrl = URL.createObjectURL(makeSilentWavBlob(600));
-    audio = new Audio(objectUrl);
-    audio.loop = true;
+    audio = new Audio();
     
     // 【关键修改点】：音量改回 1.0 (最大音量)
     // 物理音频数据是 100% 静音波形，用户听不到声音，但系统会正常显示锁屏卡片
     audio.volume = 1.0; 
     audio.preload = 'auto';
     audio.setAttribute('playsinline', '');
+    audio.addEventListener('ended', () => {
+      if (!started || !playlist.length || loopMode === 'single') return;
+      currentIndex = (currentIndex + 1) % playlist.length;
+      audio.src = playlist[currentIndex].data;
+      tryPlay();
+    });
+    audio.addEventListener('error', markInterrupted);
+    audio.addEventListener('pause', () => {
+      if (started && !stopping && document.visibilityState === 'visible') markInterrupted();
+    });
+  }
+  if (playlist.length) {
+    const item = playlist[currentIndex] || playlist[0];
+    currentIndex = playlist.indexOf(item);
+    audio.loop = loopMode === 'single';
+    if (audio.src !== item.data) audio.src = item.data;
+  } else {
+    if (!objectUrl) objectUrl = URL.createObjectURL(makeSilentWavBlob(600));
+    if (audio.src !== objectUrl) audio.src = objectUrl;
+    audio.loop = true;
   }
   return tryPlay();
 }
@@ -144,6 +207,7 @@ function stopOscillator() {
 }
 
 export async function start() {
+  await loadLoopMode();
   const ok = await startAudioElement();
   startOscillator();
   setupMediaSession();
@@ -153,7 +217,8 @@ export async function start() {
     onVisibility = async () => {
       if (!started) return;
       if (document.visibilityState === 'visible' && audio && audio.paused) {
-        await tryPlay();
+        const ok = await tryPlay();
+        if (!ok) markInterrupted();
         if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
       }
     };
@@ -163,6 +228,7 @@ export async function start() {
 }
 
 export function stop() {
+  stopping = true;
   try { if (audio) audio.pause(); } catch (e) {}
   stopOscillator();
   if (onVisibility) {
@@ -173,7 +239,12 @@ export function stop() {
     try { navigator.mediaSession.playbackState = 'paused'; } catch (e) {}
   }
   started = false;
+  stopping = false;
 }
+
+window.addEventListener('pagehide', () => {
+  if (started) markInterrupted();
+});
 
 export function dispose() {
   stop();
